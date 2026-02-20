@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+// 🌟 TAMBAHAN: Import Link untuk membuat profil bisa diklik
+import { Outlet, useNavigate, useLocation, Link } from 'react-router-dom';
+import Swal from 'sweetalert2';
 
 export default function DashboardLayout() {
     const navigate = useNavigate();
@@ -25,19 +27,78 @@ export default function DashboardLayout() {
         return () => clearInterval(timer);
     }, []);
 
-    const handleLogout = () => {
-        if(window.confirm("Konfirmasi: Apakah Anda yakin ingin keluar dari sistem?")) {
+    const handleLogout = async () => {
+        // 🌟 DIALOG KONFIRMASI LOGOUT PREMIUM
+        const result = await Swal.fire({
+            title: 'Akhiri Sesi Akademik?',
+            html: "<span class='text-slate-500 font-medium text-[14px]'>Anda harus login kembali untuk mengakses portal.</span>",
+            icon: 'question',
+            iconColor: '#d4af37', // Menggunakan warna emas untuk ikon tanya
+            
+            showCancelButton: true,
+            confirmButtonText: 'Ya, Keluar Sekarang',
+            cancelButtonText: 'Tetap di Sini',
+            reverseButtons: true,
+            
+            // 🚨 KUNCI KUSTOMISASI: Matikan styling bawaan Swal
+            buttonsStyling: false, 
+            
+            // 🎨 SUNTIKAN KELAS TAILWIND CSS
+            customClass: {
+                popup: 'rounded-3xl shadow-[0_20px_50px_rgba(8,_112,_184,_0.7)] border-0 p-0 overflow-hidden', // Bentuk popup lebih modern & shadow besar
+                title: 'text-2xl font-black text-slate-800 tracking-tight mt-8', // Tipografi judul yang kuat
+                htmlContainer: 'mb-8', // Jarak teks isi
+                actions: 'bg-slate-50 w-full py-6 px-8 flex gap-4 justify-center border-t border-slate-100 mb-0', // Container tombol di bawah
+                confirmButton: 'px-6 py-3 rounded-xl text-[13px] font-black uppercase tracking-wider shadow-lg shadow-red-500/30 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white transition-all active:scale-95 flex-1 max-w-[200px]', // Tombol konfirmasi merah gradien
+                cancelButton: 'px-6 py-3 rounded-xl text-[13px] font-black uppercase tracking-wider bg-white text-slate-600 border-2 border-slate-200 hover:bg-slate-50 transition-all active:scale-95 flex-1 max-w-[200px]', // Tombol batal minimalis
+            },
+            // Menambahkan sedikit tekstur halus pada background popup
+            background: '#ffffff url("https://www.transparenttextures.com/patterns/cubes.png")',
+            // Backdrop dengan efek blur dan logo samar di latar belakang
+            backdrop: `
+                rgba(15, 76, 58, 0.6)
+                url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='%23d4af37' stroke-opacity='0.2' stroke-linecap='round' stroke-linejoin='round' stroke-width='1'%3E%3Cpath d='M12 14l9-5-9-5-9 5 9 5z'/%3E%3Cpath d='M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z'/%3E%3C/g%3E%3C/svg%3E")
+                center center
+                no-repeat
+            `
+        });
+
+        if (result.isConfirmed) {
             localStorage.clear();
             navigate('/');
+            
+            // Alert kecil di pojok kanan atas setelah berhasil logout
+            const Toast = Swal.mixin({
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 3000,
+                timerProgressBar: true,
+                didOpen: (toast) => {
+                  toast.addEventListener('mouseenter', Swal.stopTimer)
+                  toast.addEventListener('mouseleave', Swal.resumeTimer)
+                }
+            })
+              
+            Toast.fire({
+                icon: 'success',
+                title: 'Anda telah berhasil keluar.'
+            })
         }
     };
 
     // 🌟 MENU DINAMIS BERDASARKAN JABATAN
+   // 🌟 MENU DINAMIS BERDASARKAN JABATAN
     let menuItems = [];
     if (isAdmin) {
+        // 👑 MENU ADMIN SEKARANG JAUH LEBIH BERWIBAWA!
         menuItems = [
-            { path: '/admin', label: 'Master Data & Verifikasi', icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z' }
+            { path: '/admin', label: 'Ikhtisar Sistem', icon: 'M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z' },
+            { path: '/admin/verifikasi', label: 'Verifikasi Pendaftar', icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' },
+            { path: '/admin/pengguna', label: 'Manajemen Pengguna', icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z' },
+            { path: '/admin/matkul', label: 'Master Mata Kuliah', icon: 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253' }
         ];
+    
     } else if (isMahasiswa) {
         // 🌟 MENU BARU KHUSUS MAHASISWA
         menuItems = [
@@ -49,9 +110,10 @@ export default function DashboardLayout() {
         menuItems = [
             { path: '/dashboard', label: 'Ikhtisar Sistem', icon: 'M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z' },
             { path: '/manage-matkul', label: 'Data Mata Kuliah', icon: 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253' },
-            { path: '/manage-questions', label: 'Manajemen Bank Soal', icon: 'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10' },
             { path: '/create-exam', label: 'Penerbitan Ujian', icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' },
-            { path: '/grading', label: 'Penilaian & Evaluasi', icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' }
+            { path: '/manage-questions', label: 'Manajemen Bank Soal', icon: 'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10' },
+            { path: '/grading', label: 'Penilaian & Evaluasi', icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' },
+            { path: '/rekap-nilai', label: 'Rekap Nilai Akhir', icon: 'M9 17v-2m-2-4v-6m6 6v2m2 4v6m2-6v-6m-2 0H9m0 0H7' }
         ];
     }
 
@@ -64,15 +126,18 @@ export default function DashboardLayout() {
             <aside className="w-64 bg-gradient-to-b from-[#0f4c3a] to-[#092e23] text-white flex flex-col shadow-xl z-20 relative font-medium">
                 <div className="absolute inset-0 opacity-[0.03] bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] pointer-events-none"></div>
 
-                <div className="pt-8 pb-6 px-5 border-b border-[#16654e]/50 text-center relative z-10">
-                    <div className="h-16 w-16 mx-auto bg-white/10 backdrop-blur-sm rounded-full flex items-center justify-center text-xl font-black shadow-[0_0_15px_rgba(212,175,55,0.2)] mb-4 border-2 border-[#d4af37]">
+                {/* 🌟 BAGIAN PROFIL YANG SUDAH DIUBAH MENJADI LINK */}
+                <Link to="/profile" className="block pt-8 pb-6 px-5 border-b border-[#16654e]/50 text-center relative z-10 group hover:bg-white/5 transition-all duration-300 cursor-pointer">
+                    <div className="h-16 w-16 mx-auto bg-white/10 backdrop-blur-sm rounded-full flex items-center justify-center text-xl font-black shadow-[0_0_15px_rgba(212,175,55,0.2)] mb-4 border-2 border-[#d4af37] group-hover:scale-110 group-hover:shadow-[0_0_20px_rgba(212,175,55,0.5)] group-hover:border-white transition-all duration-300 relative">
                         {userInitial}
+                        {/* Indikator Online Tambahan Opsional */}
+                        <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-emerald-500 border-2 border-[#0f4c3a] rounded-full"></div>
                     </div>
-                    <h1 className="font-bold text-[13px] tracking-wide mb-1 leading-snug text-white">{userName}</h1>
-                    <div className="mt-2 inline-block bg-[#064e3b]/80 px-3 py-1 rounded text-[9px] font-bold text-[#d4af37] uppercase tracking-widest border border-[#d4af37]/30">
+                    <h1 className="font-bold text-[13px] tracking-wide mb-1 leading-snug text-white group-hover:text-[#d4af37] transition-colors">{userName}</h1>
+                    <div className="mt-2 inline-block bg-[#064e3b]/80 px-3 py-1 rounded text-[9px] font-bold text-[#d4af37] uppercase tracking-widest border border-[#d4af37]/30 group-hover:bg-[#16654e] transition-colors">
                         {userRole}
                     </div>
-                </div>
+                </Link>
 
                 <div className="flex-1 overflow-y-auto py-6 px-3 relative z-10 space-y-1">
                     <p className="px-3 text-[9px] font-bold text-[#6ee7b7]/70 uppercase tracking-[0.15em] mb-3">Navigasi Utama</p>

@@ -1,10 +1,15 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import axios from 'axios';
+import Swal from 'sweetalert2';
 
 export default function ManageQuestions() {
     const [isLoading, setIsLoading] = useState(false);
     const [questionList, setQuestionList] = useState([]);
+    
+    // 🌟 STATE BARU UNTUK DROPDOWN UJIAN
+    const [examList, setExamList] = useState([]); 
+    const [selectedExamId, setSelectedExamId] = useState(''); 
     
     // State Form
     const [editId, setEditId] = useState(null); 
@@ -16,7 +21,19 @@ export default function ManageQuestions() {
     const [kunciJawabanPG, setKunciJawabanPG] = useState(0); // Index untuk PG (0,1,2,3)
     const [kunciEsai, setKunciEsai] = useState(''); // Teks untuk Rubrik Esai
 
-    useEffect(() => { fetchQuestions(); }, []);
+    useEffect(() => { 
+        fetchExams(); // Panggil data ujian saat pertama kali load
+        fetchQuestions(); 
+    }, []);
+
+    // 🌟 FUNGSI BARU: MENARIK DAFTAR UJIAN
+    const fetchExams = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await axios.get('http://localhost:3000/api/exams', { headers: { Authorization: `Bearer ${token}` } });
+            setExamList(response.data.data || []);
+        } catch (error) { console.error("Gagal menarik data ujian.", error); }
+    };
 
     const fetchQuestions = async () => {
         try {
@@ -27,7 +44,17 @@ export default function ManageQuestions() {
     };
 
     const handleSimpanSoal = async (e) => {
-        e.preventDefault(); setIsLoading(true);
+        e.preventDefault(); 
+        
+        // 🌟 VALIDASI: Wajib pilih ujian sebelum simpan
+        if (!selectedExamId) return Swal.fire({
+            icon: 'warning',
+            title: 'Pilih Ujian Terlebih Dahulu!',
+            text: 'Soal harus ditautkan ke sesi ujian yang sudah dibuat.',
+            confirmButtonColor: '#0f4c3a'
+        });
+
+        setIsLoading(true);
         try {
             // 🌟 1. LOGIKA TRANSLATOR (Menerjemahkan bahasa React ke bahasa Database)
             let dbTipeSoal = 'TIPE_1';
@@ -41,7 +68,7 @@ export default function ManageQuestions() {
             // Jika upload, biarkan null
 
             const payload = {
-                exam_id: 5, 
+                exam_id: parseInt(selectedExamId), // 🌟 MENGGUNAKAN ID DARI DROPDOWN (Bukan hardcode 5 lagi)
                 tipe_soal: dbTipeSoal, // Menggunakan TIPE_1 / TIPE_3 / TIPE_4 agar MySQL tidak marah
                 isi_soal: pertanyaan,
                 opsi_jawaban: tipeSoal === 'pg' ? JSON.stringify(opsi) : null,
@@ -52,32 +79,81 @@ export default function ManageQuestions() {
             
             if (editId) {
                 await axios.put(`http://localhost:3000/api/questions/${editId}`, payload, { headers: { Authorization: `Bearer ${token}` } });
-                alert("Perubahan soal berhasil disahkan!");
+                // Setelah axios.post berhasil...
+            Swal.fire({
+                icon: 'success',
+                title: 'Soal Tersimpan!',
+                text: 'Perubahan soal telah disimpan.',
+                confirmButtonColor: '#0f4c3a',
+                timer: 2000,
+                showConfirmButton: false
+            });
             } else {
                 await axios.post('http://localhost:3000/api/questions', payload, { headers: { Authorization: `Bearer ${token}` } });
-                alert("Soal baru berhasil ditambahkan!");
+                // Setelah axios.post berhasil...
+            Swal.fire({
+                icon: 'success',
+                title: 'Soal Tersimpan!',
+                text: 'Soal baru telah masuk ke dalam Bank Soal.',
+                confirmButtonColor: '#0f4c3a',
+                timer: 2000,
+                showConfirmButton: false
+            });
             }
 
             batalEdit();
             fetchQuestions(); 
         } catch (error) { 
             console.error(error);
-            alert("Gagal menyimpan! Periksa koneksi atau console."); 
+            Swal.fire({
+                icon: 'error',
+                title: 'Gagal Menyimpan!',
+                text: 'Terjadi kesalahan saat menyimpan soal. Pastikan Backend sudah diperbarui!',
+                confirmButtonColor: '#0f4c3a'
+            }); 
         } finally { setIsLoading(false); }
     };
 
     const handleHapusSoal = async (id) => {
-        if (!window.confirm("Yakin ingin menghapus butir soal ini permanen?")) return;
-        try {
-            const token = localStorage.getItem('token');
-            await axios.delete(`http://localhost:3000/api/questions/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-            fetchQuestions();
-        } catch (error) { alert("Gagal menghapus soal."); }
+        // 🌟 DIALOG KONFIRMASI HAPUS (Warna Merah)
+        const result = await Swal.fire({
+            title: 'Hapus Soal Ini?',
+            text: "Data soal yang dihapus tidak dapat dikembalikan!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33', // Merah bahaya
+            cancelButtonColor: '#64748b', // Abu-abu
+            confirmButtonText: 'Ya, Hapus Permanen!',
+            cancelButtonText: 'Batal'
+        });
+
+        if (result.isConfirmed) {
+            try {
+                const token = localStorage.getItem('token');
+                await axios.delete(`http://localhost:3000/api/questions/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+                fetchQuestions();
+                
+                // 🌟 NOTIFIKASI TERHAPUS
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Terhapus!',
+                    text: 'Soal berhasil dihapus dari Bank Soal.',
+                    confirmButtonColor: '#0f4c3a',
+                    timer: 1500,
+                    showConfirmButton: false
+                });
+            } catch (error) {
+                Swal.fire('Gagal!', 'Terjadi kesalahan saat menghapus soal.', 'error');
+            }
+        }
     };
 
     const handleMulaiEdit = (q) => {
         setEditId(q.id);
         
+        // 🌟 Set ulang dropdown ujian sesuai dengan soal yang diedit
+        setSelectedExamId(q.exam_id ? q.exam_id.toString() : ''); 
+
         // Terjemahkan balik dari Database ke React
         const formTipe = q.tipe_soal === 'TIPE_1' ? 'pg' : q.tipe_soal === 'TIPE_4' ? 'upload' : 'esai';
         setTipeSoal(formTipe);
@@ -97,6 +173,7 @@ export default function ManageQuestions() {
 
     const batalEdit = () => {
         setEditId(null);
+        setSelectedExamId(''); // Reset Dropdown
         setPertanyaan(''); setOpsi(['', '', '', '']); setKunciJawabanPG(0); setKunciEsai('');
     };
 
@@ -125,6 +202,24 @@ export default function ManageQuestions() {
                 </div>
 
                 <form onSubmit={handleSimpanSoal} className="p-8 space-y-6">
+                    
+                    {/* ========================================================= */}
+                    {/* 🌟 FORM BARU: DROPDOWN TARGET SESI UJIAN */}
+                    {/* ========================================================= */}
+                    <div className="bg-slate-50/50 p-5 rounded-xl border border-slate-200 mb-6">
+                        <label className="block text-[11px] font-black text-[#0f4c3a] mb-2 uppercase tracking-widest flex items-center gap-2">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                            Target Sesi Ujian (Wajib Pilih)
+                        </label>
+                        <select required value={selectedExamId} onChange={e => setSelectedExamId(e.target.value)} disabled={editId} className="w-full px-5 py-3.5 bg-white rounded-xl border border-slate-200 focus:border-[#0f4c3a] focus:ring-2 focus:ring-[#0f4c3a]/20 outline-none font-bold text-slate-800 text-[13px] shadow-sm transition-all disabled:opacity-60 disabled:cursor-not-allowed">
+                            <option value="" disabled>-- Klik untuk memilih Ujian --</option>
+                            {examList.map(ex => (
+                                <option key={ex.id} value={ex.id}>{ex.nama_ujian} | Token: {ex.token_ujian}</option>
+                            ))}
+                        </select>
+                    </div>
+                    {/* ========================================================= */}
+
                     <div>
                         <label className="block text-[11px] font-black text-slate-500 mb-2 uppercase tracking-widest flex items-center gap-2">
                             <svg className="w-4 h-4 text-[#0f4c3a]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>

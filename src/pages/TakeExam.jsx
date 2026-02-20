@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import Swal from 'sweetalert2';
 
 export default function TakeExam() {
     const navigate = useNavigate();
@@ -24,7 +25,12 @@ export default function TakeExam() {
     // 🌟 1. GERBANG TOKEN: Verifikasi ke Backend
     const handleMasukUjian = async (e) => {
         e.preventDefault();
-        if (!tokenUjian) return alert("Masukkan token ujian terlebih dahulu!");
+        if (!tokenUjian) return Swal.fire({
+            icon: 'warning',
+            title: 'Token Kosong!',
+            text: "Masukkan token ujian terlebih dahulu!",
+            confirmButtonColor: '#0f4c3a'
+        });
         
         setIsLoading(true);
         try {
@@ -45,11 +51,21 @@ export default function TakeExam() {
                 setTimeLeft(examData.durasi * 60); 
                 setScreenStatus('exam'); // Buka medan tempur!
             } else {
-                alert("Ujian ini belum memiliki soal. Silakan hubungi Dosen Anda.");
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Ujian Kosong!',
+                    text: "Ujian ini belum memiliki soal. Silakan hubungi Dosen Anda.",
+                    confirmButtonColor: '#0f4c3a'
+                });
             }
         } catch (error) {
             // Jika token salah, tampilkan pesan error merah
-            alert(error.response?.data?.message || "Gagal memverifikasi token. Pastikan token benar!");
+            Swal.fire({
+                icon: 'error',
+                title: 'Token Salah!',
+                text: error.response?.data?.message || "Gagal memverifikasi token. Pastikan token benar!",
+                confirmButtonColor: '#0f4c3a'
+            });
         } finally {
             setIsLoading(false);
         }
@@ -106,7 +122,12 @@ export default function TakeExam() {
 
             setScreenStatus('done');
         } catch (error) {
-            alert("Gagal mengirim jawaban. Coba klik kumpulkan lagi.");
+            Swal.fire({
+                icon: 'error',
+                title: 'Gagal Mengirim Ujian!',
+                text: error.response?.data?.message || "Terjadi kesalahan saat mengirim ujian. Pastikan koneksi stabil!",
+                confirmButtonColor: '#0f4c3a'
+            });
             console.error(error);
         } finally {
             setIsLoading(false);

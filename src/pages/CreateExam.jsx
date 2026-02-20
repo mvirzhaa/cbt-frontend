@@ -50,12 +50,23 @@ export default function CreateExam() {
             };
 
             await axios.post('http://localhost:3000/api/exams', payload, { headers: { Authorization: `Bearer ${token}` } });
-            alert("Ujian berhasil diterbitkan dan siap dikerjakan mahasiswa!");
+            // Setelah axios.post berhasil membuat ujian...
+            Swal.fire({
+                icon: 'success',
+                title: 'Ujian Diterbitkan!',
+                html: `Sesi ujian berhasil dibuat.<br><b>Token Ujian:</b> akan di-generate oleh sistem.`,
+                confirmButtonColor: '#0f4c3a'
+            }); 
             setFormExam({ matakuliah_id: '', nama_ujian: '', waktu_mulai: '', waktu_selesai: '', durasi: 90 });
             fetchExams();
         } catch (error) {
             console.error("Gagal Menerbitkan:", error);
-            alert("Gagal menerbitkan ujian. Pastikan Backend sudah diperbarui!");
+            Swal.fire({
+                icon: 'error',
+                title: 'Gagal Menerbitkan!',
+                text: 'Terjadi kesalahan saat menerbitkan ujian. Pastikan Backend sudah diperbarui!',
+                confirmButtonColor: '#0f4c3a'
+            });
         } finally {
             setIsLoading(false);
         }

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import axios from 'axios';
+import Swal from 'sweetalert2';
 
 export default function Grading() {
     const [exams, setExams] = useState([]);
@@ -35,7 +36,12 @@ export default function Grading() {
         try {
             const token = localStorage.getItem('token');
             await axios.put(`http://localhost:3000/api/grading/responses/${activeAnswer.id}/score`, { skor: skorManual }, { headers: { Authorization: `Bearer ${token}` } });
-            alert("Nilai berhasil disahkan!");
+            Swal.fire({
+                icon: 'success',
+                title: 'Nilai Tersimpan!',
+                text: `Skor ${skorManual} telah disahkan untuk jawaban ini.`,
+                confirmButtonColor: '#0f4c3a'
+            });
             setActiveAnswer(null); setSkorManual('');
             fetchAnswers(selectedExamId); // Refresh tabel
         } catch (error) { alert("Gagal menyimpan nilai!"); }

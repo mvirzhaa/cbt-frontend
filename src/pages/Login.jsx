@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+// 🌟 TAMBAHAN: Import Link untuk navigasi ke halaman Register
+import { useNavigate, Link } from 'react-router-dom'; 
 import { motion } from 'framer-motion';
 
 export default function Login() {
@@ -15,44 +16,25 @@ export default function Login() {
         setError('');
         setIsLoading(true);
 
-        // ================================================================
-        // 🚨 CHEAT CODE DEVELOPER (Bypass khusus untuk ngetes Admin)
-        // ================================================================
-        if (email === 'admin@uika.ac.id' && password === 'admin123') {
-            localStorage.setItem('token', 'token-sakti-darurat');
-            localStorage.setItem('role', 'super_admin');
-            localStorage.setItem('nama', 'Administrator Sistem');
-            navigate('/admin');
-            return; 
-        }
-
         try {
-            // Pastikan rute '/api/login' ini sudah persis sama dengan yang ada di Node.js kamu
+            // 🌟 LANGSUNG TEMBAK KE BACKEND (Tidak ada lagi Cheat Code)
             const response = await axios.post('http://localhost:3000/api/login', { email, password });
             
-            // 🌟 LOG PENTING UNTUK DETEKTIF:
-            console.log("BALASAN DARI BACKEND:", response.data);
-            
-            // 🌟 CARA AMAN MENGAMBIL DATA (Mengantisipasi struktur Backend yang berbeda)
             const dataUtama = response.data.data || response.data;
-            const dataUser = dataUtama.user || dataUtama; // Kalau ada objek 'user', ambil isi dalamnya
+            const dataUser = dataUtama.user || dataUtama; 
 
+            // 🌟 DAPATKAN TOKEN JWT ASLI DARI BACKEND
             const token = dataUtama.token;
-            const role = dataUser.role; // Mengambil role
+            const role = dataUser.role; 
             const nama = dataUser.nama || dataUser.name || 'Pengguna Sistem';
 
-            // 🌟 PELINDUNG ERROR toLowerCase (Jika role ternyata BENAR-BENAR KOSONG dari Backend)
-            if (!role) {
-                console.error("Data User:", dataUser);
-                throw new Error("Login berhasil, tapi Backend tidak mengirimkan data 'role' (Jabatan). Cek console log!");
-            }
+            if (!role) throw new Error("Backend tidak mengirimkan role.");
 
-            // Simpan KTP ke memori browser
+            // Simpan KTP Asli ke memori browser
             localStorage.setItem('token', token);
             localStorage.setItem('role', role); 
             localStorage.setItem('nama', nama);
 
-            // Nah, sekarang toLowerCase aman karena kita sudah pastikan role-nya tidak kosong
             const roleCek = role.toLowerCase();
             
             if (roleCek.includes('admin') || roleCek.includes('super')) {
@@ -64,8 +46,7 @@ export default function Login() {
             }
         } catch (err) {
             console.error("Login gagal:", err);
-            const pesanError = err.response?.data?.message || err.message || 'Kredensial tidak valid. Silakan periksa kembali Email dan Kata Sandi Anda.';
-            setError(pesanError);
+            setError(err.response?.data?.message || 'Kredensial tidak valid.');
         } finally {
             setIsLoading(false);
         }
@@ -176,6 +157,16 @@ export default function Login() {
                             </button>
                         </div>
                     </form>
+
+                    {/* 🌟 TAMBAHAN: Teks Ajakan Registrasi */}
+                    <div className="mt-8 text-center">
+                        <p className="text-[13px] font-semibold text-slate-500">
+                            Belum memiliki akun akademik?{' '}
+                            <Link to="/register" className="text-[#0f4c3a] font-black hover:text-[#092e23] hover:underline transition-colors">
+                                Daftar Sekarang
+                            </Link>
+                        </p>
+                    </div>
 
                     {/* Footer / Copyright info */}
                     <div className="mt-12 text-center">
