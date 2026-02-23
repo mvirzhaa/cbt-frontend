@@ -1,16 +1,70 @@
-# React + Vite
+# CBT Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Frontend aplikasi CBT (Computer Based Test) berbasis React + Vite untuk 3 role:
+- `admin`
+- `dosen` (lecturer)
+- `mahasiswa` (student)
 
-Currently, two official plugins are available:
+## Stack
+- React 19
+- React Router 7
+- Vite 7
+- Tailwind CSS 4
+- Axios
+- SweetAlert2
+- Framer Motion
+- XLSX
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Prasyarat
+- Node.js `20.19+` atau `22.12+` (disarankan)
+- npm
 
-## React Compiler
+## Setup
+1. Install dependency:
+```bash
+npm install
+```
+2. Buat file environment:
+```bash
+cp .env.example .env
+```
+3. Sesuaikan value backend:
+```env
+VITE_API_BASE_URL=http://localhost:3000
+```
+4. Jalankan development server:
+```bash
+npm run dev
+```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Scripts
+- `npm run dev`: jalankan mode development
+- `npm run lint`: cek lint ESLint
+- `npm run build`: build production
+- `npm run preview`: preview hasil build
 
-## Expanding the ESLint configuration
+## Struktur Routing (ringkas)
+- Public:
+  - `/` login
+  - `/register`
+- Protected:
+  - `/profile` (harus login)
+  - `/take-exam` (khusus mahasiswa)
+  - Area dashboard dengan layout:
+    - Admin: `/admin`, `/admin/verifikasi`, `/admin/pengguna`, `/admin/matkul`
+    - Dosen: `/dashboard`, `/manage-matkul`, `/manage-questions`, `/create-exam`, `/grading`, `/rekap-nilai`
+    - Mahasiswa: `/student-dashboard`, `/panduan`
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Route guard menggunakan komponen di `src/components/RouteGuards.jsx`.
+
+## Konfigurasi API
+- Base URL Axios diatur global di `src/main.jsx` menggunakan:
+  - `import.meta.env.VITE_API_BASE_URL`
+- Endpoint pada halaman menggunakan path relatif (`/api/...`), bukan hardcoded host.
+
+## Optimasi yang sudah diterapkan
+- Route-level lazy loading di `src/App.jsx` untuk menurunkan beban initial bundle.
+- Lint hook warnings utama sudah dibereskan.
+
+## Catatan
+- Jika backend URL berbeda per environment (staging/production), cukup ubah `.env` tanpa mengubah source code.

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -14,7 +14,36 @@ export default function AdminDashboard({ activeMenu = 'overview' }) {
     const [formMatkul, setFormMatkul] = useState({ kode_mk: '', nama_mk: '', dosen_id: '' });
     const [isLoading, setIsLoading] = useState(false);
     const [isEditing, setIsEditing] = useState(false); // 🌟 State Edit
+    // =========================================================================
+    // 📡 API CALLS
+    // =========================================================================
+    const getAuthHeaders = useCallback(
+        () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }),
+        []
+    );
 
+    const fetchPendingUsers = useCallback(async () => {
+        try {
+            const res = await axios.get('/api/admin/users/pending', getAuthHeaders());
+            setPendingUsers(res.data.data || []);
+        } catch (error) { console.error("Gagal menarik antrean:", error); }
+    }, [getAuthHeaders]);
+
+    const fetchActiveUsers = useCallback(async () => {
+        try {
+            const res = await axios.get('/api/admin/users/active', getAuthHeaders());
+            const myEmail = localStorage.getItem('email') || '';
+            const filteredUsers = (res.data.data || []).filter(u => u.email !== myEmail && u.role !== 'super_admin');
+            setActiveUsers(filteredUsers);
+        } catch (error) { console.error("Gagal menarik pengguna aktif:", error); }
+    }, [getAuthHeaders]);
+
+    const fetchMatkul = useCallback(async () => {
+        try {
+            const res = await axios.get('/api/matakuliah', getAuthHeaders());
+            setMatkulList(res.data.data || []);
+        } catch (error) { console.error("Gagal matkul:", error); }
+    }, [getAuthHeaders]);
     // Otomatis menarik data
     useEffect(() => {
         if (activeMenu === 'overview') {
@@ -27,35 +56,7 @@ export default function AdminDashboard({ activeMenu = 'overview' }) {
             fetchMatkul(); 
             fetchActiveUsers(); // Untuk Dropdown Dosen
         }
-    }, [activeMenu]);
-
-    // =========================================================================
-    // 📡 API CALLS
-    // =========================================================================
-    const getAuthHeaders = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
-
-    const fetchPendingUsers = async () => {
-        try {
-            const res = await axios.get('/api/admin/users/pending', getAuthHeaders());
-            setPendingUsers(res.data.data || []);
-        } catch (error) { console.error("Gagal menarik antrean:", error); }
-    };
-
-    const fetchActiveUsers = async () => {
-        try {
-            const res = await axios.get('/api/admin/users/active', getAuthHeaders());
-            const myEmail = localStorage.getItem('email') || '';
-            const filteredUsers = (res.data.data || []).filter(u => u.email !== myEmail && u.role !== 'super_admin');
-            setActiveUsers(filteredUsers);
-        } catch (error) { console.error("Gagal menarik pengguna aktif:", error); }
-    };
-
-    const fetchMatkul = async () => {
-        try {
-            const res = await axios.get('/api/matakuliah', getAuthHeaders());
-            setMatkulList(res.data.data || []);
-        } catch (error) { console.error("Gagal matkul:", error); }
-    };
+    }, [activeMenu, fetchActiveUsers, fetchMatkul, fetchPendingUsers]);
 
     // =========================================================================
     // ⚔️ FUNGSI AKSI ADMIN
@@ -321,3 +322,6 @@ export default function AdminDashboard({ activeMenu = 'overview' }) {
         </motion.div>
     );
 }   
+
+
+

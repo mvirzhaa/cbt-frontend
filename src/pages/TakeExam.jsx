@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -57,21 +57,6 @@ export default function TakeExam() {
     // =========================================================================
     // ⏱️ 2. TIMER HITUNG MUNDUR & AUTO-SUBMIT
     // =========================================================================
-    useEffect(() => {
-        if (!isExamStarted || timeLeft <= 0) return;
-        const timer = setInterval(() => {
-            setTimeLeft((prev) => {
-                if (prev <= 1) {
-                    clearInterval(timer);
-                    handleKumpulkanOtomatis(); 
-                    return 0;
-                }
-                return prev - 1;
-            });
-        }, 1000);
-        return () => clearInterval(timer);
-    }, [isExamStarted, timeLeft]);
-
     const formatWaktu = (seconds) => {
         const h = Math.floor(seconds / 3600);
         const m = Math.floor((seconds % 3600) / 60);
@@ -100,11 +85,6 @@ export default function TakeExam() {
         }
     };
 
-    const handleKumpulkanOtomatis = async () => {
-        Swal.fire({ icon: 'info', title: 'Waktu Habis!', text: 'Sistem sedang mengenkripsi dan menyimpan jawaban Anda...', showConfirmButton: false, allowOutsideClick: false });
-        await submitKeBackend();
-    };
-
     const handleKumpulkanManual = async () => {
         const dijawab = Object.keys(answers).filter(k => answers[k] && answers[k].trim() !== '').length;
         const total = questions.length;
@@ -123,7 +103,7 @@ export default function TakeExam() {
     };
 
     // 🌟 MENGGUNAKAN FORMDATA AGAR BISA MENGIRIM FILE + TEKS BERSAMAAN
-    const submitKeBackend = async () => {
+    const submitKeBackend = useCallback(async () => {
         try {
             const authToken = localStorage.getItem('token');
             const formData = new FormData();
@@ -151,7 +131,27 @@ export default function TakeExam() {
         } catch (error) {
             Swal.fire('Gagal Menyimpan', 'Terjadi gangguan jaringan saat mengirim data. Jangan tutup jendela ini, coba lagi!', 'error');
         }
-    };
+    }, [answers, examData, files, navigate]);
+
+    const handleKumpulkanOtomatis = useCallback(async () => {
+        Swal.fire({ icon: 'info', title: 'Waktu Habis!', text: 'Sistem sedang mengenkripsi dan menyimpan jawaban Anda...', showConfirmButton: false, allowOutsideClick: false });
+        await submitKeBackend();
+    }, [submitKeBackend]);
+
+    useEffect(() => {
+        if (!isExamStarted || timeLeft <= 0) return;
+        const timer = setInterval(() => {
+            setTimeLeft((prev) => {
+                if (prev <= 1) {
+                    clearInterval(timer);
+                    handleKumpulkanOtomatis();
+                    return 0;
+                }
+                return prev - 1;
+            });
+        }, 1000);
+        return () => clearInterval(timer);
+    }, [handleKumpulkanOtomatis, isExamStarted, timeLeft]);
 
     // =========================================================================
     // 🎨 RENDER TAMPILAN
