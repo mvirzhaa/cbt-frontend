@@ -9,7 +9,7 @@ export default function DashboardLayout() {
     const [currentTime, setCurrentTime] = useState(new Date());
 
     // 🌟 LOGIKA PINTAR & KEBAL TYPO
-    const rawRole = localStorage.getItem('role') || 'dosen';
+    const rawRole = localStorage.getItem('role') || '';
     // Mengubah "Super Admin" / "super_admin" menjadi "superadmin" agar pasti terdeteksi
     const roleDb = rawRole.toLowerCase().replace(/[^a-z]/g, ''); 
     const userName = localStorage.getItem('nama') || 'Pengguna Sistem';
@@ -103,7 +103,8 @@ export default function DashboardLayout() {
         // 🌟 MENU BARU KHUSUS MAHASISWA
         menuItems = [
             { path: '/student-dashboard', label: 'Beranda Akademik', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
-            { path: '/take-exam', label: 'Ruang Ujian Terpadu', icon: 'M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122' }
+            { path: '/take-exam', label: 'Ruang Ujian Terpadu', icon: 'M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122' },
+            { path: '/panduan', label: 'Panduan & Tata Tertib', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
         ];
     } else {
         // 🌟 MENU DOSEN (Ditambah Menu Kelola Matkul)

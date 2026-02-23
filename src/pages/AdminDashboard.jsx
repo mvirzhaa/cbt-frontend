@@ -36,14 +36,14 @@ export default function AdminDashboard({ activeMenu = 'overview' }) {
 
     const fetchPendingUsers = async () => {
         try {
-            const res = await axios.get('http://localhost:3000/api/admin/users/pending', getAuthHeaders());
+            const res = await axios.get('/api/admin/users/pending', getAuthHeaders());
             setPendingUsers(res.data.data || []);
         } catch (error) { console.error("Gagal menarik antrean:", error); }
     };
 
     const fetchActiveUsers = async () => {
         try {
-            const res = await axios.get('http://localhost:3000/api/admin/users/active', getAuthHeaders());
+            const res = await axios.get('/api/admin/users/active', getAuthHeaders());
             const myEmail = localStorage.getItem('email') || '';
             const filteredUsers = (res.data.data || []).filter(u => u.email !== myEmail && u.role !== 'super_admin');
             setActiveUsers(filteredUsers);
@@ -52,7 +52,7 @@ export default function AdminDashboard({ activeMenu = 'overview' }) {
 
     const fetchMatkul = async () => {
         try {
-            const res = await axios.get('http://localhost:3000/api/matakuliah', getAuthHeaders());
+            const res = await axios.get('/api/matakuliah', getAuthHeaders());
             setMatkulList(res.data.data || []);
         } catch (error) { console.error("Gagal matkul:", error); }
     };
@@ -68,7 +68,7 @@ export default function AdminDashboard({ activeMenu = 'overview' }) {
         if (!result.isConfirmed) return;
         setIsLoading(true);
         try {
-            await axios.put(`http://localhost:3000/api/admin/users/${id}/approve`, { role }, getAuthHeaders());
+            await axios.put(`/api/admin/users/${id}/approve`, { role }, getAuthHeaders());
             Swal.fire({ icon: 'success', title: 'Berhasil!', text: `Akun ${nama} aktif sebagai ${role}.`, timer: 2000, showConfirmButton: false });
             fetchPendingUsers();
         } catch (error) { Swal.fire('Gagal', 'Tidak dapat memberikan otorisasi.', 'error'); } 
@@ -82,7 +82,7 @@ export default function AdminDashboard({ activeMenu = 'overview' }) {
         });
         if (!result.isConfirmed) return;
         try {
-            await axios.delete(`http://localhost:3000/api/admin/users/${id}`, getAuthHeaders());
+            await axios.delete(`/api/admin/users/${id}`, getAuthHeaders());
             Swal.fire({ icon: 'success', title: 'Terhapus!', text: `Akun ${nama} telah dibumihanguskan dari sistem.`, timer: 2000, showConfirmButton: false });
             fetchActiveUsers(); 
         } catch (error) { Swal.fire('Gagal', 'Terjadi kesalahan saat menghapus akun.', 'error'); }
@@ -98,10 +98,10 @@ export default function AdminDashboard({ activeMenu = 'overview' }) {
         setIsLoading(true);
         try {
             if (isEditing) {
-                await axios.put(`http://localhost:3000/api/matakuliah/${formMatkul.kode_mk}`, formMatkul, getAuthHeaders());
+                await axios.put(`/api/matakuliah/${formMatkul.kode_mk}`, formMatkul, getAuthHeaders());
                 Swal.fire({ icon: 'success', title: 'Diperbarui!', text: 'Mata Kuliah berhasil diedit.', timer: 2000, showConfirmButton: false });
             } else {
-                await axios.post('http://localhost:3000/api/matakuliah', formMatkul, getAuthHeaders());
+                await axios.post('/api/matakuliah', formMatkul, getAuthHeaders());
                 Swal.fire({ icon: 'success', title: 'Tersimpan!', text: 'Mata Kuliah ditambahkan.', timer: 2000, showConfirmButton: false });
             }
             
@@ -131,7 +131,7 @@ export default function AdminDashboard({ activeMenu = 'overview' }) {
 
         if (!result.isConfirmed) return;
         try {
-            await axios.delete(`http://localhost:3000/api/matakuliah/${kode_mk}`, getAuthHeaders());
+            await axios.delete(`/api/matakuliah/${kode_mk}`, getAuthHeaders());
             Swal.fire({ icon: 'success', title: 'Terhapus!', text: 'Mata kuliah dilenyapkan.', timer: 1500, showConfirmButton: false });
             fetchMatkul();
         } catch (error) { Swal.fire('Gagal', 'Tidak dapat dihapus. Pastikan tidak ada soal/ujian yang terkait.', 'error'); }

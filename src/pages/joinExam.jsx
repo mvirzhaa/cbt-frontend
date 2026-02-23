@@ -24,7 +24,7 @@ export default function JoinExam() {
         try {
             // NANTI KITA SAMBUNGKAN KE BACKEND DI SINI
             // const userToken = localStorage.getItem('token');
-            // await axios.post('http://localhost:3000/api/exams/verify', { token_ujian: token }, ...);
+            // await axios.post('/api/exams/verify', { token_ujian: token }, ...);
             
             // Untuk sekarang, kita buat efek loading sukses palsu (simulasi)
            // Untuk sekarang, kita buat efek loading sukses palsu (simulasi)

@@ -22,7 +22,7 @@ export default function ManageMatkul() {
     const fetchMatkul = async () => {
         try {
             const token = localStorage.getItem('token');
-            const res = await axios.get('http://localhost:3000/api/matakuliah', { headers: { Authorization: `Bearer ${token}` } });
+            const res = await axios.get('/api/matakuliah', { headers: { Authorization: `Bearer ${token}` } });
             setMatkulList(res.data.data || []);
         } catch (error) { console.error("Gagal menarik data matkul", error); }
     };
@@ -35,7 +35,7 @@ export default function ManageMatkul() {
         }
         try {
             const token = localStorage.getItem('token');
-            const res = await axios.get(`http://localhost:3000/api/matakuliah/${mkId}/scores`, { headers: { Authorization: `Bearer ${token}` } });
+            const res = await axios.get(`/api/matakuliah/${mkId}/scores`, { headers: { Authorization: `Bearer ${token}` } });
             setScoreList(res.data.data || []);
         } catch (error) { console.error("Gagal menarik nilai matkul", error); }
     };
@@ -45,7 +45,7 @@ export default function ManageMatkul() {
         setIsLoading(true);
         try {
             const token = localStorage.getItem('token');
-            await axios.post('http://localhost:3000/api/matakuliah', { kode_mk: kodeMk, nama_mk: namaMk }, { headers: { Authorization: `Bearer ${token}` } });
+            await axios.post('/api/matakuliah', { kode_mk: kodeMk, nama_mk: namaMk }, { headers: { Authorization: `Bearer ${token}` } });
             Swal.fire({
                 icon: 'success',
                 title: 'Mata Kuliah Ditambahkan!',

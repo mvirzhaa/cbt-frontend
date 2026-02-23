@@ -30,7 +30,7 @@ export default function ManageQuestions() {
     const fetchExams = async () => {
         try {
             const token = localStorage.getItem('token');
-            const response = await axios.get('http://localhost:3000/api/exams', { headers: { Authorization: `Bearer ${token}` } });
+            const response = await axios.get('/api/exams', { headers: { Authorization: `Bearer ${token}` } });
             setExamList(response.data.data || []);
         } catch (error) { console.error("Gagal menarik data ujian.", error); }
     };
@@ -38,7 +38,7 @@ export default function ManageQuestions() {
     const fetchQuestions = async () => {
         try {
             const token = localStorage.getItem('token');
-            const response = await axios.get('http://localhost:3000/api/questions', { headers: { Authorization: `Bearer ${token}` } });
+            const response = await axios.get('/api/questions', { headers: { Authorization: `Bearer ${token}` } });
             setQuestionList(response.data.data || []);
         } catch (error) { console.error("Gagal menarik data.", error); }
     };
@@ -78,7 +78,7 @@ export default function ManageQuestions() {
             const token = localStorage.getItem('token');
             
             if (editId) {
-                await axios.put(`http://localhost:3000/api/questions/${editId}`, payload, { headers: { Authorization: `Bearer ${token}` } });
+                await axios.put(`/api/questions/${editId}`, payload, { headers: { Authorization: `Bearer ${token}` } });
                 // Setelah axios.post berhasil...
             Swal.fire({
                 icon: 'success',
@@ -89,7 +89,7 @@ export default function ManageQuestions() {
                 showConfirmButton: false
             });
             } else {
-                await axios.post('http://localhost:3000/api/questions', payload, { headers: { Authorization: `Bearer ${token}` } });
+                await axios.post('/api/questions', payload, { headers: { Authorization: `Bearer ${token}` } });
                 // Setelah axios.post berhasil...
             Swal.fire({
                 icon: 'success',
@@ -130,7 +130,7 @@ export default function ManageQuestions() {
         if (result.isConfirmed) {
             try {
                 const token = localStorage.getItem('token');
-                await axios.delete(`http://localhost:3000/api/questions/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+                await axios.delete(`/api/questions/${id}`, { headers: { Authorization: `Bearer ${token}` } });
                 fetchQuestions();
                 
                 // 🌟 NOTIFIKASI TERHAPUS

@@ -18,7 +18,7 @@ export default function Login() {
 
         try {
             // 🌟 LANGSUNG TEMBAK KE BACKEND (Tidak ada lagi Cheat Code)
-            const response = await axios.post('http://localhost:3000/api/login', { email, password });
+            const response = await axios.post('/api/login', { email, password });
             
             const dataUtama = response.data.data || response.data;
             const dataUser = dataUtama.user || dataUtama; 
@@ -27,6 +27,7 @@ export default function Login() {
             const token = dataUtama.token;
             const role = dataUser.role; 
             const nama = dataUser.nama || dataUser.name || 'Pengguna Sistem';
+            const emailUser = dataUser.email || email;
 
             if (!role) throw new Error("Backend tidak mengirimkan role.");
 
@@ -34,6 +35,7 @@ export default function Login() {
             localStorage.setItem('token', token);
             localStorage.setItem('role', role); 
             localStorage.setItem('nama', nama);
+            localStorage.setItem('email', emailUser);
 
             const roleCek = role.toLowerCase();
             

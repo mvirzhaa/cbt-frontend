@@ -1,31 +1,22 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import Swal from 'sweetalert2';
 
 export default function Profile() {
-    const [userData, setUserData] = useState({ 
-        nama: 'Memuat...', 
-        role: 'Memuat...', 
-        inisial: '?',
-        email: 'memuat...',
-        tanggalDaftar: 'Memuat...'
-    });
-    const [passwords, setPasswords] = useState({ lama: '', baru: '', konfirmasi: '' });
-
-    useEffect(() => {
-        // Tarik data dari KTP (Local Storage)
+    const [userData] = useState(() => {
         const nama = localStorage.getItem('nama') || 'Pengguna Sistem';
         const role = localStorage.getItem('role') || 'user';
-        const email = localStorage.getItem('email') || 'pengguna@uika.ac.id'; // Default jika backend blm ngirim email
-        
-        setUserData({
-            nama: nama,
+        const email = localStorage.getItem('email') || 'pengguna@uika.ac.id';
+
+        return {
+            nama,
             role: role.replace('_', ' ').toUpperCase(),
             inisial: nama.charAt(0).toUpperCase(),
-            email: email,
+            email,
             tanggalDaftar: new Date().toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })
-        });
-    }, []);
+        };
+    });
+    const [passwords, setPasswords] = useState({ lama: '', baru: '', konfirmasi: '' });
 
     const handleUbahPassword = (e) => {
         e.preventDefault();

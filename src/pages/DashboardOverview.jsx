@@ -23,17 +23,17 @@ export default function DashboardOverview() {
             const headers = { Authorization: `Bearer ${token}` };
 
             // 1. Tarik Data Ujian milik Dosen ini
-            const resExams = await axios.get('http://localhost:3000/api/exams', { headers });
+            const resExams = await axios.get('/api/exams', { headers });
             const examsData = resExams.data.data || [];
 
             // 2. Tarik Data Total Soal di Bank Soal
-            const resQuestions = await axios.get('http://localhost:3000/api/questions', { headers });
+            const resQuestions = await axios.get('/api/questions', { headers });
             const questionsData = resQuestions.data.data || [];
 
             // 3. Hitung Total Berkas Esai yang Menunggu Penilaian
             // (Melakukan looping pintar ke semua ujian untuk mengecek antrean koreksi)
             const gradingPromises = examsData.map(exam => 
-                axios.get(`http://localhost:3000/api/grading/exams/${exam.id}/answers`, { headers })
+                axios.get(`/api/grading/exams/${exam.id}/answers`, { headers })
                      .then(res => res.data.data.length)
                      .catch(() => 0)
             );
