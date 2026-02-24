@@ -37,7 +37,7 @@ export default function CreateExam() {
     const fetchMatkul = async () => {
         try {
             const token = localStorage.getItem('token');
-            const response = await axios.get('http://localhost:3000/api/matakuliah', { headers: { Authorization: `Bearer ${token}` } });
+            const response = await axios.get('https://u-talent.uika-bogor.ac.id/cbt-api/api/matakuliah', { headers: { Authorization: `Bearer ${token}` } });
             setMatkulList(response.data.data || []);
         } catch (error) { console.error("Gagal menarik data matkul", error); }
     };
@@ -45,7 +45,7 @@ export default function CreateExam() {
     const fetchExams = async () => {
         try {
             const token = localStorage.getItem('token');
-            const response = await axios.get('http://localhost:3000/api/exams', { headers: { Authorization: `Bearer ${token}` } });
+            const response = await axios.get('https://u-talent.uika-bogor.ac.id/cbt-api/api/exams', { headers: { Authorization: `Bearer ${token}` } });
             setExamList(response.data.data || []);
         } catch (error) { console.error("Gagal menarik data ujian", error); }
     };
@@ -80,10 +80,10 @@ export default function CreateExam() {
             };
 
             if (isEditing) {
-                await axios.put(`http://localhost:3000/api/exams/${editId}`, payload, { headers: { Authorization: `Bearer ${token}` } });
+                await axios.put(`https://u-talent.uika-bogor.ac.id/cbt-api/api/exams/${editId}`, payload, { headers: { Authorization: `Bearer ${token}` } });
                 Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Perubahan Disimpan!', showConfirmButton: false, timer: 2000 });
             } else {
-                await axios.post('http://localhost:3000/api/exams', payload, { headers: { Authorization: `Bearer ${token}` } });
+                await axios.post('https://u-talent.uika-bogor.ac.id/cbt-api/api/exams', payload, { headers: { Authorization: `Bearer ${token}` } });
                 Swal.fire({ icon: 'success', title: 'Sesi Ujian Diterbitkan!', text: `Sistem berhasil men-generate Token Ujian unik.`, confirmButtonColor: '#0f4c3a' });
             }
             resetForm();
@@ -122,7 +122,7 @@ export default function CreateExam() {
         if (result.isConfirmed) {
             try {
                 const token = localStorage.getItem('token');
-                await axios.delete(`http://localhost:3000/api/exams/${examId}`, { headers: { Authorization: `Bearer ${token}` } });
+                await axios.delete(`https://u-talent.uika-bogor.ac.id/cbt-api/api/exams/${examId}`, { headers: { Authorization: `Bearer ${token}` } });
                 Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Ujian terhapus.', showConfirmButton: false, timer: 2000 });
                 fetchExams();
                 if (editId === examId) resetForm();
