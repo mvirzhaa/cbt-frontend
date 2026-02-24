@@ -27,7 +27,7 @@ function RouteFallback() {
 
 function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/cbt">
       <Suspense fallback={<RouteFallback />}>
         <Routes>
           <Route path="/" element={<Login />} />
