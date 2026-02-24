@@ -8,20 +8,26 @@ export default function CreateExam() {
     const [matkulList, setMatkulList] = useState([]);
     const [examList, setExamList] = useState([]);
     
-    // State Mode Edit & Tab Tabel
     const [isEditing, setIsEditing] = useState(false);
     const [editId, setEditId] = useState(null);
-    const [activeTab, setActiveTab] = useState('aktif'); // 🌟 Tab Aktif / Arsip
+    const [activeTab, setActiveTab] = useState('aktif'); 
 
+    // 🌟 STATE BARU: DITAMBAH 3 BOBOT PENILAIAN
     const [formExam, setFormExam] = useState({
         kode_mk: '',
         nama_ujian: '',
         waktu_mulai: '',
         waktu_selesai: '',
-        durasi: 90
+        durasi: 90,
+        bobot_pilgan: 100, // Default Pilgan 100%
+        bobot_esai: 0,
+        bobot_upload: 0
     });
 
     const formRef = useRef(null);
+
+    // Hitung total persentase secara real-time
+    const totalPersentase = parseInt(formExam.bobot_pilgan || 0) + parseInt(formExam.bobot_esai || 0) + parseInt(formExam.bobot_upload || 0);
 
     useEffect(() => {
         fetchMatkul();
@@ -31,7 +37,7 @@ export default function CreateExam() {
     const fetchMatkul = async () => {
         try {
             const token = localStorage.getItem('token');
-            const response = await axios.get('/api/matakuliah', { headers: { Authorization: `Bearer ${token}` } });
+            const response = await axios.get('http://localhost:3000/api/matakuliah', { headers: { Authorization: `Bearer ${token}` } });
             setMatkulList(response.data.data || []);
         } catch (error) { console.error("Gagal menarik data matkul", error); }
     };
@@ -39,7 +45,7 @@ export default function CreateExam() {
     const fetchExams = async () => {
         try {
             const token = localStorage.getItem('token');
-            const response = await axios.get('/api/exams', { headers: { Authorization: `Bearer ${token}` } });
+            const response = await axios.get('http://localhost:3000/api/exams', { headers: { Authorization: `Bearer ${token}` } });
             setExamList(response.data.data || []);
         } catch (error) { console.error("Gagal menarik data ujian", error); }
     };
@@ -51,11 +57,14 @@ export default function CreateExam() {
         return (new Date(d.getTime() - offset)).toISOString().slice(0,16);
     };
 
-    // =========================================================================
-    // ⚔️ FUNGSI AKSI
-    // =========================================================================
     const handleSimpanUjian = async (e) => {
         e.preventDefault();
+        
+        // 🌟 BENTENG VALIDASI: Total Harus 100%
+        if (totalPersentase !== 100) {
+            return Swal.fire('Distribusi Nilai Salah', `Total Persentase Penilaian harus tepat 100%. Saat ini totalnya: ${totalPersentase}%`, 'warning');
+        }
+
         setIsLoading(true);
         try {
             const token = localStorage.getItem('token');
@@ -64,14 +73,17 @@ export default function CreateExam() {
                 nama_ujian: formExam.nama_ujian,
                 waktu_mulai: formExam.waktu_mulai,
                 waktu_selesai: formExam.waktu_selesai,
-                durasi: parseInt(formExam.durasi) 
+                durasi: parseInt(formExam.durasi),
+                bobot_pilgan: parseInt(formExam.bobot_pilgan),
+                bobot_esai: parseInt(formExam.bobot_esai),
+                bobot_upload: parseInt(formExam.bobot_upload)
             };
 
             if (isEditing) {
-                await axios.put(`/api/exams/${editId}`, payload, { headers: { Authorization: `Bearer ${token}` } });
+                await axios.put(`http://localhost:3000/api/exams/${editId}`, payload, { headers: { Authorization: `Bearer ${token}` } });
                 Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Perubahan Disimpan!', showConfirmButton: false, timer: 2000 });
             } else {
-                await axios.post('/api/exams', payload, { headers: { Authorization: `Bearer ${token}` } });
+                await axios.post('http://localhost:3000/api/exams', payload, { headers: { Authorization: `Bearer ${token}` } });
                 Swal.fire({ icon: 'success', title: 'Sesi Ujian Diterbitkan!', text: `Sistem berhasil men-generate Token Ujian unik.`, confirmButtonColor: '#0f4c3a' });
             }
             resetForm();
@@ -89,7 +101,10 @@ export default function CreateExam() {
             nama_ujian: exam.nama_ujian,
             waktu_mulai: formatToDatetimeLocal(exam.waktu_mulai),
             waktu_selesai: formatToDatetimeLocal(exam.waktu_selesai),
-            durasi: exam.durasi
+            durasi: exam.durasi,
+            bobot_pilgan: exam.bobot_pilgan ?? 100, // Ambil dari DB
+            bobot_esai: exam.bobot_esai ?? 0,
+            bobot_upload: exam.bobot_upload ?? 0
         });
         setIsEditing(true);
         setEditId(exam.id);
@@ -107,19 +122,18 @@ export default function CreateExam() {
         if (result.isConfirmed) {
             try {
                 const token = localStorage.getItem('token');
-                await axios.delete(`/api/exams/${examId}`, { headers: { Authorization: `Bearer ${token}` } });
+                await axios.delete(`http://localhost:3000/api/exams/${examId}`, { headers: { Authorization: `Bearer ${token}` } });
                 Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Ujian terhapus.', showConfirmButton: false, timer: 2000 });
                 fetchExams();
                 if (editId === examId) resetForm();
             } catch (error) {
-                // Tampilkan pesan penolakan pintar dari Backend
                 Swal.fire('Penghapusan Ditolak', error.response?.data?.message || 'Terjadi kesalahan sistem.', 'error');
             }
         }
     };
 
     const resetForm = () => {
-        setFormExam({ kode_mk: '', nama_ujian: '', waktu_mulai: '', waktu_selesai: '', durasi: 90 });
+        setFormExam({ kode_mk: '', nama_ujian: '', waktu_mulai: '', waktu_selesai: '', durasi: 90, bobot_pilgan: 100, bobot_esai: 0, bobot_upload: 0 });
         setIsEditing(false);
         setEditId(null);
     };
@@ -129,7 +143,6 @@ export default function CreateExam() {
         Swal.fire({ toast: true, position: 'bottom-end', icon: 'success', title: 'Token Disalin!', showConfirmButton: false, timer: 1500 });
     };
 
-    // 🌟 LOGIKA PEMISAH UJIAN (AKTIF vs ARSIP)
     const now = new Date();
     const activeExams = examList.filter(ex => new Date(ex.waktu_selesai) > now);
     const archivedExams = examList.filter(ex => new Date(ex.waktu_selesai) <= now);
@@ -140,10 +153,9 @@ export default function CreateExam() {
             
             <div>
                 <h3 className="text-3xl font-black text-slate-900 tracking-tight">Manajemen Sesi Ujian</h3>
-                <p className="text-[14px] font-medium text-slate-500 mt-2 max-w-2xl leading-relaxed">Terbitkan jadwal, kelola durasi, dan awasi status sesi ujian. Ujian yang telah lewat batas waktu akan otomatis masuk ke dalam Arsip.</p>
+                <p className="text-[14px] font-medium text-slate-500 mt-2 max-w-2xl leading-relaxed">Terbitkan jadwal, atur persentase nilai, dan awasi status sesi ujian. Ujian yang telah lewat batas waktu akan otomatis masuk ke Arsip.</p>
             </div>
 
-            {/* FORM PENERBITAN */}
             <div ref={formRef} className={`bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.05)] border relative overflow-hidden transition-colors duration-500 ${isEditing ? 'border-amber-300' : 'border-slate-100'}`}>
                 <div className={`absolute top-0 right-0 w-80 h-80 rounded-full blur-3xl -z-10 translate-x-1/3 -translate-y-1/3 transition-colors duration-500 ${isEditing ? 'bg-amber-100/50' : 'bg-[#0f4c3a]/5'}`}></div>
                 {isEditing && <div className="absolute top-0 left-0 w-1.5 h-full bg-amber-500"></div>}
@@ -199,19 +211,54 @@ export default function CreateExam() {
                         </div>
                     </div>
 
+                    {/* 🌟 DISTRIBUSI BOBOT NILAI (CUSTOM FORMULA) */}
+                    <div className="p-6 md:p-8 rounded-2xl border-2 border-blue-100 bg-blue-50/30">
+                        <div className="flex justify-between items-center mb-6">
+                            <div>
+                                <h4 className="text-[13px] font-black text-blue-800 uppercase tracking-widest">C. Distribusi Persentase Penilaian (%)</h4>
+                                <p className="text-[11px] font-medium text-slate-500 mt-1">Atur persentase bobot masing-masing kategori terhadap Nilai Akhir.</p>
+                            </div>
+                            <div className={`px-4 py-2 rounded-xl text-[13px] font-black border-2 transition-colors ${totalPersentase === 100 ? 'bg-emerald-100 text-emerald-700 border-emerald-300' : 'bg-red-100 text-red-600 border-red-300 animate-pulse'}`}>
+                                Total: {totalPersentase}%
+                            </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div>
+                                <label className="block text-[11px] font-bold text-slate-600 mb-2">Bobot Pilihan Ganda</label>
+                                <div className="relative">
+                                    <input type="number" min="0" max="100" value={formExam.bobot_pilgan} onChange={e => setFormExam({...formExam, bobot_pilgan: e.target.value})} className="w-full px-5 py-3 bg-white rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none font-bold text-slate-800 text-[14px]" />
+                                    <span className="absolute right-4 top-3.5 text-slate-400 font-bold">%</span>
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-[11px] font-bold text-slate-600 mb-2">Bobot Uraian Esai (AI)</label>
+                                <div className="relative">
+                                    <input type="number" min="0" max="100" value={formExam.bobot_esai} onChange={e => setFormExam({...formExam, bobot_esai: e.target.value})} className="w-full px-5 py-3 bg-white rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none font-bold text-slate-800 text-[14px]" />
+                                    <span className="absolute right-4 top-3.5 text-slate-400 font-bold">%</span>
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-[11px] font-bold text-slate-600 mb-2">Bobot Unggah Dokumen</label>
+                                <div className="relative">
+                                    <input type="number" min="0" max="100" value={formExam.bobot_upload} onChange={e => setFormExam({...formExam, bobot_upload: e.target.value})} className="w-full px-5 py-3 bg-white rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none font-bold text-slate-800 text-[14px]" />
+                                    <span className="absolute right-4 top-3.5 text-slate-400 font-bold">%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div className="pt-4 flex justify-end">
                         <button type="submit" disabled={isLoading} className={`px-10 py-4 rounded-xl text-[13px] font-black uppercase tracking-widest shadow-lg transition-all flex items-center justify-center gap-3 active:scale-95 w-full md:w-auto ${isEditing ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-amber-500/30' : 'bg-gradient-to-r from-[#0f4c3a] to-[#16654e] hover:from-[#092e23] hover:to-[#0f4c3a] text-[#d4af37] shadow-[#0f4c3a]/30'}`}>
-                            {isLoading ? 'Menyimpan Konfigurasi...' : isEditing ? 'Simpan Perubahan Jadwal' : 'Rilis Ujian & Generate Token'}
+                            {isLoading ? 'Menyimpan...' : isEditing ? 'Simpan Perubahan Jadwal' : 'Rilis Ujian & Generate Token'}
                         </button>
                     </div>
                 </form>
             </div>
 
-            {/* 🌟 TABEL DENGAN SISTEM TAB (AKTIF vs ARSIP) */}
+            {/* TABEL DENGAN SISTEM TAB (AKTIF vs ARSIP) */}
             <div className="bg-white rounded-3xl border border-slate-100 shadow-[0_10px_40px_rgba(0,0,0,0.03)] overflow-hidden">
                 <div className="px-8 py-5 border-b border-slate-100 bg-slate-50 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-                    
-                    {/* Toggle Switch Tabs */}
                     <div className="flex bg-slate-200/50 p-1.5 rounded-xl">
                         <button onClick={() => setActiveTab('aktif')} className={`px-5 py-2.5 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all ${activeTab === 'aktif' ? 'bg-white text-[#0f4c3a] shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>
                             Ujian Aktif ({activeExams.length})
@@ -220,8 +267,6 @@ export default function CreateExam() {
                             Arsip Selesai ({archivedExams.length})
                         </button>
                     </div>
-                    
-                    {activeTab === 'arsip' && <span className="text-[11px] font-bold text-slate-400 italic">*Ujian yang telah melewati Waktu Tutup</span>}
                 </div>
                 
                 <div className="overflow-x-auto">
@@ -230,7 +275,7 @@ export default function CreateExam() {
                             <tr className="border-b border-slate-200 bg-white">
                                 <th className="py-5 px-8 text-[10px] font-black text-slate-400 uppercase tracking-widest">Sesi & Mata Kuliah</th>
                                 <th className="py-5 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Jadwal Pelaksanaan</th>
-                                <th className="py-5 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Durasi</th>
+                                <th className="py-5 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Durasi & Bobot (%)</th>
                                 <th className="py-5 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Token</th>
                                 <th className="py-5 px-8 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Aksi</th>
                             </tr>
@@ -260,7 +305,10 @@ export default function CreateExam() {
                                                 </div>
                                             </td>
                                             <td className="py-5 px-6 text-center">
-                                                <span className="bg-slate-100 text-slate-700 font-black text-[12px] px-3 py-1.5 rounded-lg border border-slate-200">{ex.durasi} Min</span>
+                                                <div className="flex flex-col items-center gap-1">
+                                                    <span className="bg-slate-100 text-slate-700 font-black text-[12px] px-3 py-1 rounded-lg border border-slate-200">{ex.durasi} Min</span>
+                                                    <span className="text-[9px] font-bold text-slate-400">P:{ex.bobot_pilgan}% | E:{ex.bobot_esai}% | U:{ex.bobot_upload}%</span>
+                                                </div>
                                             </td>
                                             
                                             <td className="py-5 px-6 text-center">
@@ -274,7 +322,6 @@ export default function CreateExam() {
                                             </td>
 
                                             <td className="py-5 px-8 text-right space-x-2">
-                                                {/* Jangan izinkan edit ujian yang sudah arsip */}
                                                 {!isArchived && (
                                                     <button onClick={() => handleEditClick(ex)} className="inline-flex items-center justify-center w-8 h-8 text-amber-600 bg-amber-50 border border-amber-200 hover:bg-amber-500 hover:text-white rounded-lg transition-colors shadow-sm" title="Edit Ujian">
                                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
