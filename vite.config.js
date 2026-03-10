@@ -7,4 +7,6 @@ export default defineConfig({
     react(),
     tailwindcss(), // <-- Pastikan ini dipanggil di sini
   ],
+  // 👇 INI DIA KOMPAS PENUNJUK JALANNYA KAPTEN! 👇
+  base: '/cbt/', 
 })

@@ -16,6 +16,8 @@ const StudentDashboard = lazy(() => import('./pages/StudentDashboard'));
 const TakeExam = lazy(() => import('./pages/TakeExam'));
 const ManageMatkul = lazy(() => import('./pages/ManageMatkul'));
 const PanduanUjian = lazy(() => import('./pages/PanduanUjian'));
+const ManageMateri = lazy(() => import('./pages/ManageMateri'));
+const StudentMateri = lazy(() => import('./pages/StudentMateri'));
 
 function RouteFallback() {
   return (
@@ -46,12 +48,14 @@ function App() {
 
             <Route path="/dashboard" element={<RequireRole allow={['lecturer']}><DashboardOverview /></RequireRole>} />
             <Route path="/manage-matkul" element={<RequireRole allow={['lecturer']}><ManageMatkul /></RequireRole>} />
+            <Route path="/manage-materi" element={<RequireRole allow={['lecturer']}><ManageMateri /></RequireRole>} />
             <Route path="/manage-questions" element={<RequireRole allow={['lecturer']}><ManageQuestions /></RequireRole>} />
             <Route path="/create-exam" element={<RequireRole allow={['lecturer']}><CreateExam /></RequireRole>} />
             <Route path="/grading" element={<RequireRole allow={['lecturer']}><Grading /></RequireRole>} />
             <Route path="/rekap-nilai" element={<RequireRole allow={['lecturer']}><RekapNilai /></RequireRole>} />
 
             <Route path="/student-dashboard" element={<RequireRole allow={['student']}><StudentDashboard /></RequireRole>} />
+            <Route path="/student-materi" element={<RequireRole allow={['student']}><StudentMateri /></RequireRole>} />
           </Route>
         </Routes>
       </Suspense>
