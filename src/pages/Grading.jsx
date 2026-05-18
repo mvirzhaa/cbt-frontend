@@ -74,10 +74,12 @@ export default function Grading() {
     };
 
     // 4. Simpan Nilai Manual
-    const handleSaveScore = async (responseId, bobotMaksimal) => {
-        const skorBaru = inputScores[responseId];
+    const handleSaveScore = async (ans, bobotMaksimal) => {
+        const responseId = ans.id;
+        // Gunakan nilai input jika dosen mengetik, jika tidak, gunakan nilai AI (ans.skor)
+        const skorBaru = inputScores[responseId] !== undefined ? inputScores[responseId] : ans.skor;
         
-        if (skorBaru === undefined || skorBaru === '') return Swal.fire('Oops', 'Masukkan nilai terlebih dahulu!', 'warning');
+        if (skorBaru === null || skorBaru === undefined || skorBaru === '') return Swal.fire('Oops', 'Masukkan nilai terlebih dahulu!', 'warning');
         if (parseFloat(skorBaru) > parseFloat(bobotMaksimal)) return Swal.fire('Ditolak', `Skor tidak boleh melebihi bobot maksimal (${bobotMaksimal})!`, 'error');
 
         try {
@@ -89,7 +91,7 @@ export default function Grading() {
             Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Nilai dikunci!', showConfirmButton: false, timer: 1500 });
             
             // Hapus kartu jawaban dari daftar agar Dosen bisa lanjut ke jawaban berikutnya
-            setAnswers(prev => prev.filter(ans => ans.id !== responseId));
+            setAnswers(prev => prev.filter(a => a.id !== responseId));
         } catch (error) {
             Swal.fire('Gagal', 'Tidak dapat menyimpan nilai ke server', 'error');
         }
@@ -166,8 +168,9 @@ export default function Grading() {
                         </div>
                     ) : (
                         answers.map((ans) => {
-                            // Asumsi bobot default jika tidak disetel adalah 10
-                            const maxScore = ans.questions?.bobot_nilai || 10;
+                            // Skala nilai selalu 0-100 (bukan lagi per-bobot soal)
+                            const maxScore = 100;
+
                             
                             return (
                                 <div key={ans.id} className="bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-200 overflow-hidden relative group hover:border-[#0f4c3a]/30 transition-all">
@@ -234,19 +237,26 @@ export default function Grading() {
                                             <div className="flex flex-col items-center justify-center gap-3 mb-8 relative z-10">
                                                 <input 
                                                     type="number" min="0" max={maxScore} 
-                                                    value={inputScores[ans.id] || ''} 
+                                                    value={inputScores[ans.id] !== undefined ? inputScores[ans.id] : (ans.skor !== null ? ans.skor : '')} 
                                                     onChange={(e) => setInputScores({...inputScores, [ans.id]: e.target.value})}
                                                     className="w-full max-w-[140px] text-center text-5xl font-black text-slate-800 px-2 py-4 bg-white border-4 border-[#d4af37] rounded-2xl focus:border-emerald-400 focus:ring-0 outline-none transition-colors shadow-inner"
-                                                    placeholder="0"
+                                                    placeholder={ans.skor !== null ? ans.skor : '0'}
                                                 />
-                                                <div className="bg-black/20 px-4 py-1.5 rounded-full border border-white/10">
+                                                <div className="bg-black/20 px-4 py-1.5 rounded-full border border-white/10 flex flex-col items-center gap-1">
                                                     <span className="text-[11px] font-black text-emerald-100 uppercase tracking-widest">Batas Maks: {maxScore}</span>
                                                 </div>
+                                                {ans.skor !== null && (
+                                                    <div className="mt-2 text-center">
+                                                        <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest bg-amber-50 px-2.5 py-1.5 rounded-md border border-amber-200 shadow-sm">
+                                                            🤖 Saran AI: {ans.skor}
+                                                        </span>
+                                                    </div>
+                                                )}
                                             </div>
                                             
-                                            <button onClick={() => handleSaveScore(ans.id, maxScore)} className="w-full px-6 py-4 bg-[#d4af37] hover:bg-[#b5952f] text-[#0f4c3a] font-black text-[13px] uppercase tracking-widest rounded-xl transition-all shadow-[0_0_20px_rgba(212,175,55,0.3)] active:scale-95 flex items-center justify-center gap-2 relative z-10">
+                                            <button onClick={() => handleSaveScore(ans, maxScore)} className="w-full px-6 py-4 bg-[#d4af37] hover:bg-[#b5952f] text-[#0f4c3a] font-black text-[13px] uppercase tracking-widest rounded-xl transition-all shadow-[0_0_20px_rgba(212,175,55,0.3)] active:scale-95 flex items-center justify-center gap-2 relative z-10">
                                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>
-                                                Kunci Nilai
+                                                {ans.skor !== null ? 'Setujui Nilai' : 'Kunci Nilai'}
                                             </button>
                                         </div>
 
