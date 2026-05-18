@@ -237,10 +237,10 @@ export default function Grading() {
                                             <div className="flex flex-col items-center justify-center gap-3 mb-8 relative z-10">
                                                 <input 
                                                     type="number" min="0" max={maxScore} 
-                                                    value={inputScores[ans.id] !== undefined ? inputScores[ans.id] : (ans.skor !== null ? ans.skor : '')} 
+                                                    value={inputScores[ans.id] !== undefined ? inputScores[ans.id] : (ans.skor !== null ? Math.round(Number(ans.skor)) : '')} 
                                                     onChange={(e) => setInputScores({...inputScores, [ans.id]: e.target.value})}
                                                     className="w-full max-w-[140px] text-center text-5xl font-black text-slate-800 px-2 py-4 bg-white border-4 border-[#d4af37] rounded-2xl focus:border-emerald-400 focus:ring-0 outline-none transition-colors shadow-inner"
-                                                    placeholder={ans.skor !== null ? ans.skor : '0'}
+                                                    placeholder={ans.skor !== null ? Math.round(Number(ans.skor)) : '0'}
                                                 />
                                                 <div className="bg-black/20 px-4 py-1.5 rounded-full border border-white/10 flex flex-col items-center gap-1">
                                                     <span className="text-[11px] font-black text-emerald-100 uppercase tracking-widest">Batas Maks: {maxScore}</span>
@@ -248,7 +248,7 @@ export default function Grading() {
                                                 {ans.skor !== null && (
                                                     <div className="mt-2 text-center">
                                                         <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest bg-amber-50 px-2.5 py-1.5 rounded-md border border-amber-200 shadow-sm">
-                                                            🤖 Saran AI: {ans.skor}
+                                                            🤖 Saran AI: {Math.round(Number(ans.skor))}
                                                         </span>
                                                     </div>
                                                 )}
