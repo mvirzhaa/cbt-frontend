@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react'; // 🤖 Tambahan useRef untuk Kamera
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import Swal from 'sweetalert2';
+import * as faceapi from 'face-api.js'; // 🤖 IMPORT OTAK AI (Pastikan sudah npm install face-api.js)
 
 export default function TakeExam() {
     const navigate = useNavigate();
@@ -19,15 +20,131 @@ export default function TakeExam() {
     // State Eksekusi (Teks & File)
     const [currentIndex, setCurrentIndex] = useState(0);
     const [answers, setAnswers] = useState({}); 
-    const [files, setFiles] = useState({}); // 🌟 STATE BARU UNTUK FILE UPLOAD
+    const [files, setFiles] = useState({}); 
     const [timeLeft, setTimeLeft] = useState(0); 
 
     // =========================================================================
-    // 📡 1. MASUK RUANG UJIAN
+    // 🤖 STATE & REFS KHUSUS AI PROCTORING
+    // =========================================================================
+    const videoRef = useRef(null);   // Tempat kamera berjalan secara ghoib
+    const canvasRef = useRef(null);  // Tempat melukis/menangkap screenshot
+    const streamRef = useRef(null);  // Pengendali nyala/mati kamera
+    const lastReportTime = useRef(0); // Cooldown agar tidak spam screenshot tiap detik
+    const [isAiReady, setIsAiReady] = useState(false);
+
+    // 🤖 1. PERSIAPAN OTAK AI SAAT HALAMAN DIBUKA
+    useEffect(() => {
+        const loadAiModels = async () => {
+            try {
+                // Memuat model pengenal wajah dari folder /models yang sudah Kapten buat
+                await faceapi.nets.tinyFaceDetector.loadFromUri('/cbt/models');
+                setIsAiReady(true);
+                console.log("🤖 Mesin Pengawas AI Siap Beroperasi!");
+            } catch (error) {
+                console.error("🚨 Gagal memuat otak AI:", error);
+            }
+        };
+        loadAiModels();
+
+        // 🧹 Cleanup: Otomatis matikan kamera jika mahasiswa keluar dari halaman ini
+        return () => {
+            if (streamRef.current) {
+                streamRef.current.getTracks().forEach(track => track.stop());
+            }
+        };
+    }, []);
+
+    // 🤖 2. FUNGSI MENANGKAP PELAKU KECURANGAN
+    const tangkapDanLapor = async (jenisPelanggaran) => {
+        // Aktifkan masa tunggu (Cooldown) 15 detik. 
+        // Artinya, setelah memotret, AI tidak akan memotret lagi selama 15 detik agar server tidak meledak.
+        lastReportTime.current = Date.now(); 
+
+        const video = videoRef.current;
+        const canvas = canvasRef.current;
+        
+        // Pastikan video, canvas, dan data ujian sudah ada
+        if (!video || !canvas || !examData) return;
+
+        // Setel ukuran kanvas persis dengan ukuran kamera
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        
+        // Jepret! Lukis gambar dari video ke atas kanvas
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        // Ubah lukisan di kanvas menjadi file gambar asli (JPG) dengan kualitas 60%
+        canvas.toBlob(async (blob) => {
+            if (!blob) return;
+
+            // Siapkan amplop untuk dikirim ke Backend
+            const user = JSON.parse(localStorage.getItem('user'));
+            const formData = new FormData();
+            formData.append('user_id', user ? user.id : 0);
+            formData.append('exam_id', examData.id);
+            formData.append('jenis_pelanggaran', jenisPelanggaran); // "TIDAK_ADA_WAJAH" atau "LEBIH_DARI_SATU_WAJAH"
+            formData.append('foto_bukti', blob, `violation-${Date.now()}.jpg`); // Masukkan file gambarnya
+
+            try {
+                // Tembakkan diam-diam ke server tanpa loading di layar mahasiswa
+                const authToken = localStorage.getItem('token');
+                await axios.post('/api/proctoring/report', formData, {
+                    headers: { 'Content-Type': 'multipart/form-data', 'Authorization': `Bearer ${authToken}` }
+                });
+                console.log(`📸 Busted! Bukti ${jenisPelanggaran} berhasil dikirim ke markas.`);
+            } catch (error) {
+                console.error('🚨 Gagal melaporkan pelanggaran ke server:', error);
+            }
+        }, 'image/jpeg', 0.6); 
+    };
+
+    // 🤖 3. MESIN SCANNER WAJAH BERJALAN (Otomatis saat kamera menyala)
+    const handleVideoPlay = () => {
+        // Lakukan pemindaian setiap 3 detik (3000ms)
+        const scanInterval = setInterval(async () => {
+            if (!videoRef.current || !isAiReady) return;
+
+            // Hitung jumlah wajah di depan layar
+            const detections = await faceapi.detectAllFaces(videoRef.current, new faceapi.TinyFaceDetectorOptions());
+
+            // Cek apakah Cooldown 15 detiknya sudah selesai
+            const now = Date.now();
+            if (now - lastReportTime.current < 15000) return; // Jika belum 15 detik, diam saja (skip)
+
+            // 🚨 EKSEKUSI JEBAKAN BATMAN
+            if (detections.length === 0) {
+                // Mahasiswa kabur dari layar / menutupi kamera
+                tangkapDanLapor('TIDAK_ADA_WAJAH');
+            } else if (detections.length > 1) {
+                // Ada teman nyontek ikut melihat ke layar
+                tangkapDanLapor('LEBIH_DARI_SATU_WAJAH');
+            }
+        }, 3000);
+
+        // Hentikan scan jika ujian selesai (bisa dipanggil saat submit)
+        return () => clearInterval(scanInterval);
+    };
+
+    // =========================================================================
+    // 📡 1. MASUK RUANG UJIAN (DIMODIFIKASI UNTUK IZIN KAMERA)
     // =========================================================================
     const handleMasukUjian = async (e) => {
         e.preventDefault();
         if (!token) return Swal.fire('Perhatian', 'Token ujian wajib diisi!', 'warning');
+        
+        // 🤖 CEK SYARAT MUTLAK: IZINKAN KAMERA SEBELUM MULAI!
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+            streamRef.current = stream; // Simpan akses kameranya
+        } catch (err) {
+            // Jika mahasiswa menekan "Block", mereka dilarang ikut ujian!
+            return Swal.fire({
+                icon: 'error', 
+                title: 'Akses Ditolak', 
+                text: 'Sistem pengawas AI membutuhkan akses kamera. Harap izinkan kamera di browser Anda untuk memulai ujian.'
+            });
+        }
         
         setIsLoading(true);
         try {
@@ -54,6 +171,14 @@ export default function TakeExam() {
         }
     };
 
+    // 🤖 4. MENGHUBUNGKAN STREAM KAMERA KE ELEMEN VIDEO SETELAH LAYAR UJIAN MUNCUL
+    useEffect(() => {
+        if (isExamStarted && videoRef.current && streamRef.current) {
+            videoRef.current.srcObject = streamRef.current;
+        }
+    }, [isExamStarted]);
+
+
     // =========================================================================
     // ⏱️ 2. TIMER HITUNG MUNDUR & AUTO-SUBMIT
     // =========================================================================
@@ -72,18 +197,48 @@ export default function TakeExam() {
         setAnswers(prev => ({ ...prev, [questionId]: value }));
     };
 
-    // 🌟 FUNGSI KHUSUS MENANGKAP FILE UPLOAD
     const handlePilihFile = (questionId, file) => {
         if (file) {
-            // Validasi ukuran max 5MB
             if (file.size > 5 * 1024 * 1024) {
                 return Swal.fire('File Terlalu Besar', 'Maksimal ukuran file adalah 5MB.', 'warning');
             }
             setFiles(prev => ({ ...prev, [questionId]: file }));
-            // Tandai juga di state answers agar kotak navigasi berubah jadi hijau (Sudah Dijawab)
             setAnswers(prev => ({ ...prev, [questionId]: "File terlampir" }));
         }
     };
+
+    const submitKeBackend = useCallback(async () => {
+        try {
+            const authToken = localStorage.getItem('token');
+            const formData = new FormData();
+            
+            formData.append('exam_id', examData.id);
+            formData.append('answers', JSON.stringify(answers));
+
+            Object.keys(files).forEach(qId => {
+                if (files[qId]) {
+                    formData.append(`file_${qId}`, files[qId]);
+                }
+            });
+
+            await axios.post('/api/student/submit-exam', formData, {
+                headers: { 
+                    Authorization: `Bearer ${authToken}`,
+                    'Content-Type': 'multipart/form-data' 
+                }
+            });
+            
+            // 🤖 Matikan kamera saat selesai ujian
+            if (streamRef.current) {
+                streamRef.current.getTracks().forEach(track => track.stop());
+            }
+
+            Swal.fire({ icon: 'success', title: 'Evaluasi Selesai!', text: 'Jawaban dan Dokumen Anda berhasil direkam.', confirmButtonColor: '#0f4c3a' });
+            navigate('/student-dashboard'); 
+        } catch (error) {
+            Swal.fire('Gagal Menyimpan', 'Terjadi gangguan jaringan saat mengirim data. Jangan tutup jendela ini, coba lagi!', 'error');
+        }
+    }, [answers, examData, files, navigate]);
 
     const handleKumpulkanManual = async () => {
         const dijawab = Object.keys(answers).filter(k => answers[k] && answers[k].trim() !== '').length;
@@ -101,37 +256,6 @@ export default function TakeExam() {
             await submitKeBackend();
         }
     };
-
-    // 🌟 MENGGUNAKAN FORMDATA AGAR BISA MENGIRIM FILE + TEKS BERSAMAAN
-    const submitKeBackend = useCallback(async () => {
-        try {
-            const authToken = localStorage.getItem('token');
-            const formData = new FormData();
-            
-            // Masukkan data dasar
-            formData.append('exam_id', examData.id);
-            formData.append('answers', JSON.stringify(answers));
-
-            // Masukkan file satu per satu sesuai format yang diminta Backend (file_IDSOAL)
-            Object.keys(files).forEach(qId => {
-                if (files[qId]) {
-                    formData.append(`file_${qId}`, files[qId]);
-                }
-            });
-
-            await axios.post('/api/student/submit-exam', formData, {
-                headers: { 
-                    Authorization: `Bearer ${authToken}`,
-                    'Content-Type': 'multipart/form-data' // Wajib untuk pengiriman file
-                }
-            });
-            
-            Swal.fire({ icon: 'success', title: 'Evaluasi Selesai!', text: 'Jawaban dan Dokumen Anda berhasil direkam.', confirmButtonColor: '#0f4c3a' });
-            navigate('/student-dashboard'); 
-        } catch (error) {
-            Swal.fire('Gagal Menyimpan', 'Terjadi gangguan jaringan saat mengirim data. Jangan tutup jendela ini, coba lagi!', 'error');
-        }
-    }, [answers, examData, files, navigate]);
 
     const handleKumpulkanOtomatis = useCallback(async () => {
         Swal.fire({ icon: 'info', title: 'Waktu Habis!', text: 'Sistem sedang mengenkripsi dan menyimpan jawaban Anda...', showConfirmButton: false, allowOutsideClick: false });
@@ -153,11 +277,13 @@ export default function TakeExam() {
         return () => clearInterval(timer);
     }, [handleKumpulkanOtomatis, isExamStarted, timeLeft]);
 
+
     // =========================================================================
     // 🎨 RENDER TAMPILAN
     // =========================================================================
     if (!isExamStarted) {
         return (
+            // ... (KODE DESAIN LOBI KAPTEN TETAP SAMA PERSIS)
             <div className="min-h-[85vh] flex flex-col justify-center py-12 px-4 sm:px-6 relative overflow-hidden -m-6 bg-slate-50">
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-gradient-to-tr from-[#0f4c3a]/5 to-[#d4af37]/10 rounded-full blur-[100px] pointer-events-none animate-pulse-slow"></div>
 
@@ -201,6 +327,22 @@ export default function TakeExam() {
     return (
         <div className="flex flex-col h-[calc(100vh-64px)] -m-6 bg-slate-100 relative"> 
             
+            {/* ========================================================= */}
+            {/* 🤖 ALAT INTELEJEN RAHASIA (DISEMBUNYIKAN DARI LAYAR) */}
+            {/* ========================================================= */}
+            <video 
+                ref={videoRef} 
+                onPlay={handleVideoPlay} 
+                autoPlay 
+                muted 
+                playsInline 
+                // opacity-0 dan pointer-events-none membuat videonya 100% transparan dan tidak bisa diklik
+                className="absolute top-0 left-0 opacity-0 w-[10px] h-[10px] pointer-events-none z-[-1]" 
+            />
+            {/* Kanvas ini untuk memindahkan video menjadi gambar */}
+            <canvas ref={canvasRef} className="hidden" />
+            {/* ========================================================= */}
+
             {/* 🌟 HEADER MELAYANG EKSKLUSIF */}
             <div className="h-20 bg-white border-b border-slate-200 flex justify-between items-center px-8 shadow-sm sticky top-0 z-30">
                 <div className="flex items-center gap-5">
@@ -216,7 +358,6 @@ export default function TakeExam() {
                     </div>
                 </div>
                 
-                {/* ⏱️ WIDGET TIMER KEKINIAN */}
                 <div className="flex flex-col items-end">
                     <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Sisa Waktu</span>
                     <div className={`flex items-center gap-2 px-5 py-2 rounded-xl border-2 font-black text-2xl tracking-[0.1em] transition-colors shadow-inner ${timeLeft < 300 ? 'bg-red-50 text-red-600 border-red-200 animate-pulse' : 'bg-slate-50 text-[#0f4c3a] border-slate-200'}`}>
@@ -233,7 +374,6 @@ export default function TakeExam() {
                     <AnimatePresence mode="wait">
                         <motion.div key={currentIndex} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }} className="bg-white rounded-[2rem] shadow-[0_10px_40px_rgba(0,0,0,0.03)] border border-slate-200 min-h-full flex flex-col overflow-hidden">
                             
-                            {/* Header Kartu Soal */}
                             <div className="bg-slate-50 border-b border-slate-100 px-10 py-6 flex justify-between items-center">
                                 <div className="flex items-center gap-4">
                                     <div className="w-12 h-12 bg-white border-2 border-slate-200 rounded-2xl flex items-center justify-center font-black text-xl text-slate-800 shadow-sm">
@@ -253,7 +393,6 @@ export default function TakeExam() {
                                 </div>
 
                                 <div className="bg-white">
-                                    
                                     {/* 🔘 PILIHAN GANDA */}
                                     {currentQuestion.tipe_soal === 'TIPE_1' && (
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -301,7 +440,6 @@ export default function TakeExam() {
                                     {currentQuestion.tipe_soal === 'TIPE_4' && (
                                         <div className={`p-10 border-2 border-dashed rounded-[2rem] text-center transition-all duration-300 ${files[currentQuestion.id] ? 'bg-emerald-50/50 border-emerald-400 shadow-sm' : 'bg-blue-50/30 border-blue-200 hover:bg-blue-50/60'}`}>
                                             
-                                            {/* JIKA FILE SUDAH DIPILIH (TAMPILAN HIJAU) */}
                                             {files[currentQuestion.id] ? (
                                                 <div className="space-y-5 flex flex-col items-center">
                                                     <div className="w-20 h-20 bg-gradient-to-br from-emerald-400 to-emerald-500 text-white rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/30">
@@ -317,12 +455,10 @@ export default function TakeExam() {
                                                     </div>
                                                     <label className="mt-2 inline-flex items-center justify-center px-6 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-[12px] font-black uppercase tracking-widest cursor-pointer transition-colors">
                                                         Ganti Dokumen
-                                                        {/* TOMBOL ONCHANGE GANTI FILE */}
                                                         <input type="file" className="hidden" onChange={(e) => handlePilihFile(currentQuestion.id, e.target.files[0])} />
                                                     </label>
                                                 </div>
                                             ) : (
-                                                // JIKA FILE BELUM DIPILIH (TAMPILAN BIRU)
                                                 <div className="space-y-5 flex flex-col items-center">
                                                     <div className="w-20 h-20 bg-white shadow-md rounded-full flex items-center justify-center border border-blue-50 text-blue-500">
                                                         <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
@@ -333,7 +469,6 @@ export default function TakeExam() {
                                                     </div>
                                                     <label className="inline-flex items-center justify-center px-8 py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[13px] font-black uppercase tracking-widest cursor-pointer shadow-lg shadow-blue-500/30 transition-all active:scale-95">
                                                         Pilih File Dari Perangkat
-                                                        {/* TOMBOL ONCHANGE PILIH FILE PERTAMA */}
                                                         <input type="file" className="hidden" onChange={(e) => handlePilihFile(currentQuestion.id, e.target.files[0])} />
                                                     </label>
                                                 </div>
@@ -344,7 +479,6 @@ export default function TakeExam() {
                                 </div>
                             </div>
 
-                            {/* Bilah Navigasi Bawah */}
                             <div className="mt-auto px-10 py-6 bg-slate-50 border-t border-slate-200 flex justify-between items-center rounded-b-[2rem]">
                                 <button onClick={() => setCurrentIndex(prev => Math.max(0, prev - 1))} disabled={currentIndex === 0} className={`px-8 py-4 rounded-xl text-[12px] font-black uppercase tracking-widest flex items-center gap-3 transition-all ${currentIndex === 0 ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none' : 'bg-white border-2 border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-100 active:scale-95 shadow-sm'}`}>
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M15 19l-7-7 7-7" /></svg>

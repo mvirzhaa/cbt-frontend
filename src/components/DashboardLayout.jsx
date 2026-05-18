@@ -120,6 +120,7 @@ export default function DashboardLayout() {
             { path: '/create-exam', label: 'Penerbitan Ujian', icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' },
             { path: '/manage-questions', label: 'Manajemen Bank Soal', icon: 'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10' },
             { path: '/grading', label: 'Penilaian & Evaluasi', icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' },
+            { path: '/ai-proctoring', label: 'Monitor AI (CCTV)', icon: 'M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z' },
             { path: '/rekap-nilai', label: 'Rekap Nilai Akhir', icon: 'M9 17v-2m-2-4v-6m6 6v2m2 4v6m2-6v-6m-2 0H9m0 0H7' }
         ];
     }

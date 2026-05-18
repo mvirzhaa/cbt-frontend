@@ -18,6 +18,7 @@ const ManageMatkul = lazy(() => import('./pages/ManageMatkul'));
 const PanduanUjian = lazy(() => import('./pages/PanduanUjian'));
 const ManageMateri = lazy(() => import('./pages/ManageMateri'));
 const StudentMateri = lazy(() => import('./pages/StudentMateri'));
+const AiProctoring = lazy(() => import('./pages/AiProctoring'));
 
 function RouteFallback() {
   return (
@@ -53,6 +54,7 @@ function App() {
             <Route path="/create-exam" element={<RequireRole allow={['lecturer']}><CreateExam /></RequireRole>} />
             <Route path="/grading" element={<RequireRole allow={['lecturer']}><Grading /></RequireRole>} />
             <Route path="/rekap-nilai" element={<RequireRole allow={['lecturer']}><RekapNilai /></RequireRole>} />
+            <Route path="/ai-proctoring" element={<RequireRole allow={['lecturer']}><AiProctoring /></RequireRole>} />
 
             <Route path="/student-dashboard" element={<RequireRole allow={['student']}><StudentDashboard /></RequireRole>} />
             <Route path="/student-materi" element={<RequireRole allow={['student']}><StudentMateri /></RequireRole>} />
