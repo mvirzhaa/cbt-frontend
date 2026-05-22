@@ -66,27 +66,26 @@ export default function ManageQuestions() {
             // 🌟 2. LOGIKA KUNCI JAWABAN DINAMIS
             let dbKunciJawaban = null;
             if (tipeSoal === 'pg') {
-                // Single choice: simpan sebagai string "A"
-                dbKunciJawaban = opsi[kunciJawabanPG];
+                // Single choice: simpan huruf kunci, misal "Teks jawaban A"
+                dbKunciJawaban = ['A', 'B', 'C', 'D'][kunciJawabanPG];
             } else if (tipeSoal === 'pg_multiple') {
-                // Multiple choice: simpan sebagai JSON array ["A", "C"]
+                // Multiple choice: simpan sebagai string "A,C" (sesuai format backend TIPE_2)
                 const selectedKeys = kunciJawabanMultiple.map(idx => ['A', 'B', 'C', 'D'][idx]);
-                dbKunciJawaban = JSON.stringify(selectedKeys);
+                dbKunciJawaban = selectedKeys.join(',');
             } else if (tipeSoal === 'esai') {
                 dbKunciJawaban = kunciEsai;
             }
             // Jika upload, biarkan null
 
             const payload = {
-                exam_id: parseInt(selectedExamId), // 🌟 MENGGUNAKAN ID DARI DROPDOWN (Bukan hardcode 5 lagi)
-                tipe_soal: dbTipeSoal, // Menggunakan TIPE_1 / TIPE_2 / TIPE_3 / TIPE_4 agar MySQL tidak marah
+                exam_id: parseInt(selectedExamId),
+                tipe_soal: dbTipeSoal,
                 isi_soal: pertanyaan,
-                opsi_jawaban: (tipeSoal === 'pg' || tipeSoal === 'pg_multiple') ? JSON.stringify({
-                    A: opsi[0],
-                    B: opsi[1],
-                    C: opsi[2],
-                    D: opsi[3]
-                }) : null,
+                // ✅ FIX: Kirim sebagai array biasa, BUKAN JSON.stringify (Axios sudah handle serialization)
+                // JSON.stringify di dalam payload menyebabkan double-encoding → SyntaxError di server
+                opsi_jawaban: (tipeSoal === 'pg' || tipeSoal === 'pg_multiple')
+                    ? [opsi[0], opsi[1], opsi[2], opsi[3]]
+                    : null,
                 kunci_jawaban: dbKunciJawaban
             };
 
