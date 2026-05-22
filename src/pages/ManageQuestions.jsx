@@ -12,13 +12,14 @@ export default function ManageQuestions() {
     const [selectedExamId, setSelectedExamId] = useState(''); 
     
     // State Form
-    const [editId, setEditId] = useState(null); 
+    const [editId, setEditId] = useState(null);
     const [tipeSoal, setTipeSoal] = useState('pg');
     const [pertanyaan, setPertanyaan] = useState('');
-    
+
     // State Khusus Kunci Jawaban
     const [opsi, setOpsi] = useState(['', '', '', '']);
-    const [kunciJawabanPG, setKunciJawabanPG] = useState(0); // Index untuk PG (0,1,2,3)
+    const [kunciJawabanPG, setKunciJawabanPG] = useState(0); // Index untuk PG Single (0,1,2,3)
+    const [kunciJawabanMultiple, setKunciJawabanMultiple] = useState([]); // Array index untuk Multiple Choice
     const [kunciEsai, setKunciEsai] = useState(''); // Teks untuk Rubrik Esai
 
     useEffect(() => { 
@@ -58,20 +59,34 @@ export default function ManageQuestions() {
         try {
             // 🌟 1. LOGIKA TRANSLATOR (Menerjemahkan bahasa React ke bahasa Database)
             let dbTipeSoal = 'TIPE_1';
+            if (tipeSoal === 'pg_multiple') dbTipeSoal = 'TIPE_2';
             if (tipeSoal === 'esai') dbTipeSoal = 'TIPE_3';
             if (tipeSoal === 'upload') dbTipeSoal = 'TIPE_4';
 
             // 🌟 2. LOGIKA KUNCI JAWABAN DINAMIS
             let dbKunciJawaban = null;
-            if (tipeSoal === 'pg') dbKunciJawaban = opsi[kunciJawabanPG];
-            if (tipeSoal === 'esai') dbKunciJawaban = kunciEsai;
+            if (tipeSoal === 'pg') {
+                // Single choice: simpan sebagai string "A"
+                dbKunciJawaban = opsi[kunciJawabanPG];
+            } else if (tipeSoal === 'pg_multiple') {
+                // Multiple choice: simpan sebagai JSON array ["A", "C"]
+                const selectedKeys = kunciJawabanMultiple.map(idx => ['A', 'B', 'C', 'D'][idx]);
+                dbKunciJawaban = JSON.stringify(selectedKeys);
+            } else if (tipeSoal === 'esai') {
+                dbKunciJawaban = kunciEsai;
+            }
             // Jika upload, biarkan null
 
             const payload = {
                 exam_id: parseInt(selectedExamId), // 🌟 MENGGUNAKAN ID DARI DROPDOWN (Bukan hardcode 5 lagi)
-                tipe_soal: dbTipeSoal, // Menggunakan TIPE_1 / TIPE_3 / TIPE_4 agar MySQL tidak marah
+                tipe_soal: dbTipeSoal, // Menggunakan TIPE_1 / TIPE_2 / TIPE_3 / TIPE_4 agar MySQL tidak marah
                 isi_soal: pertanyaan,
-                opsi_jawaban: tipeSoal === 'pg' ? JSON.stringify(opsi) : null,
+                opsi_jawaban: (tipeSoal === 'pg' || tipeSoal === 'pg_multiple') ? JSON.stringify({
+                    A: opsi[0],
+                    B: opsi[1],
+                    C: opsi[2],
+                    D: opsi[3]
+                }) : null,
                 kunci_jawaban: dbKunciJawaban
             };
 
@@ -150,31 +165,81 @@ export default function ManageQuestions() {
 
     const handleMulaiEdit = (q) => {
         setEditId(q.id);
-        
+
         // 🌟 Set ulang dropdown ujian sesuai dengan soal yang diedit
-        setSelectedExamId(q.exam_id ? q.exam_id.toString() : ''); 
+        setSelectedExamId(q.exam_id ? q.exam_id.toString() : '');
 
         // Terjemahkan balik dari Database ke React
-        const formTipe = q.tipe_soal === 'TIPE_1' ? 'pg' : q.tipe_soal === 'TIPE_4' ? 'upload' : 'esai';
+        let formTipe = 'pg';
+        if (q.tipe_soal === 'TIPE_1') formTipe = 'pg';
+        else if (q.tipe_soal === 'TIPE_2') formTipe = 'pg_multiple';
+        else if (q.tipe_soal === 'TIPE_3') formTipe = 'esai';
+        else if (q.tipe_soal === 'TIPE_4') formTipe = 'upload';
+
         setTipeSoal(formTipe);
         setPertanyaan(q.isi_soal);
-        
+
         // Set Kunci Jawaban berdasarkan tipe
-        if (formTipe === 'pg' && q.opsi_jawaban) {
-            const parsedOpsi = JSON.parse(q.opsi_jawaban);
-            setOpsi(parsedOpsi);
-            setKunciJawabanPG(parsedOpsi.indexOf(q.kunci_jawaban));
+        if ((formTipe === 'pg' || formTipe === 'pg_multiple') && q.opsi_jawaban) {
+            try {
+                const parsedOpsi = JSON.parse(q.opsi_jawaban);
+                // Convert object {A: "text", B: "text"} to array ["text", "text"]
+                const opsiArray = [
+                    parsedOpsi.A || parsedOpsi[0] || '',
+                    parsedOpsi.B || parsedOpsi[1] || '',
+                    parsedOpsi.C || parsedOpsi[2] || '',
+                    parsedOpsi.D || parsedOpsi[3] || ''
+                ];
+                setOpsi(opsiArray);
+
+                if (formTipe === 'pg') {
+                    // Single choice
+                    const keys = ['A', 'B', 'C', 'D'];
+                    const kunciIdx = keys.indexOf(q.kunci_jawaban);
+                    setKunciJawabanPG(kunciIdx >= 0 ? kunciIdx : 0);
+                    setKunciJawabanMultiple([]);
+                } else if (formTipe === 'pg_multiple') {
+                    // Multiple choice
+                    const kunciArray = JSON.parse(q.kunci_jawaban || '[]');
+                    const keys = ['A', 'B', 'C', 'D'];
+                    const indices = kunciArray.map(k => keys.indexOf(k)).filter(idx => idx >= 0);
+                    setKunciJawabanMultiple(indices);
+                    setKunciJawabanPG(0);
+                }
+            } catch (error) {
+                console.error('Error parsing opsi_jawaban:', error);
+                setOpsi(['', '', '', '']);
+                setKunciJawabanPG(0);
+                setKunciJawabanMultiple([]);
+            }
         } else if (formTipe === 'esai') {
             setKunciEsai(q.kunci_jawaban || '');
         }
-        
-        window.scrollTo({ top: 0, behavior: 'smooth' }); 
+
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
     const batalEdit = () => {
         setEditId(null);
         setSelectedExamId(''); // Reset Dropdown
-        setPertanyaan(''); setOpsi(['', '', '', '']); setKunciJawabanPG(0); setKunciEsai('');
+        setPertanyaan('');
+        setOpsi(['', '', '', '']);
+        setKunciJawabanPG(0);
+        setKunciJawabanMultiple([]);
+        setKunciEsai('');
+    };
+
+    // Handler untuk toggle multiple choice
+    const toggleMultipleChoice = (index) => {
+        setKunciJawabanMultiple(prev => {
+            if (prev.includes(index)) {
+                // Remove if already selected
+                return prev.filter(i => i !== index);
+            } else {
+                // Add if not selected
+                return [...prev, index].sort();
+            }
+        });
     };
 
     const handleOpsiChange = (index, value) => {
@@ -193,10 +258,19 @@ export default function ManageQuestions() {
 
             <div className="bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-200 rounded-2xl overflow-hidden">
                 <div className={`border-b border-slate-100 p-5 flex justify-between items-center ${editId ? 'bg-amber-50/50' : 'bg-slate-50/50'}`}>
-                    <div className="flex gap-3">
-                        <button onClick={() => setTipeSoal('pg')} disabled={editId} className={`px-6 py-2.5 rounded-xl font-bold text-xs transition-all ${tipeSoal === 'pg' ? 'bg-[#0f4c3a] text-white shadow-md' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'} disabled:opacity-50`}>Pilihan Ganda</button>
-                        <button onClick={() => setTipeSoal('esai')} disabled={editId} className={`px-6 py-2.5 rounded-xl font-bold text-xs transition-all ${tipeSoal === 'esai' ? 'bg-[#0f4c3a] text-white shadow-md' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'} disabled:opacity-50`}>Soal Esai</button>
-                        <button onClick={() => setTipeSoal('upload')} disabled={editId} className={`px-6 py-2.5 rounded-xl font-bold text-xs transition-all ${tipeSoal === 'upload' ? 'bg-[#0f4c3a] text-white shadow-md' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'} disabled:opacity-50`}>Upload Berkas</button>
+                    <div className="flex gap-3 flex-wrap">
+                        <button onClick={() => setTipeSoal('pg')} disabled={editId} className={`px-6 py-2.5 rounded-xl font-bold text-xs transition-all ${tipeSoal === 'pg' ? 'bg-[#0f4c3a] text-white shadow-md' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'} disabled:opacity-50`}>
+                            PG Single Choice
+                        </button>
+                        <button onClick={() => setTipeSoal('pg_multiple')} disabled={editId} className={`px-6 py-2.5 rounded-xl font-bold text-xs transition-all ${tipeSoal === 'pg_multiple' ? 'bg-[#0f4c3a] text-white shadow-md' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'} disabled:opacity-50`}>
+                            PG Multiple Choice
+                        </button>
+                        <button onClick={() => setTipeSoal('esai')} disabled={editId} className={`px-6 py-2.5 rounded-xl font-bold text-xs transition-all ${tipeSoal === 'esai' ? 'bg-[#0f4c3a] text-white shadow-md' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'} disabled:opacity-50`}>
+                            Soal Esai
+                        </button>
+                        <button onClick={() => setTipeSoal('upload')} disabled={editId} className={`px-6 py-2.5 rounded-xl font-bold text-xs transition-all ${tipeSoal === 'upload' ? 'bg-[#0f4c3a] text-white shadow-md' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'} disabled:opacity-50`}>
+                            Upload Berkas
+                        </button>
                     </div>
                     {editId && <span className="text-[11px] font-black text-amber-700 uppercase tracking-widest bg-amber-100 border border-amber-200 px-4 py-1.5 rounded-md shadow-sm flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span> Mode Edit Aktif</span>}
                 </div>
@@ -228,10 +302,10 @@ export default function ManageQuestions() {
                         <textarea required rows="3" value={pertanyaan} onChange={(e) => setPertanyaan(e.target.value)} className="w-full px-5 py-4 bg-slate-50 rounded-xl border border-slate-200 focus:bg-white focus:ring-4 focus:ring-[#0f4c3a]/10 focus:border-[#0f4c3a] outline-none font-semibold text-slate-800 text-[14px] transition-all shadow-inner placeholder-slate-300" placeholder="Ketikkan instruksi soal secara detail..."></textarea>
                     </div>
 
-                    {/* KONDISI JIKA PILIHAN GANDA */}
+                    {/* KONDISI JIKA PILIHAN GANDA SINGLE CHOICE */}
                     {tipeSoal === 'pg' && (
                         <div>
-                            <label className="block text-[11px] font-black text-slate-500 mb-3 uppercase tracking-widest">Opsi & Kunci Jawaban</label>
+                            <label className="block text-[11px] font-black text-slate-500 mb-3 uppercase tracking-widest">Opsi & Kunci Jawaban (Pilih 1 Jawaban Benar)</label>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {opsi.map((op, idx) => (
                                     <div key={idx} className={`flex items-center gap-3 p-2.5 rounded-xl border-2 transition-all shadow-sm ${kunciJawabanPG === idx ? 'border-[#0f4c3a] bg-[#ecfdf5]' : 'border-slate-200 bg-white hover:border-slate-300'}`}>
@@ -241,6 +315,35 @@ export default function ManageQuestions() {
                                     </div>
                                 ))}
                             </div>
+                        </div>
+                    )}
+
+                    {/* KONDISI JIKA PILIHAN GANDA MULTIPLE CHOICE */}
+                    {tipeSoal === 'pg_multiple' && (
+                        <div>
+                            <label className="block text-[11px] font-black text-slate-500 mb-2 uppercase tracking-widest">Opsi & Kunci Jawaban (Bisa Pilih Lebih dari 1 Jawaban Benar)</label>
+                            <p className="text-[11px] text-blue-600 font-medium mb-3 bg-blue-50 px-3 py-2 rounded-lg border border-blue-100">
+                                💡 Klik tombol A/B/C/D untuk menandai jawaban yang benar. Anda bisa memilih lebih dari satu jawaban.
+                            </p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {opsi.map((op, idx) => {
+                                    const isSelected = kunciJawabanMultiple.includes(idx);
+                                    return (
+                                        <div key={idx} className={`flex items-center gap-3 p-2.5 rounded-xl border-2 transition-all shadow-sm ${isSelected ? 'border-[#0f4c3a] bg-[#ecfdf5]' : 'border-slate-200 bg-white hover:border-slate-300'}`}>
+                                            <button type="button" onClick={() => toggleMultipleChoice(idx)} className={`w-9 h-9 rounded-lg flex-shrink-0 text-[12px] font-black transition-all ${isSelected ? 'bg-[#0f4c3a] text-[#d4af37] shadow-md' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`} title="Toggle Kunci Jawaban">{['A', 'B', 'C', 'D'][idx]}</button>
+                                            <input type="text" required value={op} onChange={(e) => handleOpsiChange(idx, e.target.value)} className="flex-1 w-full bg-transparent outline-none font-bold text-slate-800 text-[13px] placeholder-slate-300" placeholder={`Masukkan teks opsi ${['A', 'B', 'C', 'D'][idx]}...`} />
+                                            {isSelected && <svg className="w-5 h-5 text-[#0f4c3a] mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                            {kunciJawabanMultiple.length > 0 && (
+                                <div className="mt-3 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
+                                    <p className="text-[11px] font-black text-emerald-700 uppercase tracking-widest">
+                                        Jawaban Benar: {kunciJawabanMultiple.map(idx => ['A', 'B', 'C', 'D'][idx]).join(', ')}
+                                    </p>
+                                </div>
+                            )}
                         </div>
                     )}
 
@@ -305,12 +408,21 @@ export default function ManageQuestions() {
                                         <td className="py-5 px-8 text-[14px] font-black text-slate-400">{idx + 1}</td>
                                         <td className="py-5 px-8">
                                             <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border shadow-sm ${
-                                                q.tipe_soal === 'TIPE_1' ? 'bg-blue-50 text-blue-700 border-blue-200' : 
-                                                q.tipe_soal === 'TIPE_4' ? 'bg-amber-50 text-amber-700 border-amber-200' : 
+                                                q.tipe_soal === 'TIPE_1' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                                                q.tipe_soal === 'TIPE_2' ? 'bg-purple-50 text-purple-700 border-purple-200' :
+                                                q.tipe_soal === 'TIPE_4' ? 'bg-amber-50 text-amber-700 border-amber-200' :
                                                 'bg-[#ecfdf5] text-[#059669] border-[#a7f3d0]'
                                             }`}>
-                                                <span className={`w-1.5 h-1.5 rounded-full ${q.tipe_soal === 'TIPE_1' ? 'bg-blue-500' : q.tipe_soal === 'TIPE_4' ? 'bg-amber-500' : 'bg-[#10b981]'}`}></span>
-                                                {q.tipe_soal === 'TIPE_1' ? 'Pilgan' : q.tipe_soal === 'TIPE_4' ? 'Upload' : 'Esai'}
+                                                <span className={`w-1.5 h-1.5 rounded-full ${
+                                                    q.tipe_soal === 'TIPE_1' ? 'bg-blue-500' :
+                                                    q.tipe_soal === 'TIPE_2' ? 'bg-purple-500' :
+                                                    q.tipe_soal === 'TIPE_4' ? 'bg-amber-500' :
+                                                    'bg-[#10b981]'
+                                                }`}></span>
+                                                {q.tipe_soal === 'TIPE_1' ? 'PG Single' :
+                                                 q.tipe_soal === 'TIPE_2' ? 'PG Multiple' :
+                                                 q.tipe_soal === 'TIPE_4' ? 'Upload' :
+                                                 'Esai'}
                                             </span>
                                         </td>
                                         <td className="py-5 px-8">
