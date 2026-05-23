@@ -23,7 +23,8 @@ export default function Grading() {
     const [inputScores, setInputScores] = useState({});
 
     // State untuk filter tipe soal
-    const [filterType, setFilterType] = useState('all'); // 'all', 'auto', 'manual' 
+    const [filterType, setFilterType] = useState('all'); // 'all', 'auto', 'manual'
+    const [recalculating, setRecalculating] = useState(false);
 
     // 1. Tarik Data Awal (Matkul & Ujian)
     useEffect(() => {
@@ -180,6 +181,44 @@ export default function Grading() {
         }
     };
 
+    // 6. Batch Recalculate Skor Exam (setelah dosen selesai verifikasi)
+    const handleRecalculate = async () => {
+        if (!selectedExam) return;
+
+        const result = await Swal.fire({
+            title: 'Recalculate Skor?',
+            text: 'Sistem akan menghitung ulang seluruh skor mahasiswa untuk ujian ini berdasarkan nilai terbaru.',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#0f4c3a',
+            confirmButtonText: 'Ya, Hitung Ulang',
+            cancelButtonText: 'Batal'
+        });
+
+        if (!result.isConfirmed) return;
+
+        setRecalculating(true);
+        try {
+            const token = localStorage.getItem('token');
+            const res = await axios.post(`/api/grading/exams/${selectedExam}/recalculate`, {}, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'success',
+                title: res.data.message || 'Skor berhasil dihitung ulang!',
+                showConfirmButton: false,
+                timer: 3000
+            });
+        } catch (error) {
+            console.error("Gagal recalculate:", error);
+            Swal.fire('Gagal', 'Tidak dapat menghitung ulang skor. Coba lagi nanti.', 'error');
+        } finally {
+            setRecalculating(false);
+        }
+    };
+
     // Helper untuk menentukan apakah jawaban benar (untuk tipe 1 dan 2)
     const isAnswerCorrect = (ans) => {
         if (!ans.questions) return false;
@@ -272,27 +311,48 @@ export default function Grading() {
                     </div>
                 </div>
 
-                {/* Filter Tipe Soal */}
+                {/* Filter Tipe Soal + Recalculate Button */}
                 {selectedStudent && (
-                    <div className="flex items-center gap-3 pt-4 border-t border-slate-200">
-                        <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Filter Tipe:</span>
+                    <div className="flex items-center justify-between gap-3 pt-4 border-t border-slate-200">
+                        <div className="flex items-center gap-3">
+                            <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Filter Tipe:</span>
+                            <button
+                                onClick={() => setFilterType('all')}
+                                className={`px-4 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all ${filterType === 'all' ? 'bg-[#0f4c3a] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                            >
+                                Semua
+                            </button>
+                            <button
+                                onClick={() => setFilterType('auto')}
+                                className={`px-4 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all ${filterType === 'auto' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                            >
+                                Auto-Koreksi (PG)
+                            </button>
+                            <button
+                                onClick={() => setFilterType('manual')}
+                                className={`px-4 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all ${filterType === 'manual' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                            >
+                                Penilaian Manual
+                            </button>
+                        </div>
+
+                        {/* Tombol Recalculate */}
                         <button
-                            onClick={() => setFilterType('all')}
-                            className={`px-4 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all ${filterType === 'all' ? 'bg-[#0f4c3a] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                            onClick={handleRecalculate}
+                            disabled={recalculating || !selectedExam}
+                            className="px-5 py-2.5 bg-gradient-to-r from-[#0f4c3a] to-[#1a6b52] hover:from-[#0a3628] hover:to-[#0f4c3a] text-white rounded-xl text-[11px] font-black uppercase tracking-widest shadow-lg shadow-[#0f4c3a]/20 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                         >
-                            Semua
-                        </button>
-                        <button
-                            onClick={() => setFilterType('auto')}
-                            className={`px-4 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all ${filterType === 'auto' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-                        >
-                            Auto-Koreksi (PG)
-                        </button>
-                        <button
-                            onClick={() => setFilterType('manual')}
-                            className={`px-4 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all ${filterType === 'manual' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-                        >
-                            Penilaian Manual
+                            {recalculating ? (
+                                <>
+                                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                    Menghitung...
+                                </>
+                            ) : (
+                                <>
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                                    Recalculate Skor
+                                </>
+                            )}
                         </button>
                     </div>
                 )}
