@@ -17,8 +17,8 @@ export default function ManageQuestions() {
     const [pertanyaan, setPertanyaan] = useState('');
 
     // State Khusus Kunci Jawaban
-    const [opsi, setOpsi] = useState(['', '', '', '']);
-    const [kunciJawabanPG, setKunciJawabanPG] = useState(0); // Index untuk PG Single (0,1,2,3)
+    const [opsi, setOpsi] = useState(['', '', '', '', '']);
+    const [kunciJawabanPG, setKunciJawabanPG] = useState(0); // Index untuk PG Single (0,1,2,3,4)
     const [kunciJawabanMultiple, setKunciJawabanMultiple] = useState([]); // Array index untuk Multiple Choice
     const [kunciEsai, setKunciEsai] = useState(''); // Teks untuk Rubrik Esai
 
@@ -67,10 +67,10 @@ export default function ManageQuestions() {
             let dbKunciJawaban = null;
             if (tipeSoal === 'pg') {
                 // Single choice: simpan huruf kunci, misal "Teks jawaban A"
-                dbKunciJawaban = ['A', 'B', 'C', 'D'][kunciJawabanPG];
+                dbKunciJawaban = ['A', 'B', 'C', 'D', 'E'][kunciJawabanPG];
             } else if (tipeSoal === 'pg_multiple') {
                 // Multiple choice: simpan sebagai string "A,C" (sesuai format backend TIPE_2)
-                const selectedKeys = kunciJawabanMultiple.map(idx => ['A', 'B', 'C', 'D'][idx]);
+                const selectedKeys = kunciJawabanMultiple.map(idx => ['A', 'B', 'C', 'D', 'E'][idx]);
                 dbKunciJawaban = selectedKeys.join(',');
             } else if (tipeSoal === 'esai') {
                 dbKunciJawaban = kunciEsai;
@@ -84,7 +84,7 @@ export default function ManageQuestions() {
                 // ✅ FIX: Kirim sebagai array biasa, BUKAN JSON.stringify (Axios sudah handle serialization)
                 // JSON.stringify di dalam payload menyebabkan double-encoding → SyntaxError di server
                 opsi_jawaban: (tipeSoal === 'pg' || tipeSoal === 'pg_multiple')
-                    ? [opsi[0], opsi[1], opsi[2], opsi[3]]
+                    ? [opsi[0], opsi[1], opsi[2], opsi[3], opsi[4]]
                     : null,
                 kunci_jawaban: dbKunciJawaban
             };
@@ -187,13 +187,14 @@ export default function ManageQuestions() {
                     parsedOpsi.A || parsedOpsi[0] || '',
                     parsedOpsi.B || parsedOpsi[1] || '',
                     parsedOpsi.C || parsedOpsi[2] || '',
-                    parsedOpsi.D || parsedOpsi[3] || ''
+                    parsedOpsi.D || parsedOpsi[3] || '',
+                    parsedOpsi.E || parsedOpsi[4] || ''
                 ];
                 setOpsi(opsiArray);
 
                 if (formTipe === 'pg') {
                     // Single choice
-                    const keys = ['A', 'B', 'C', 'D'];
+                    const keys = ['A', 'B', 'C', 'D', 'E'];
                     const kunciIdx = keys.indexOf(q.kunci_jawaban);
                     setKunciJawabanPG(kunciIdx >= 0 ? kunciIdx : 0);
                     setKunciJawabanMultiple([]);
@@ -207,7 +208,7 @@ export default function ManageQuestions() {
                 }
             } catch (error) {
                 console.error('Error parsing opsi_jawaban:', error);
-                setOpsi(['', '', '', '']);
+                setOpsi(['', '', '', '', '']);
                 setKunciJawabanPG(0);
                 setKunciJawabanMultiple([]);
             }
@@ -222,7 +223,7 @@ export default function ManageQuestions() {
         setEditId(null);
         setSelectedExamId(''); // Reset Dropdown
         setPertanyaan('');
-        setOpsi(['', '', '', '']);
+        setOpsi(['', '', '', '', '']);
         setKunciJawabanPG(0);
         setKunciJawabanMultiple([]);
         setKunciEsai('');
@@ -308,8 +309,8 @@ export default function ManageQuestions() {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {opsi.map((op, idx) => (
                                     <div key={idx} className={`flex items-center gap-3 p-2.5 rounded-xl border-2 transition-all shadow-sm ${kunciJawabanPG === idx ? 'border-[#0f4c3a] bg-[#ecfdf5]' : 'border-slate-200 bg-white hover:border-slate-300'}`}>
-                                        <button type="button" onClick={() => setKunciJawabanPG(idx)} className={`w-9 h-9 rounded-lg flex-shrink-0 text-[12px] font-black transition-all ${kunciJawabanPG === idx ? 'bg-[#0f4c3a] text-[#d4af37] shadow-md' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`} title="Jadikan Kunci Jawaban">{['A', 'B', 'C', 'D'][idx]}</button>
-                                        <input type="text" required value={op} onChange={(e) => handleOpsiChange(idx, e.target.value)} className="flex-1 w-full bg-transparent outline-none font-bold text-slate-800 text-[13px] placeholder-slate-300" placeholder={`Masukkan teks opsi ${['A', 'B', 'C', 'D'][idx]}...`} />
+                                        <button type="button" onClick={() => setKunciJawabanPG(idx)} className={`w-9 h-9 rounded-lg flex-shrink-0 text-[12px] font-black transition-all ${kunciJawabanPG === idx ? 'bg-[#0f4c3a] text-[#d4af37] shadow-md' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`} title="Jadikan Kunci Jawaban">{['A', 'B', 'C', 'D', 'E'][idx]}</button>
+                                        <input type="text" required value={op} onChange={(e) => handleOpsiChange(idx, e.target.value)} className="flex-1 w-full bg-transparent outline-none font-bold text-slate-800 text-[13px] placeholder-slate-300" placeholder={`Masukkan teks opsi ${['A', 'B', 'C', 'D', 'E'][idx]}...`} />
                                         {kunciJawabanPG === idx && <svg className="w-5 h-5 text-[#0f4c3a] mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>}
                                     </div>
                                 ))}
@@ -322,15 +323,15 @@ export default function ManageQuestions() {
                         <div>
                             <label className="block text-[11px] font-black text-slate-500 mb-2 uppercase tracking-widest">Opsi & Kunci Jawaban (Bisa Pilih Lebih dari 1 Jawaban Benar)</label>
                             <p className="text-[11px] text-blue-600 font-medium mb-3 bg-blue-50 px-3 py-2 rounded-lg border border-blue-100">
-                                💡 Klik tombol A/B/C/D untuk menandai jawaban yang benar. Anda bisa memilih lebih dari satu jawaban.
+                                💡 Klik tombol A/B/C/D/E untuk menandai jawaban yang benar. Anda bisa memilih lebih dari satu jawaban.
                             </p>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {opsi.map((op, idx) => {
                                     const isSelected = kunciJawabanMultiple.includes(idx);
                                     return (
                                         <div key={idx} className={`flex items-center gap-3 p-2.5 rounded-xl border-2 transition-all shadow-sm ${isSelected ? 'border-[#0f4c3a] bg-[#ecfdf5]' : 'border-slate-200 bg-white hover:border-slate-300'}`}>
-                                            <button type="button" onClick={() => toggleMultipleChoice(idx)} className={`w-9 h-9 rounded-lg flex-shrink-0 text-[12px] font-black transition-all ${isSelected ? 'bg-[#0f4c3a] text-[#d4af37] shadow-md' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`} title="Toggle Kunci Jawaban">{['A', 'B', 'C', 'D'][idx]}</button>
-                                            <input type="text" required value={op} onChange={(e) => handleOpsiChange(idx, e.target.value)} className="flex-1 w-full bg-transparent outline-none font-bold text-slate-800 text-[13px] placeholder-slate-300" placeholder={`Masukkan teks opsi ${['A', 'B', 'C', 'D'][idx]}...`} />
+                                            <button type="button" onClick={() => toggleMultipleChoice(idx)} className={`w-9 h-9 rounded-lg flex-shrink-0 text-[12px] font-black transition-all ${isSelected ? 'bg-[#0f4c3a] text-[#d4af37] shadow-md' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`} title="Toggle Kunci Jawaban">{['A', 'B', 'C', 'D', 'E'][idx]}</button>
+                                            <input type="text" required value={op} onChange={(e) => handleOpsiChange(idx, e.target.value)} className="flex-1 w-full bg-transparent outline-none font-bold text-slate-800 text-[13px] placeholder-slate-300" placeholder={`Masukkan teks opsi ${['A', 'B', 'C', 'D', 'E'][idx]}...`} />
                                             {isSelected && <svg className="w-5 h-5 text-[#0f4c3a] mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>}
                                         </div>
                                     );
@@ -339,7 +340,7 @@ export default function ManageQuestions() {
                             {kunciJawabanMultiple.length > 0 && (
                                 <div className="mt-3 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
                                     <p className="text-[11px] font-black text-emerald-700 uppercase tracking-widest">
-                                        Jawaban Benar: {kunciJawabanMultiple.map(idx => ['A', 'B', 'C', 'D'][idx]).join(', ')}
+                                        Jawaban Benar: {kunciJawabanMultiple.map(idx => ['A', 'B', 'C', 'D', 'E'][idx]).join(', ')}
                                     </p>
                                 </div>
                             )}

@@ -185,19 +185,17 @@ export default function Grading() {
         if (!ans.questions) return false;
 
         if (ans.questions.tipe_soal === 'TIPE_1') {
-            // Single choice
-            return ans.pilihan_jawaban === ans.questions.kunci_jawaban;
+            // Single choice — jawaban disimpan di jawaban_teks
+            return String(ans.jawaban_teks || '').trim().toUpperCase() === String(ans.questions.kunci_jawaban || '').trim().toUpperCase();
         } else if (ans.questions.tipe_soal === 'TIPE_2') {
-            // Multiple choice - bandingkan array jawaban
+            // Multiple choice — format: "A,C,E" (comma-separated)
             try {
-                const studentAnswer = JSON.parse(ans.pilihan_jawaban || '[]');
-                const correctAnswer = JSON.parse(ans.questions.kunci_jawaban || '[]');
-
-                if (!Array.isArray(studentAnswer) || !Array.isArray(correctAnswer)) return false;
+                const studentAnswer = String(ans.jawaban_teks || '').split(',').map(s => s.trim().toUpperCase()).filter(s => s).sort();
+                const correctAnswer = String(ans.questions.kunci_jawaban || '').split(',').map(s => s.trim().toUpperCase()).filter(s => s).sort();
 
                 // Cek apakah semua jawaban siswa ada di kunci jawaban dan jumlahnya sama
                 return studentAnswer.length === correctAnswer.length &&
-                    studentAnswer.every(sa => correctAnswer.includes(sa));
+                    studentAnswer.every((sa, idx) => sa === correctAnswer[idx]);
             } catch (error) {
                 return false;
             }
@@ -381,8 +379,13 @@ export default function Grading() {
                                                         {(() => {
                                                             try {
                                                                 const opsi = JSON.parse(ans.questions.opsi_jawaban);
-                                                                const studentAnswers = tipe === 'TIPE_2' ? JSON.parse(ans.pilihan_jawaban || '[]') : [ans.pilihan_jawaban];
-                                                                const correctAnswers = tipe === 'TIPE_2' ? JSON.parse(ans.questions.kunci_jawaban || '[]') : [ans.questions.kunci_jawaban];
+                                                                // jawaban_teks berisi label pilihan: "A" (TIPE_1) atau "A,C,E" (TIPE_2)
+                                                                const studentAnswers = tipe === 'TIPE_2'
+                                                                    ? String(ans.jawaban_teks || '').split(',').map(s => s.trim().toUpperCase()).filter(s => s)
+                                                                    : [String(ans.jawaban_teks || '').trim().toUpperCase()];
+                                                                const correctAnswers = tipe === 'TIPE_2'
+                                                                    ? String(ans.questions.kunci_jawaban || '').split(',').map(s => s.trim().toUpperCase()).filter(s => s)
+                                                                    : [String(ans.questions.kunci_jawaban || '').trim().toUpperCase()];
 
                                                                 return Object.entries(opsi).map(([key, value]) => {
                                                                     const isSelected = studentAnswers.includes(key);

@@ -1,12 +1,26 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import tailwindcss from '@tailwindcss/vite' // <-- Pastikan ini di-import
+import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
   plugins: [
     react(),
-    tailwindcss(), // <-- Pastikan ini dipanggil di sini
+    tailwindcss(),
   ],
-  // 👇 INI DIA KOMPAS PENUNJUK JALANNYA KAPTEN! 👇
-  base: '/cbt/', 
+  base: '/cbt/',
+  build: {
+    // Naikkan batas warning agar tidak spam di terminal
+    chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Pisahkan vendor besar ke chunk terpisah
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-motion': ['framer-motion'],
+          'vendor-xlsx': ['xlsx'],
+          'vendor-sweetalert': ['sweetalert2'],
+        }
+      }
+    }
+  }
 })
