@@ -1,27 +1,24 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import axios from 'axios';
+import examService from '../services/exam.service';
+import { useAuth } from '../hooks/useAuth';
 
 export default function StudentDashboard() {
     const navigate = useNavigate();
+    const { user } = useAuth();
     const [history, setHistory] = useState([]);
     const [stats, setStats] = useState({ totalUjian: 0, rataRata: 0 });
     const [isLoading, setIsLoading] = useState(true);
 
-    const userName = localStorage.getItem('nama') || 'Mahasiswa';
+    const userName = user?.nama || 'Mahasiswa';
 
     useEffect(() => {
         const fetchRiwayat = async () => {
             setIsLoading(true);
             try {
-                const token = localStorage.getItem('token');
-                const res = await axios.get('/api/student/history', {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-                
-                const dataRiwayat = res.data.data || [];
-                setHistory(dataRiwayat);
+                const dataRiwayat = await examService.getStudentHistory();
+                setHistory(dataRiwayat || []);
 
                 // 🧠 Kalkulasi Cerdas untuk Statistik
                 const total = dataRiwayat.length;

@@ -1,21 +1,15 @@
 import { useState, useEffect } from 'react';
-// 🌟 TAMBAHAN: Import Link untuk membuat profil bisa diklik
 import { Outlet, useNavigate, useLocation, Link } from 'react-router-dom';
 import Swal from 'sweetalert2';
+import { useAuth } from '../hooks/useAuth';
 
 export default function DashboardLayout() {
     const navigate = useNavigate();
     const location = useLocation();
+    const { user, isAdmin, isStudent: isMahasiswa, logout } = useAuth();
     const [currentTime, setCurrentTime] = useState(new Date());
 
-    // 🌟 LOGIKA PINTAR & KEBAL TYPO
-    const rawRole = localStorage.getItem('role') || '';
-    // Mengubah "Super Admin" / "super_admin" menjadi "superadmin" agar pasti terdeteksi
-    const roleDb = rawRole.toLowerCase().replace(/[^a-z]/g, ''); 
-    const userName = localStorage.getItem('nama') || 'Pengguna Sistem';
-
-    const isAdmin = roleDb.includes('admin');
-    const isMahasiswa = roleDb.includes('mahasiswa') || roleDb.includes('student');
+    const userName = user?.nama || 'Pengguna Sistem';
 
     // Penentuan Label Profil
     let userRole = 'Dosen Pengampu';
@@ -64,7 +58,7 @@ export default function DashboardLayout() {
         });
 
         if (result.isConfirmed) {
-            localStorage.clear();
+            logout();
             navigate('/');
             
             // Alert kecil di pojok kanan atas setelah berhasil logout
@@ -78,17 +72,16 @@ export default function DashboardLayout() {
                   toast.addEventListener('mouseenter', Swal.stopTimer)
                   toast.addEventListener('mouseleave', Swal.resumeTimer)
                 }
-            })
+            });
               
             Toast.fire({
                 icon: 'success',
                 title: 'Anda telah berhasil keluar.'
-            })
+            });
         }
     };
 
     // 🌟 MENU DINAMIS BERDASARKAN JABATAN
-   // 🌟 MENU DINAMIS BERDASARKAN JABATAN
     let menuItems = [];
     if (isAdmin) {
         // 👑 MENU ADMIN SEKARANG JAUH LEBIH BERWIBAWA!
@@ -98,7 +91,6 @@ export default function DashboardLayout() {
             { path: '/admin/pengguna', label: 'Manajemen Pengguna', icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z' },
             { path: '/admin/matkul', label: 'Master Mata Kuliah', icon: 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253' }
         ];
-    
     } else if (isMahasiswa) {
         // 🌟 MENU BARU KHUSUS MAHASISWA
         menuItems = [
@@ -106,17 +98,13 @@ export default function DashboardLayout() {
             { path: '/student-materi', label: 'Pustaka Materi', icon: 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253' },
             { path: '/take-exam', label: 'Ruang Ujian Terpadu', icon: 'M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122' },
             { path: '/panduan', label: 'Panduan & Tata Tertib', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
-
         ];
     } else {
         // 🌟 MENU DOSEN (Ditambah Menu Kelola Matkul & Materi)
         menuItems = [
             { path: '/dashboard', label: 'Ikhtisar Sistem', icon: 'M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z' },
             { path: '/manage-matkul', label: 'Data Mata Kuliah', icon: 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253' },
-            
-            // 👇 INI DIA MENU BARUNYA KAPTEN!
             { path: '/manage-materi', label: 'Materi Kuliah (LMS)', icon: 'M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12' },
-            
             { path: '/create-exam', label: 'Penerbitan Ujian', icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' },
             { path: '/manage-questions', label: 'Manajemen Bank Soal', icon: 'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10' },
             { path: '/grading', label: 'Penilaian & Evaluasi', icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' },

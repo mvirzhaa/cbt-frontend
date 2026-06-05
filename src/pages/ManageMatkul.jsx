@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import axios from 'axios';
 import Swal from 'sweetalert2';
+import matkulService from '../services/matkul.service';
 
 export default function ManageMatkul() {
     const [isLoading, setIsLoading] = useState(false);
@@ -21,10 +21,11 @@ export default function ManageMatkul() {
 
     const fetchMatkul = async () => {
         try {
-            const token = localStorage.getItem('token');
-            const res = await axios.get('/api/matakuliah', { headers: { Authorization: `Bearer ${token}` } });
-            setMatkulList(res.data.data || []);
-        } catch (error) { console.error("Gagal menarik data matkul", error); }
+            const data = await matkulService.getMatkul();
+            setMatkulList(data || []);
+        } catch (error) { 
+            console.error("Gagal menarik data matkul", error); 
+        }
     };
 
     // 🌟 FUNGSI BARU: MENARIK REKAP NILAI SAAT DROPDOWN BERUBAH
@@ -34,34 +35,37 @@ export default function ManageMatkul() {
             return;
         }
         try {
-            const token = localStorage.getItem('token');
-            const res = await axios.get(`/api/matakuliah/${mkId}/scores`, { headers: { Authorization: `Bearer ${token}` } });
-            setScoreList(res.data.data || []);
-        } catch (error) { console.error("Gagal menarik nilai matkul", error); }
+            const data = await matkulService.getMatkulScores(mkId);
+            setScoreList(data || []);
+        } catch (error) { 
+            console.error("Gagal menarik nilai matkul", error); 
+        }
     };
 
     const handleTambahMatkul = async (e) => {
         e.preventDefault();
         setIsLoading(true);
         try {
-            const token = localStorage.getItem('token');
-            await axios.post('/api/matakuliah', { kode_mk: kodeMk, nama_mk: namaMk }, { headers: { Authorization: `Bearer ${token}` } });
+            await matkulService.createMatkul({ kode_mk: kodeMk, nama_mk: namaMk });
             Swal.fire({
                 icon: 'success',
                 title: 'Mata Kuliah Ditambahkan!',
                 text: `Mata kuliah ${kodeMk} - ${namaMk} berhasil ditambahkan.`,
                 confirmButtonColor: '#0f4c3a'
             });
-            setKodeMk(''); setNamaMk('');
+            setKodeMk(''); 
+            setNamaMk('');
             fetchMatkul(); // Refresh list matkul
         } catch (error) {
             Swal.fire({
                 icon: 'error',
                 title: 'Gagal Menambahkan!',
-                text: 'Terjadi kesalahan saat menambahkan mata kuliah.',
+                text: error.response?.data?.message || 'Terjadi kesalahan saat menambahkan mata kuliah.',
                 confirmButtonColor: '#0f4c3a'
             });
-        } finally { setIsLoading(false); }
+        } finally { 
+            setIsLoading(false); 
+        }
     };
 
     return (

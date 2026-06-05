@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import axios from 'axios';
 import Swal from 'sweetalert2';
+import examService from '../services/exam.service';
+import questionService from '../services/question.service';
+import gradingService from '../services/grading.service';
 
 export default function DashboardOverview() {
     const navigate = useNavigate();
@@ -19,22 +21,22 @@ export default function DashboardOverview() {
     const fetchDashboardData = async () => {
         setIsLoading(true);
         try {
-            const token = localStorage.getItem('token');
-            const headers = { Authorization: `Bearer ${token}` };
-
             // 1. Tarik Data Ujian milik Dosen ini
-            const resExams = await axios.get('/api/exams', { headers });
-            const examsData = resExams.data.data || [];
+            const examsResponse = await examService.getExams();
+            const examsData = examsResponse.data || examsResponse || [];
 
             // 2. Tarik Data Total Soal di Bank Soal
-            const resQuestions = await axios.get('/api/questions', { headers });
-            const questionsData = resQuestions.data.data || [];
+            const questionsResponse = await questionService.getQuestions();
+            const questionsData = questionsResponse.data || questionsResponse || [];
 
             // 3. Hitung Total Berkas Esai yang Menunggu Penilaian
             // (Melakukan looping pintar ke semua ujian untuk mengecek antrean koreksi)
             const gradingPromises = examsData.map(exam => 
-                axios.get(`/api/grading/exams/${exam.id}/answers`, { headers })
-                     .then(res => res.data.data.length)
+                gradingService.getAnswers(exam.id)
+                     .then(res => {
+                        const answersList = res.data || res || [];
+                        return answersList.length;
+                     })
                      .catch(() => 0)
             );
             const gradingResults = await Promise.all(gradingPromises);

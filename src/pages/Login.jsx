@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import axios from 'axios';
-// 🌟 TAMBAHAN: Import Link untuk navigasi ke halaman Register
 import { useNavigate, Link } from 'react-router-dom'; 
 import { motion } from 'framer-motion';
+import { useAuth } from '../hooks/useAuth';
 
 export default function Login() {
     const navigate = useNavigate();
+    const { login } = useAuth();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
@@ -17,26 +17,7 @@ export default function Login() {
         setIsLoading(true);
 
         try {
-            // 🌟 LANGSUNG TEMBAK KE BACKEND (Tidak ada lagi Cheat Code)
-            const response = await axios.post('/api/login', { email, password });
-            
-            const dataUtama = response.data.data || response.data;
-            const dataUser = dataUtama.user || dataUtama; 
-
-            // 🌟 DAPATKAN TOKEN JWT ASLI DARI BACKEND
-            const token = dataUtama.token;
-            const role = dataUser.role; 
-            const nama = dataUser.nama || dataUser.name || 'Pengguna Sistem';
-            const emailUser = dataUser.email || email;
-
-            if (!role) throw new Error("Backend tidak mengirimkan role.");
-
-            // Simpan KTP Asli ke memori browser
-            localStorage.setItem('token', token);
-            localStorage.setItem('role', role); 
-            localStorage.setItem('nama', nama);
-            localStorage.setItem('email', emailUser);
-
+            const role = await login(email, password);
             const roleCek = role.toLowerCase();
             
             if (roleCek.includes('admin') || roleCek.includes('super')) {
@@ -48,7 +29,7 @@ export default function Login() {
             }
         } catch (err) {
             console.error("Login gagal:", err);
-            setError(err.response?.data?.message || 'Kredensial tidak valid.');
+            setError(err.response?.data?.message || err.message || 'Kredensial tidak valid.');
         } finally {
             setIsLoading(false);
         }

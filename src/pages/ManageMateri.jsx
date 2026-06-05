@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { API_BASE_URL } from '../config/api';
 import Swal from 'sweetalert2';
+import materiService from '../services/materi.service';
 
 export default function ManageMateri() {
     const [kodeMk, setKodeMk] = useState('');
@@ -17,14 +18,8 @@ export default function ManageMateri() {
     const fetchMateri = async () => {
         setLoadingData(true);
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${API_BASE_URL}/api/materi`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            const result = await response.json();
-            if (response.ok) {
-                setMateriList(result.data || []);
-            }
+            const data = await materiService.getMateri();
+            setMateriList(data || []);
         } catch (error) {
             console.error("Gagal menarik materi:", error);
         } finally {
@@ -58,31 +53,31 @@ export default function ManageMateri() {
         formData.append('deskripsi', deskripsi);
         formData.append('file_materi', file);
 
-        const user = JSON.parse(localStorage.getItem('user'));
-        formData.append('dosen_id', user ? user.id : 1);
+        // Try getting user from localStorage
+        let userObj = null;
+        try {
+            const userStr = localStorage.getItem('user');
+            if (userStr) {
+                userObj = JSON.parse(userStr);
+            }
+        } catch (e) {
+            console.error("Parse user failed:", e);
+        }
+        formData.append('dosen_id', userObj ? userObj.id : 1);
 
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${API_BASE_URL}/api/materi/upload`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` },
-                body: formData
-            });
-
-            const result = await response.json();
-
-            if (response.ok) {
-                Swal.fire({ icon: 'success', title: 'Berhasil!', text: result.message, confirmButtonColor: '#0F4C3A', timer: 2000, showConfirmButton: false });
-                setKodeMk(''); setJudul(''); setDeskripsi(''); setFile(null);
-                document.getElementById('fileInput').value = ''; 
-                
-                // Segarkan tabel secara otomatis setelah berhasil upload!
-                fetchMateri(); 
-            } else {
-                Swal.fire({ icon: 'error', title: 'Gagal Upload', text: result.error || 'Terjadi kesalahan pada server', confirmButtonColor: '#0F4C3A' });
-            }
+            const result = await materiService.uploadMateri(formData);
+            Swal.fire({ icon: 'success', title: 'Berhasil!', text: result.message || 'Materi berhasil diunggah.', confirmButtonColor: '#0F4C3A', timer: 2000, showConfirmButton: false });
+            setKodeMk(''); 
+            setJudul(''); 
+            setDeskripsi(''); 
+            setFile(null);
+            document.getElementById('fileInput').value = ''; 
+            
+            // Segarkan tabel secara otomatis setelah berhasil upload!
+            fetchMateri(); 
         } catch (error) {
-            Swal.fire({ icon: 'error', title: 'Koneksi Terputus', text: 'Gagal terhubung ke server. Periksa jaringan Anda.', confirmButtonColor: '#0F4C3A' });
+            Swal.fire({ icon: 'error', title: 'Gagal Upload', text: error.response?.data?.error || error.message || 'Terjadi kesalahan pada server', confirmButtonColor: '#0F4C3A' });
         } finally {
             setLoading(false);
         }
@@ -102,18 +97,11 @@ export default function ManageMateri() {
 
         if (result.isConfirmed) {
             try {
-                const token = localStorage.getItem('token');
-                const response = await fetch(`${API_BASE_URL}/api/materi/${id}`, {
-                    method: 'DELETE',
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-
-                if (response.ok) {
-                    Swal.fire({ icon: 'success', title: 'Terhapus!', text: 'Materi berhasil dihanguskan.', confirmButtonColor: '#0F4C3A', timer: 1500 });
-                    fetchMateri(); // Segarkan tabel
-                }
+                await materiService.deleteMateri(id);
+                Swal.fire({ icon: 'success', title: 'Terhapus!', text: 'Materi berhasil dihanguskan.', confirmButtonColor: '#0F4C3A', timer: 1500 });
+                fetchMateri(); // Segarkan tabel
             } catch (error) {
-                Swal.fire({ icon: 'error', title: 'Gagal', text: 'Terjadi kesalahan jaringan.', confirmButtonColor: '#0F4C3A' });
+                Swal.fire({ icon: 'error', title: 'Gagal', text: error.response?.data?.message || 'Terjadi kesalahan jaringan.', confirmButtonColor: '#0F4C3A' });
             }
         }
     };

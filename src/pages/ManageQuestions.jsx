@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import axios from 'axios';
 import Swal from 'sweetalert2';
+import examService from '../services/exam.service';
+import questionService from '../services/question.service';
 
 export default function ManageQuestions() {
     const [isLoading, setIsLoading] = useState(false);
@@ -30,18 +31,20 @@ export default function ManageQuestions() {
     // 🌟 FUNGSI BARU: MENARIK DAFTAR UJIAN
     const fetchExams = async () => {
         try {
-            const token = localStorage.getItem('token');
-            const response = await axios.get('/api/exams', { headers: { Authorization: `Bearer ${token}` } });
-            setExamList(response.data.data || []);
-        } catch (error) { console.error("Gagal menarik data ujian.", error); }
+            const data = await examService.getExams();
+            setExamList(data || []);
+        } catch (error) { 
+            console.error("Gagal menarik data ujian.", error); 
+        }
     };
 
     const fetchQuestions = async () => {
         try {
-            const token = localStorage.getItem('token');
-            const response = await axios.get('/api/questions', { headers: { Authorization: `Bearer ${token}` } });
-            setQuestionList(response.data.data || []);
-        } catch (error) { console.error("Gagal menarik data.", error); }
+            const data = await questionService.getQuestions();
+            setQuestionList(data || []);
+        } catch (error) { 
+            console.error("Gagal menarik data.", error); 
+        }
     };
 
     const handleSimpanSoal = async (e) => {
@@ -75,44 +78,37 @@ export default function ManageQuestions() {
             } else if (tipeSoal === 'esai') {
                 dbKunciJawaban = kunciEsai;
             }
-            // Jika upload, biarkan null
 
             const payload = {
                 exam_id: parseInt(selectedExamId),
                 tipe_soal: dbTipeSoal,
                 isi_soal: pertanyaan,
-                // ✅ FIX: Kirim sebagai array biasa, BUKAN JSON.stringify (Axios sudah handle serialization)
-                // JSON.stringify di dalam payload menyebabkan double-encoding → SyntaxError di server
                 opsi_jawaban: (tipeSoal === 'pg' || tipeSoal === 'pg_multiple')
                     ? [opsi[0], opsi[1], opsi[2], opsi[3], opsi[4]]
                     : null,
                 kunci_jawaban: dbKunciJawaban
             };
 
-            const token = localStorage.getItem('token');
-            
             if (editId) {
-                await axios.put(`/api/questions/${editId}`, payload, { headers: { Authorization: `Bearer ${token}` } });
-                // Setelah axios.post berhasil...
-            Swal.fire({
-                icon: 'success',
-                title: 'Soal Tersimpan!',
-                text: 'Perubahan soal telah disimpan.',
-                confirmButtonColor: '#0f4c3a',
-                timer: 2000,
-                showConfirmButton: false
-            });
+                await questionService.updateQuestion(editId, payload);
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Soal Tersimpan!',
+                    text: 'Perubahan soal telah disimpan.',
+                    confirmButtonColor: '#0f4c3a',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
             } else {
-                await axios.post('/api/questions', payload, { headers: { Authorization: `Bearer ${token}` } });
-                // Setelah axios.post berhasil...
-            Swal.fire({
-                icon: 'success',
-                title: 'Soal Tersimpan!',
-                text: 'Soal baru telah masuk ke dalam Bank Soal.',
-                confirmButtonColor: '#0f4c3a',
-                timer: 2000,
-                showConfirmButton: false
-            });
+                await questionService.createQuestion(payload);
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Soal Tersimpan!',
+                    text: 'Soal baru telah masuk ke dalam Bank Soal.',
+                    confirmButtonColor: '#0f4c3a',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
             }
 
             batalEdit();
@@ -125,7 +121,9 @@ export default function ManageQuestions() {
                 text: 'Terjadi kesalahan saat menyimpan soal. Pastikan Backend sudah diperbarui!',
                 confirmButtonColor: '#0f4c3a'
             }); 
-        } finally { setIsLoading(false); }
+        } finally { 
+            setIsLoading(false); 
+        }
     };
 
     const handleHapusSoal = async (id) => {
@@ -135,16 +133,15 @@ export default function ManageQuestions() {
             text: "Data soal yang dihapus tidak dapat dikembalikan!",
             icon: 'warning',
             showCancelButton: true,
-            confirmButtonColor: '#d33', // Merah bahaya
-            cancelButtonColor: '#64748b', // Abu-abu
+            confirmButtonColor: '#d33', 
+            cancelButtonColor: '#64748b', 
             confirmButtonText: 'Ya, Hapus Permanen!',
             cancelButtonText: 'Batal'
         });
 
         if (result.isConfirmed) {
             try {
-                const token = localStorage.getItem('token');
-                await axios.delete(`/api/questions/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+                await questionService.deleteQuestion(id);
                 fetchQuestions();
                 
                 // 🌟 NOTIFIKASI TERHAPUS
@@ -181,15 +178,16 @@ export default function ManageQuestions() {
         // Set Kunci Jawaban berdasarkan tipe
         if ((formTipe === 'pg' || formTipe === 'pg_multiple') && q.opsi_jawaban) {
             try {
-                const parsedOpsi = JSON.parse(q.opsi_jawaban);
-                // Convert object {A: "text", B: "text"} to array ["text", "text"]
-                const opsiArray = [
-                    parsedOpsi.A || parsedOpsi[0] || '',
-                    parsedOpsi.B || parsedOpsi[1] || '',
-                    parsedOpsi.C || parsedOpsi[2] || '',
-                    parsedOpsi.D || parsedOpsi[3] || '',
-                    parsedOpsi.E || parsedOpsi[4] || ''
-                ];
+                const parsedOpsi = typeof q.opsi_jawaban === 'string' ? JSON.parse(q.opsi_jawaban) : q.opsi_jawaban;
+                const opsiArray = Array.isArray(parsedOpsi) 
+                    ? [parsedOpsi[0] || '', parsedOpsi[1] || '', parsedOpsi[2] || '', parsedOpsi[3] || '', parsedOpsi[4] || '']
+                    : [
+                        parsedOpsi.A || parsedOpsi[0] || '',
+                        parsedOpsi.B || parsedOpsi[1] || '',
+                        parsedOpsi.C || parsedOpsi[2] || '',
+                        parsedOpsi.D || parsedOpsi[3] || '',
+                        parsedOpsi.E || parsedOpsi[4] || ''
+                    ];
                 setOpsi(opsiArray);
 
                 if (formTipe === 'pg') {
@@ -200,8 +198,10 @@ export default function ManageQuestions() {
                     setKunciJawabanMultiple([]);
                 } else if (formTipe === 'pg_multiple') {
                     // Multiple choice
-                    const kunciArray = JSON.parse(q.kunci_jawaban || '[]');
-                    const keys = ['A', 'B', 'C', 'D'];
+                    const kunciArray = typeof q.kunci_jawaban === 'string' 
+                        ? (q.kunci_jawaban.includes(',') ? q.kunci_jawaban.split(',') : JSON.parse(q.kunci_jawaban || '[]'))
+                        : (q.kunci_jawaban || []);
+                    const keys = ['A', 'B', 'C', 'D', 'E'];
                     const indices = kunciArray.map(k => keys.indexOf(k)).filter(idx => idx >= 0);
                     setKunciJawabanMultiple(indices);
                     setKunciJawabanPG(0);
@@ -248,201 +248,183 @@ export default function ManageQuestions() {
         setOpsi(newOpsi);
     };
 
+    // helper labels
+    const formatTipeLabel = (tipe) => {
+        if (tipe === 'TIPE_1') return { label: 'Pilihan Ganda', css: 'bg-blue-50 text-blue-700 border-blue-200' };
+        if (tipe === 'TIPE_2') return { label: 'Multi Pilihan', css: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
+        if (tipe === 'TIPE_3') return { label: 'Esai Bebas', css: 'bg-purple-50 text-purple-700 border-purple-200' };
+        return { label: 'Upload Berkas', css: 'bg-amber-50 text-amber-700 border-amber-200' };
+    };
+
     return (
-        <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} className="max-w-6xl mx-auto space-y-8">
+        <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} className="max-w-6xl mx-auto space-y-8 pb-12">
             
-            <div className="mb-2">
-                <h3 className="text-2xl font-black text-slate-900 tracking-tight">Manajemen Bank Soal</h3>
-                <p className="text-sm font-medium text-slate-500 mt-1">Susun dan kelola instrumen pertanyaan untuk evaluasi akademik mahasiswa.</p>
+            {/* Header */}
+            <div>
+                <h3 className="text-3xl font-black text-slate-900 tracking-tight">Kelola Bank Soal</h3>
+                <p className="text-[14px] font-medium text-slate-500 mt-2 max-w-2xl leading-relaxed">Buat, modifikasi, dan tautkan butir-butir pertanyaan ke dalam sesi ujian yang sesuai.</p>
             </div>
 
-            <div className="bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-200 rounded-2xl overflow-hidden">
-                <div className={`border-b border-slate-100 p-5 flex justify-between items-center ${editId ? 'bg-amber-50/50' : 'bg-slate-50/50'}`}>
-                    <div className="flex gap-3 flex-wrap">
-                        <button onClick={() => setTipeSoal('pg')} disabled={editId} className={`px-6 py-2.5 rounded-xl font-bold text-xs transition-all ${tipeSoal === 'pg' ? 'bg-[#0f4c3a] text-white shadow-md' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'} disabled:opacity-50`}>
-                            PG Single Choice
-                        </button>
-                        <button onClick={() => setTipeSoal('pg_multiple')} disabled={editId} className={`px-6 py-2.5 rounded-xl font-bold text-xs transition-all ${tipeSoal === 'pg_multiple' ? 'bg-[#0f4c3a] text-white shadow-md' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'} disabled:opacity-50`}>
-                            PG Multiple Choice
-                        </button>
-                        <button onClick={() => setTipeSoal('esai')} disabled={editId} className={`px-6 py-2.5 rounded-xl font-bold text-xs transition-all ${tipeSoal === 'esai' ? 'bg-[#0f4c3a] text-white shadow-md' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'} disabled:opacity-50`}>
-                            Soal Esai
-                        </button>
-                        <button onClick={() => setTipeSoal('upload')} disabled={editId} className={`px-6 py-2.5 rounded-xl font-bold text-xs transition-all ${tipeSoal === 'upload' ? 'bg-[#0f4c3a] text-white shadow-md' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'} disabled:opacity-50`}>
-                            Upload Berkas
-                        </button>
-                    </div>
-                    {editId && <span className="text-[11px] font-black text-amber-700 uppercase tracking-widest bg-amber-100 border border-amber-200 px-4 py-1.5 rounded-md shadow-sm flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span> Mode Edit Aktif</span>}
+            {/* FORM INPUT SOAL */}
+            <div className={`bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.05)] border relative overflow-hidden transition-colors duration-500 ${editId ? 'border-amber-300' : 'border-slate-100'}`}>
+                {editId && <div className="absolute top-0 left-0 w-1.5 h-full bg-amber-500"></div>}
+                
+                <div className="px-8 md:px-10 py-6 border-b border-slate-100/50 flex justify-between items-center bg-white/50 backdrop-blur-sm">
+                    <h3 className={`text-[15px] font-black uppercase tracking-widest ${editId ? 'text-amber-800' : 'text-[#0f4c3a]'}`}>
+                        {editId ? 'Ubah Pertanyaan' : 'Tulis Pertanyaan Baru'}
+                    </h3>
+                    {editId && (
+                        <button type="button" onClick={batalEdit} className="text-[11px] font-black text-slate-500 hover:text-slate-800 uppercase tracking-widest bg-slate-100 px-4 py-2 rounded-lg">Batal Edit</button>
+                    )}
                 </div>
 
-                <form onSubmit={handleSimpanSoal} className="p-8 space-y-6">
-                    
-                    {/* ========================================================= */}
-                    {/* 🌟 FORM BARU: DROPDOWN TARGET SESI UJIAN */}
-                    {/* ========================================================= */}
-                    <div className="bg-slate-50/50 p-5 rounded-xl border border-slate-200 mb-6">
-                        <label className="block text-[11px] font-black text-[#0f4c3a] mb-2 uppercase tracking-widest flex items-center gap-2">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                            Target Sesi Ujian (Wajib Pilih)
-                        </label>
-                        <select required value={selectedExamId} onChange={e => setSelectedExamId(e.target.value)} disabled={editId} className="w-full px-5 py-3.5 bg-white rounded-xl border border-slate-200 focus:border-[#0f4c3a] focus:ring-2 focus:ring-[#0f4c3a]/20 outline-none font-bold text-slate-800 text-[13px] shadow-sm transition-all disabled:opacity-60 disabled:cursor-not-allowed">
-                            <option value="" disabled>-- Klik untuk memilih Ujian --</option>
-                            {examList.map(ex => (
-                                <option key={ex.id} value={ex.id}>{ex.nama_ujian} | Token: {ex.token_ujian}</option>
-                            ))}
-                        </select>
-                    </div>
-                    {/* ========================================================= */}
-
-                    <div>
-                        <label className="block text-[11px] font-black text-slate-500 mb-2 uppercase tracking-widest flex items-center gap-2">
-                            <svg className="w-4 h-4 text-[#0f4c3a]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                            Teks Pertanyaan / Instruksi
-                        </label>
-                        <textarea required rows="3" value={pertanyaan} onChange={(e) => setPertanyaan(e.target.value)} className="w-full px-5 py-4 bg-slate-50 rounded-xl border border-slate-200 focus:bg-white focus:ring-4 focus:ring-[#0f4c3a]/10 focus:border-[#0f4c3a] outline-none font-semibold text-slate-800 text-[14px] transition-all shadow-inner placeholder-slate-300" placeholder="Ketikkan instruksi soal secara detail..."></textarea>
-                    </div>
-
-                    {/* KONDISI JIKA PILIHAN GANDA SINGLE CHOICE */}
-                    {tipeSoal === 'pg' && (
+                <form onSubmit={handleSimpanSoal} className="p-8 md:p-10 space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                            <label className="block text-[11px] font-black text-slate-500 mb-3 uppercase tracking-widest">Opsi & Kunci Jawaban (Pilih 1 Jawaban Benar)</label>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {opsi.map((op, idx) => (
-                                    <div key={idx} className={`flex items-center gap-3 p-2.5 rounded-xl border-2 transition-all shadow-sm ${kunciJawabanPG === idx ? 'border-[#0f4c3a] bg-[#ecfdf5]' : 'border-slate-200 bg-white hover:border-slate-300'}`}>
-                                        <button type="button" onClick={() => setKunciJawabanPG(idx)} className={`w-9 h-9 rounded-lg flex-shrink-0 text-[12px] font-black transition-all ${kunciJawabanPG === idx ? 'bg-[#0f4c3a] text-[#d4af37] shadow-md' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`} title="Jadikan Kunci Jawaban">{['A', 'B', 'C', 'D', 'E'][idx]}</button>
-                                        <input type="text" required value={op} onChange={(e) => handleOpsiChange(idx, e.target.value)} className="flex-1 w-full bg-transparent outline-none font-bold text-slate-800 text-[13px] placeholder-slate-300" placeholder={`Masukkan teks opsi ${['A', 'B', 'C', 'D', 'E'][idx]}...`} />
-                                        {kunciJawabanPG === idx && <svg className="w-5 h-5 text-[#0f4c3a] mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>}
-                                    </div>
+                            <label className="block text-[11px] font-black text-slate-500 mb-2 uppercase tracking-widest">A. Tautkan Ke Ujian</label>
+                            <select required value={selectedExamId} onChange={e => setSelectedExamId(e.target.value)} className="w-full px-5 py-4 bg-slate-50 rounded-xl border border-slate-200 focus:bg-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none font-bold text-slate-800 text-[14px]">
+                                <option value="" disabled>-- Pilih Sesi Ujian --</option>
+                                {examList.map((exam) => (
+                                    <option key={exam.id} value={exam.id}>{exam.nama_ujian} ({exam.kode_mk})</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-[11px] font-black text-slate-500 mb-2 uppercase tracking-widest">B. Jenis Pertanyaan</label>
+                            <div className="grid grid-cols-4 gap-2">
+                                {[
+                                    { id: 'pg', label: 'Pilihan Ganda' },
+                                    { id: 'pg_multiple', label: 'Multi Pilihan' },
+                                    { id: 'esai', label: 'Esai Bebas' },
+                                    { id: 'upload', label: 'Upload File' }
+                                ].map(t => (
+                                    <button key={t.id} type="button" onClick={() => setTipeSoal(t.id)} className={`py-3.5 px-2 rounded-xl text-[11px] font-black uppercase tracking-wider border-2 text-center transition-all ${tipeSoal === t.id ? 'bg-[#0f4c3a] border-[#0f4c3a] text-white' : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'}`}>
+                                        {t.label}
+                                    </button>
                                 ))}
                             </div>
                         </div>
-                    )}
+                    </div>
 
-                    {/* KONDISI JIKA PILIHAN GANDA MULTIPLE CHOICE */}
-                    {tipeSoal === 'pg_multiple' && (
-                        <div>
-                            <label className="block text-[11px] font-black text-slate-500 mb-2 uppercase tracking-widest">Opsi & Kunci Jawaban (Bisa Pilih Lebih dari 1 Jawaban Benar)</label>
-                            <p className="text-[11px] text-blue-600 font-medium mb-3 bg-blue-50 px-3 py-2 rounded-lg border border-blue-100">
-                                💡 Klik tombol A/B/C/D/E untuk menandai jawaban yang benar. Anda bisa memilih lebih dari satu jawaban.
-                            </p>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {opsi.map((op, idx) => {
-                                    const isSelected = kunciJawabanMultiple.includes(idx);
-                                    return (
-                                        <div key={idx} className={`flex items-center gap-3 p-2.5 rounded-xl border-2 transition-all shadow-sm ${isSelected ? 'border-[#0f4c3a] bg-[#ecfdf5]' : 'border-slate-200 bg-white hover:border-slate-300'}`}>
-                                            <button type="button" onClick={() => toggleMultipleChoice(idx)} className={`w-9 h-9 rounded-lg flex-shrink-0 text-[12px] font-black transition-all ${isSelected ? 'bg-[#0f4c3a] text-[#d4af37] shadow-md' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`} title="Toggle Kunci Jawaban">{['A', 'B', 'C', 'D', 'E'][idx]}</button>
-                                            <input type="text" required value={op} onChange={(e) => handleOpsiChange(idx, e.target.value)} className="flex-1 w-full bg-transparent outline-none font-bold text-slate-800 text-[13px] placeholder-slate-300" placeholder={`Masukkan teks opsi ${['A', 'B', 'C', 'D', 'E'][idx]}...`} />
-                                            {isSelected && <svg className="w-5 h-5 text-[#0f4c3a] mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>}
-                                        </div>
-                                    );
-                                })}
+                    <div>
+                        <label className="block text-[11px] font-black text-slate-500 mb-2 uppercase tracking-widest">C. Teks Pertanyaan</label>
+                        <textarea required value={pertanyaan} onChange={e => setPertanyaan(e.target.value)} rows="4" placeholder="Tuliskan isi pertanyaan soal di sini..." className="w-full px-5 py-4 bg-slate-50 rounded-xl border border-slate-200 focus:bg-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none font-medium text-slate-800 text-[14px] resize-none" />
+                    </div>
+
+                    {/* INTERFACE OPSI UNTUK PILIHAN GANDA */}
+                    {(tipeSoal === 'pg' || tipeSoal === 'pg_multiple') && (
+                        <div className="p-6 md:p-8 rounded-2xl border-2 border-slate-100 bg-slate-50/30 space-y-5">
+                            <h4 className="text-[12px] font-black text-slate-600 uppercase tracking-widest">D. Opsi & Kunci Jawaban</h4>
+                            <div className="space-y-4">
+                                {['A', 'B', 'C', 'D', 'E'].map((label, idx) => (
+                                    <div key={label} className="flex gap-4 items-center">
+                                        {tipeSoal === 'pg' ? (
+                                            <button type="button" onClick={() => setKunciJawabanPG(idx)} className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-xs border-2 transition-all ${kunciJawabanPG === idx ? 'bg-blue-600 border-blue-600 text-white shadow-md' : 'bg-white border-slate-300 text-slate-500 hover:border-slate-400'}`}>
+                                                {label}
+                                            </button>
+                                        ) : (
+                                            <button type="button" onClick={() => toggleMultipleChoice(idx)} className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-xs border-2 transition-all ${kunciJawabanMultiple.includes(idx) ? 'bg-emerald-600 border-emerald-600 text-white shadow-md' : 'bg-white border-slate-300 text-slate-500 hover:border-slate-400'}`}>
+                                                {label}
+                                            </button>
+                                        )}
+                                        <input type="text" required value={opsi[idx]} onChange={e => handleOpsiChange(idx, e.target.value)} placeholder={`Isi jawaban pilihan ${label}...`} className="flex-1 px-4 py-3 bg-white rounded-xl border border-slate-200 focus:border-blue-500 outline-none font-semibold text-slate-800 text-[13px] shadow-sm" />
+                                    </div>
+                                ))}
                             </div>
-                            {kunciJawabanMultiple.length > 0 && (
-                                <div className="mt-3 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
-                                    <p className="text-[11px] font-black text-emerald-700 uppercase tracking-widest">
-                                        Jawaban Benar: {kunciJawabanMultiple.map(idx => ['A', 'B', 'C', 'D', 'E'][idx]).join(', ')}
-                                    </p>
-                                </div>
-                            )}
+                            <p className="text-[10px] font-bold text-slate-400 uppercase italic">
+                                * Klik tombol lingkaran/kotak huruf di sebelah kiri input untuk menjadikannya sebagai Kunci Jawaban.
+                            </p>
                         </div>
                     )}
 
-                    {/* 🌟 KONDISI JIKA SOAL ESAI (Kotak Rubrik Penilaian) */}
+                    {/* INTERFACE KUNCI UNTUK ESAI */}
                     {tipeSoal === 'esai' && (
-                        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}>
-                            <label className="block text-[11px] font-black text-[#d4af37] mb-2 uppercase tracking-widest flex items-center gap-2">
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                Rubrik / Kunci Jawaban Esai
-                            </label>
-                            <textarea required rows="2" value={kunciEsai} onChange={(e) => setKunciEsai(e.target.value)} className="w-full px-5 py-4 bg-[#f8fafc] rounded-xl border border-slate-200 focus:bg-white focus:ring-4 focus:ring-[#d4af37]/20 focus:border-[#d4af37] outline-none font-semibold text-slate-800 text-[14px] transition-all shadow-inner placeholder-slate-400" placeholder="Masukkan poin-poin utama yang harus ada di jawaban mahasiswa (sebagai acuan koreksi)..."></textarea>
-                        </motion.div>
+                        <div className="p-6 rounded-2xl border-2 border-slate-100 bg-slate-50/30">
+                            <label className="block text-[11px] font-black text-slate-500 mb-2 uppercase tracking-widest">D. Rubrik Kunci Jawaban Esai (Acuan Koreksi AI)</label>
+                            <textarea value={kunciEsai} onChange={e => setKunciEsai(e.target.value)} rows="3" placeholder="Tulis poin-poin penting atau jawaban ideal yang diharapkan dari esai ini..." className="w-full px-5 py-4 bg-white rounded-xl border border-slate-200 focus:border-blue-500 outline-none font-medium text-slate-800 text-[13px] resize-none" />
+                        </div>
                     )}
 
-                    <div className="pt-4 flex gap-4">
-                        <button type="submit" disabled={isLoading} className="flex-1 py-4 rounded-xl text-[13px] font-black text-[#0f4c3a] bg-gradient-to-r from-[#fbbf24] to-[#f59e0b] hover:from-[#f59e0b] hover:to-[#d97706] shadow-[0_4px_15px_rgba(251,191,36,0.3)] hover:shadow-[0_8px_25px_rgba(251,191,36,0.5)] transition-all uppercase tracking-widest flex items-center justify-center gap-2">
-                            {isLoading ? 'Menyimpan...' : (editId ? 'Sahkan Perubahan' : '+ Tambah ke Bank Soal')}
+                    <div className="pt-4 flex justify-end">
+                        <button type="submit" disabled={isLoading} className={`px-10 py-4 rounded-xl text-[13px] font-black uppercase tracking-widest shadow-lg transition-all w-full md:w-auto ${editId ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-amber-500/30' : 'bg-[#0f4c3a] hover:bg-[#092e23] text-[#d4af37] shadow-[#0f4c3a]/30'}`}>
+                            {isLoading ? 'Menyimpan...' : editId ? 'Simpan Edit Soal' : 'Masukkan ke Bank Soal'}
                         </button>
-                        {editId && (
-                            <button type="button" onClick={batalEdit} className="px-8 py-4 rounded-xl text-[13px] font-black text-slate-600 bg-white border-2 border-slate-200 hover:bg-slate-50 hover:border-slate-300 transition-all uppercase tracking-widest">Batal Edit</button>
-                        )}
                     </div>
                 </form>
             </div>
 
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-[0_10px_40px_rgb(0,0,0,0.04)] overflow-hidden mt-10 relative">
-                <div className="px-8 py-5 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-white flex justify-between items-center">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-[#0f4c3a]/10 rounded-lg">
-                            <svg className="w-5 h-5 text-[#0f4c3a]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
-                        </div>
-                        <h3 className="text-[16px] font-black text-slate-800 tracking-tight">Etalase Instrumen Tersimpan</h3>
-                    </div>
-                    <span className="flex items-center gap-2 bg-[#0f4c3a] text-[#d4af37] text-[11px] px-4 py-2 rounded-lg font-black uppercase tracking-widest shadow-md border border-[#16654e]">
-                        Total Data: <span className="bg-white/20 px-2 py-0.5 rounded text-white">{questionList.length}</span>
-                    </span>
+            {/* DAFTAR BANK SOAL YANG ADA */}
+            <div className="bg-white rounded-3xl border border-slate-100 shadow-[0_10px_40px_rgba(0,0,0,0.03)] overflow-hidden">
+                <div className="px-8 py-5 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+                    <h3 className="text-[14px] font-black text-slate-800 uppercase tracking-widest">Arsip Bank Soal</h3>
+                    <span className="bg-slate-800 text-white text-[10px] px-3 py-1.5 rounded-lg font-black uppercase tracking-widest shadow-sm">Total: {questionList.length} Butir</span>
                 </div>
                 
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                        <thead>
-                            <tr className="border-b border-slate-200 bg-slate-50/80">
-                                <th className="py-4 px-8 text-[11px] font-black text-slate-400 uppercase tracking-widest w-16">No</th>
-                                <th className="py-4 px-8 text-[11px] font-black text-slate-400 uppercase tracking-widest w-36">Tipe Format</th>
-                                <th className="py-4 px-8 text-[11px] font-black text-slate-400 uppercase tracking-widest">Redaksi Pertanyaan</th>
-                                <th className="py-4 px-8 text-[11px] font-black text-slate-400 uppercase tracking-widest text-right w-48">Manajemen Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                            {questionList.length === 0 ? (
-                                <tr>
-                                    <td colSpan="4" className="py-16 text-center">
-                                        <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-50 rounded-full mb-4 border-4 border-white shadow-sm">
-                                            <svg className="w-6 h-6 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" /></svg>
-                                        </div>
-                                        <p className="text-slate-400 text-sm font-bold">Bank soal masih kosong.</p>
-                                    </td>
-                                </tr>
-                            ) : (
-                                questionList.map((q, idx) => (
-                                    <tr key={q.id} className="hover:bg-blue-50/20 transition-colors group">
-                                        <td className="py-5 px-8 text-[14px] font-black text-slate-400">{idx + 1}</td>
-                                        <td className="py-5 px-8">
-                                            <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border shadow-sm ${
-                                                q.tipe_soal === 'TIPE_1' ? 'bg-blue-50 text-blue-700 border-blue-200' :
-                                                q.tipe_soal === 'TIPE_2' ? 'bg-purple-50 text-purple-700 border-purple-200' :
-                                                q.tipe_soal === 'TIPE_4' ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                                                'bg-[#ecfdf5] text-[#059669] border-[#a7f3d0]'
-                                            }`}>
-                                                <span className={`w-1.5 h-1.5 rounded-full ${
-                                                    q.tipe_soal === 'TIPE_1' ? 'bg-blue-500' :
-                                                    q.tipe_soal === 'TIPE_2' ? 'bg-purple-500' :
-                                                    q.tipe_soal === 'TIPE_4' ? 'bg-amber-500' :
-                                                    'bg-[#10b981]'
-                                                }`}></span>
-                                                {q.tipe_soal === 'TIPE_1' ? 'PG Single' :
-                                                 q.tipe_soal === 'TIPE_2' ? 'PG Multiple' :
-                                                 q.tipe_soal === 'TIPE_4' ? 'Upload' :
-                                                 'Esai'}
+                <div className="p-8 space-y-6">
+                    {questionList.length === 0 ? (
+                        <div className="py-16 text-center text-slate-400 font-bold text-[14px]">Belum ada soal terdaftar.</div>
+                    ) : (
+                        questionList.map((q, idx) => {
+                            const tipeInfo = formatTipeLabel(q.tipe_soal);
+                            let formattedOpsi = null;
+                            if (q.opsi_jawaban) {
+                                try {
+                                    formattedOpsi = typeof q.opsi_jawaban === 'string' ? JSON.parse(q.opsi_jawaban) : q.opsi_jawaban;
+                                } catch(e) {
+                                    // ignore JSON parse error
+                                }
+                            }
+
+                            return (
+                                <div key={q.id} className="p-6 border border-slate-100 rounded-2xl bg-slate-50/50 hover:shadow-md transition-all relative group flex flex-col md:flex-row gap-6 justify-between items-start">
+                                    <div className="space-y-4 flex-1">
+                                        <div className="flex flex-wrap items-center gap-2.5">
+                                            <span className="text-xs font-mono font-black text-slate-400">#{(idx+1).toString().padStart(3, '0')}</span>
+                                            <span className={`px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-wider border ${tipeInfo.css}`}>
+                                                {tipeInfo.label}
                                             </span>
-                                        </td>
-                                        <td className="py-5 px-8">
-                                            <p className="text-[14px] font-semibold text-slate-800 line-clamp-2 leading-relaxed group-hover:text-[#0f4c3a] transition-colors">{q.isi_soal}</p>
-                                        </td>
-                                        <td className="py-5 px-8 text-right space-x-2">
-                                            <button onClick={() => handleMulaiEdit(q)} className="inline-flex items-center justify-center gap-1.5 px-4 py-2 text-[11px] font-bold text-blue-600 bg-white border border-slate-200 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 rounded-lg shadow-sm transition-all uppercase tracking-wider">
-                                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                                                Edit
-                                            </button>
-                                            <button onClick={() => handleHapusSoal(q.id)} className="inline-flex items-center justify-center gap-1.5 px-4 py-2 text-[11px] font-bold text-red-600 bg-white border border-slate-200 hover:bg-red-50 hover:border-red-300 hover:text-red-700 rounded-lg shadow-sm transition-all uppercase tracking-wider">
-                                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                                Hapus
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
+                                            <span className="bg-slate-100 text-slate-600 border border-slate-200 px-2.5 py-1 rounded-md text-[9px] font-bold uppercase tracking-wider">
+                                                Ujian ID: {q.exam_id} • {q.exams?.nama_ujian || 'Ujian'}
+                                            </span>
+                                        </div>
+                                        
+                                        <p className="font-bold text-slate-800 text-[15px] leading-relaxed">{q.isi_soal}</p>
+                                        
+                                        {/* Tampilan Detail Opsi jika PG */}
+                                        {formattedOpsi && (
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pl-4">
+                                                {Object.keys(formattedOpsi).map((key) => {
+                                                    const isKunci = q.kunci_jawaban === key || (q.kunci_jawaban && q.kunci_jawaban.split(',').includes(key));
+                                                    return (
+                                                        <div key={key} className={`flex items-center gap-2.5 text-xs font-semibold py-1 px-3 rounded-lg ${isKunci ? 'bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold' : 'text-slate-500 bg-white border border-slate-100'}`}>
+                                                            <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black ${isKunci ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-400'}`}>{key}</span>
+                                                            <span className="truncate">{formattedOpsi[key]}</span>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+
+                                        {/* Tampilan Kunci untuk esai */}
+                                        {q.tipe_soal === 'TIPE_3' && q.kunci_jawaban && (
+                                            <div className="pl-4 border-l-2 border-purple-300 text-xs text-purple-700 italic font-medium">
+                                                Rubrik Kunci: {q.kunci_jawaban}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="flex gap-2 shrink-0 self-end md:self-start opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                        <button onClick={() => handleMulaiEdit(q)} className="p-2.5 rounded-xl bg-white border border-slate-200 text-amber-600 hover:bg-amber-500 hover:text-white transition-colors shadow-sm" title="Edit Soal">
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                        </button>
+                                        <button onClick={() => handleHapusSoal(q.id)} className="p-2.5 rounded-xl bg-white border border-slate-200 text-red-600 hover:bg-red-600 hover:text-white transition-colors shadow-sm" title="Hapus Soal">
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                            );
+                        })
+                    )}
                 </div>
             </div>
 

@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import axios from 'axios';
 import Swal from 'sweetalert2';
 import { API_BASE_URL } from '../config/api';
+import matkulService from '../services/matkul.service';
+import examService from '../services/exam.service';
+import gradingService from '../services/grading.service';
 
 export default function Grading() {
     const backendFileBaseUrl = API_BASE_URL.replace(/\/+$/, '');
@@ -34,14 +36,12 @@ export default function Grading() {
 
     const fetchInitialData = async () => {
         try {
-            const token = localStorage.getItem('token');
-            const headers = { headers: { Authorization: `Bearer ${token}` } };
             const [resMatkul, resExams] = await Promise.all([
-                axios.get('/api/matakuliah', headers),
-                axios.get('/api/exams', headers)
+                matkulService.getMatkul(),
+                examService.getExams()
             ]);
-            setMatkulList(resMatkul.data.data || []);
-            setAllExams(resExams.data.data || []);
+            setMatkulList(resMatkul || []);
+            setAllExams(resExams || []);
         } catch (error) { 
             console.error("Gagal menarik data awal:", error); 
         }
@@ -75,12 +75,9 @@ export default function Grading() {
 
         setLoading(true);
         try {
-            const token = localStorage.getItem('token');
             // Ambil semua jawaban untuk mendapatkan daftar mahasiswa unik
-            const res = await axios.get(`/api/grading/exams/${examId}/all-answers`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            const allAnswers = res.data.data || [];
+            const resData = await gradingService.getAllAnswers(examId);
+            const allAnswers = resData || [];
 
             // Ekstrak mahasiswa unik
             const uniqueStudents = [];
@@ -103,11 +100,8 @@ export default function Grading() {
             console.error("Gagal menarik data mahasiswa", error);
             // Fallback: gunakan endpoint lama jika endpoint baru tidak tersedia
             try {
-                const token = localStorage.getItem('token');
-                const res = await axios.get(`/api/grading/exams/${examId}/answers`, {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-                const allAnswers = res.data.data || [];
+                const resData = await gradingService.getAnswers(examId);
+                const allAnswers = resData || [];
                 const uniqueStudents = [];
                 const seenIds = new Set();
                 allAnswers.forEach(ans => {
@@ -143,11 +137,8 @@ export default function Grading() {
 
         setLoading(true);
         try {
-            const token = localStorage.getItem('token');
-            const res = await axios.get(`/api/grading/exams/${selectedExam}/students/${studentId}/answers`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            setAnswers(res.data.data || []);
+            const data = await gradingService.getStudentAnswers(selectedExam, studentId);
+            setAnswers(data || []);
         } catch (error) {
             console.error("Gagal menarik jawaban mahasiswa", error);
             Swal.fire('Error', 'Gagal memuat jawaban mahasiswa', 'error');
@@ -166,10 +157,7 @@ export default function Grading() {
         if (parseFloat(skorBaru) > parseFloat(bobotMaksimal)) return Swal.fire('Ditolak', `Skor tidak boleh melebihi bobot maksimal (${bobotMaksimal})!`, 'error');
 
         try {
-            const token = localStorage.getItem('token');
-            await axios.put(`/api/grading/responses/${responseId}/score`, { skor: skorBaru }, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            await gradingService.saveScore(responseId, skorBaru);
 
             Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Nilai disimpan!', showConfirmButton: false, timer: 1500 });
 
@@ -203,15 +191,12 @@ export default function Grading() {
 
         setRecalculating(true);
         try {
-            const token = localStorage.getItem('token');
-            const res = await axios.post(`/api/grading/exams/${selectedExam}/recalculate`, {}, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const resultData = await gradingService.recalculate(selectedExam);
             Swal.fire({
                 toast: true,
                 position: 'top-end',
                 icon: 'success',
-                title: res.data.message || 'Skor berhasil dihitung ulang!',
+                title: resultData.message || 'Skor berhasil dihitung ulang!',
                 showConfirmButton: false,
                 timer: 3000
             });

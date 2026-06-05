@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-// import axios from 'axios'; // Nanti kita aktifkan jika API validasi sudah siap
+import examService from '../services/exam.service';
 
 export default function JoinExam() {
     const navigate = useNavigate();
@@ -12,7 +12,6 @@ export default function JoinExam() {
     const handleJoin = async (e) => {
         e.preventDefault();
         
-        // Validasi form agar tepat 6 karakter (opsional, sesuaikan dengan panjang tokenmu)
         if (token.length < 5) {
             setError('Token harus terdiri dari kombinasi huruf dan angka.');
             return;
@@ -22,17 +21,9 @@ export default function JoinExam() {
         setError('');
 
         try {
-            // NANTI KITA SAMBUNGKAN KE BACKEND DI SINI
-            // const userToken = localStorage.getItem('token');
-            // await axios.post('/api/exams/verify', { token_ujian: token }, ...);
-            
-            // Untuk sekarang, kita buat efek loading sukses palsu (simulasi)
-           // Untuk sekarang, kita buat efek loading sukses palsu (simulasi)
-setTimeout(() => {
-    setIsLoading(false);
-    navigate('/take-exam'); // <--- Arahkan ke Lembar Ujian!
-}, 1500);
-
+            await examService.verifyToken(token);
+            setIsLoading(false);
+            navigate('/take-exam'); 
         } catch (err) {
             setError(err.response?.data?.message || 'Token tidak valid atau sesi ujian belum dimulai.');
             setIsLoading(false);

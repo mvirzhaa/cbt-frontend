@@ -1,16 +1,19 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import Swal from 'sweetalert2';
+import { useAuth } from '../hooks/useAuth';
 
 export default function Profile() {
+    const { user, role } = useAuth();
+    
     const [userData] = useState(() => {
-        const nama = localStorage.getItem('nama') || 'Pengguna Sistem';
-        const role = localStorage.getItem('role') || 'user';
-        const email = localStorage.getItem('email') || 'pengguna@uika.ac.id';
+        const nama = user?.nama || 'Pengguna Sistem';
+        const roleName = role || 'user';
+        const email = user?.email || 'pengguna@uika.ac.id';
 
         return {
             nama,
-            role: role.replace('_', ' ').toUpperCase(),
+            role: roleName.replace('_', ' ').toUpperCase(),
             inisial: nama.charAt(0).toUpperCase(),
             email,
             tanggalDaftar: new Date().toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })

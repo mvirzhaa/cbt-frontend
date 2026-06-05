@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import axios from 'axios';
 import * as XLSX from 'xlsx';
 import Swal from 'sweetalert2';
+import matkulService from '../services/matkul.service';
+import examService from '../services/exam.service';
+import gradingService from '../services/grading.service';
 
 export default function RekapNilai() {
     // State Master Data
@@ -32,16 +34,13 @@ export default function RekapNilai() {
 
     const fetchInitialData = async () => {
         try {
-            const token = localStorage.getItem('token');
-            const headers = { headers: { Authorization: `Bearer ${token}` } };
-            
             const [resMatkul, resExams] = await Promise.all([
-                axios.get('/api/matakuliah', headers),
-                axios.get('/api/exams', headers)
+                matkulService.getMatkul(),
+                examService.getExams()
             ]);
             
-            setMatkulList(resMatkul.data.data || []);
-            setAllExams(resExams.data.data || []);
+            setMatkulList(resMatkul || []);
+            setAllExams(resExams || []);
         } catch (error) { 
             console.error("Gagal menarik data awal:", error); 
         }
@@ -69,12 +68,9 @@ export default function RekapNilai() {
     const fetchAttemptsData = async (examId) => {
         setLoading(true);
         try {
-            const token = localStorage.getItem('token');
-            const res = await axios.get(`/api/dosen/attempts/${examId}`, { 
-                headers: { Authorization: `Bearer ${token}` } 
-            });
-            setScores(res.data.data || []);
-            setExamInfo(res.data.exam_info || null);
+            const responseData = await gradingService.getAttempts(examId);
+            setScores(responseData.data || responseData || []);
+            setExamInfo(responseData.exam_info || null);
         } catch (error) { 
             console.error("Gagal menarik rincian nilai:", error); 
             Swal.fire('Error', 'Gagal memuat data nilai ujian ini.', 'error');
@@ -135,16 +131,13 @@ export default function RekapNilai() {
 
     const submitVerification = async () => {
         try {
-            const token = localStorage.getItem('token');
             const payload = {
                 skor_pilgan_100: verifyModal.scores.pilgan,
                 skor_esai_100: verifyModal.scores.esai,
                 skor_file_100: verifyModal.scores.file
             };
 
-            await axios.post(`/api/dosen/verify-exam/${verifyModal.attempt.attempt_id}`, payload, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            await gradingService.verifyExamAttempt(verifyModal.attempt.attempt_id, payload);
 
             Swal.fire({
                 icon: 'success',

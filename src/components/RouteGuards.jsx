@@ -1,28 +1,22 @@
 import { Navigate } from 'react-router-dom';
-
-function normalizeRole(rawRole) {
-  return (rawRole || '').toLowerCase().replace(/[^a-z]/g, '');
-}
-
-function getRoleKind(rawRole) {
-  const role = normalizeRole(rawRole);
-  if (role.includes('admin')) return 'admin';
-  if (role.includes('mahasiswa') || role.includes('student')) return 'student';
-  if (role.includes('dosen') || role.includes('lecturer')) return 'lecturer';
-  return '';
-}
+import { useAuth } from '../hooks/useAuth';
+import { getRoleKind } from '../utils/auth.utils';
 
 export function RequireAuth({ children }) {
-  const token = localStorage.getItem('token');
-  if (!token) return <Navigate to="/" replace />;
+  const { token } = useAuth();
+  if (!token) {
+    return <Navigate to="/" replace />;
+  }
   return children;
 }
 
 export function RequireRole({ allow = [], children }) {
-  const token = localStorage.getItem('token');
-  if (!token) return <Navigate to="/" replace />;
+  const { token, role } = useAuth();
+  if (!token) {
+    return <Navigate to="/" replace />;
+  }
 
-  const roleKind = getRoleKind(localStorage.getItem('role'));
+  const roleKind = getRoleKind(role);
   if (!allow.includes(roleKind)) {
     if (roleKind === 'admin') return <Navigate to="/admin" replace />;
     if (roleKind === 'student') return <Navigate to="/student-dashboard" replace />;

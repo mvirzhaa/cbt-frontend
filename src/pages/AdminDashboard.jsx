@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import Swal from 'sweetalert2';
+import adminService from '../services/admin.service';
+import matkulService from '../services/matkul.service';
 
-// 🌟 MENERIMA PARAMETER DARI APP.JSX
 export default function AdminDashboard({ activeMenu = 'overview' }) {
     const navigate = useNavigate();
     
@@ -13,41 +13,43 @@ export default function AdminDashboard({ activeMenu = 'overview' }) {
     const [matkulList, setMatkulList] = useState([]);
     const [formMatkul, setFormMatkul] = useState({ kode_mk: '', nama_mk: '', dosen_id: '' });
     const [isLoading, setIsLoading] = useState(false);
-    const [isEditing, setIsEditing] = useState(false); // 🌟 State Edit
-    // =========================================================================
-    // 📡 API CALLS
-    // =========================================================================
-    const getAuthHeaders = useCallback(
-        () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }),
-        []
-    );
+    const [isEditing, setIsEditing] = useState(false);
 
     const fetchPendingUsers = useCallback(async () => {
         try {
-            const res = await axios.get('/api/admin/users/pending', getAuthHeaders());
-            setPendingUsers(res.data.data || []);
-        } catch (error) { console.error("Gagal menarik antrean:", error); }
-    }, [getAuthHeaders]);
+            const data = await adminService.getPendingUsers();
+            setPendingUsers(data || []);
+        } catch (error) { 
+            console.error("Gagal menarik antrean:", error); 
+        }
+    }, []);
 
     const fetchActiveUsers = useCallback(async () => {
         try {
-            const res = await axios.get('/api/admin/users/active', getAuthHeaders());
+            const data = await adminService.getActiveUsers();
             const myEmail = localStorage.getItem('email') || '';
-            const filteredUsers = (res.data.data || []).filter(u => u.email !== myEmail && u.role !== 'super_admin');
+            const filteredUsers = (data || []).filter(u => u.email !== myEmail && u.role !== 'super_admin');
             setActiveUsers(filteredUsers);
-        } catch (error) { console.error("Gagal menarik pengguna aktif:", error); }
-    }, [getAuthHeaders]);
+        } catch (error) { 
+            console.error("Gagal menarik pengguna aktif:", error); 
+        }
+    }, []);
 
     const fetchMatkul = useCallback(async () => {
         try {
-            const res = await axios.get('/api/matakuliah', getAuthHeaders());
-            setMatkulList(res.data.data || []);
-        } catch (error) { console.error("Gagal matkul:", error); }
-    }, [getAuthHeaders]);
+            const data = await matkulService.getMatkul();
+            setMatkulList(data || []);
+        } catch (error) { 
+            console.error("Gagal matkul:", error); 
+        }
+    }, []);
+
     // Otomatis menarik data
     useEffect(() => {
         if (activeMenu === 'overview') {
-            fetchPendingUsers(); fetchActiveUsers(); fetchMatkul();
+            fetchPendingUsers(); 
+            fetchActiveUsers(); 
+            fetchMatkul();
         } else if (activeMenu === 'verifikasi') {
             fetchPendingUsers();
         } else if (activeMenu === 'pengguna') {
@@ -63,30 +65,44 @@ export default function AdminDashboard({ activeMenu = 'overview' }) {
     // =========================================================================
     const handleAktivasi = async (id, nama, role) => {
         const result = await Swal.fire({
-            title: 'Otorisasi Akses?', text: `Yakin ingin menyetujui akun ${nama} sebagai ${role.toUpperCase()}?`,
-            icon: 'question', showCancelButton: true, confirmButtonColor: '#0f4c3a', confirmButtonText: 'Ya, Setujui!'
+            title: 'Otorisasi Akses?', 
+            text: `Yakin ingin menyetujui akun ${nama} sebagai ${role.toUpperCase()}?`,
+            icon: 'question', 
+            showCancelButton: true, 
+            confirmButtonColor: '#0f4c3a', 
+            confirmButtonText: 'Ya, Setujui!'
         });
         if (!result.isConfirmed) return;
         setIsLoading(true);
         try {
-            await axios.put(`/api/admin/users/${id}/approve`, { role }, getAuthHeaders());
+            await adminService.approveUser(id, role);
             Swal.fire({ icon: 'success', title: 'Berhasil!', text: `Akun ${nama} aktif sebagai ${role}.`, timer: 2000, showConfirmButton: false });
             fetchPendingUsers();
-        } catch (error) { Swal.fire('Gagal', 'Tidak dapat memberikan otorisasi.', 'error'); } 
-        finally { setIsLoading(false); }
+        } catch (error) { 
+            Swal.fire('Gagal', 'Tidak dapat memberikan otorisasi.', 'error'); 
+        } finally { 
+            setIsLoading(false); 
+        }
     };
 
     const handleHapusPengguna = async (id, nama, role) => {
         const result = await Swal.fire({
-            title: 'Hapus Permanen?', text: `Anda akan menghapus akun ${role.toUpperCase()} atas nama ${nama}. Semua data terkait akun ini akan hilang!`,
-            icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Ya, Eksekusi!', reverseButtons: true
+            title: 'Hapus Permanen?', 
+            text: `Anda akan menghapus akun ${role.toUpperCase()} atas nama ${nama}. Semua data terkait akun ini akan hilang!`,
+            icon: 'warning', 
+            showCancelButton: true, 
+            confirmButtonColor: '#d33', 
+            confirmButtonText: 'Ya, Eksekusi!', 
+            reverseButtons: true
         });
         if (!result.isConfirmed) return;
         try {
-            await axios.delete(`/api/admin/users/${id}`, getAuthHeaders());
+            await adminService.deleteUser(id);
             Swal.fire({ icon: 'success', title: 'Terhapus!', text: `Akun ${nama} telah dibumihanguskan dari sistem.`, timer: 2000, showConfirmButton: false });
             fetchActiveUsers(); 
-        } catch (error) { Swal.fire('Gagal', 'Terjadi kesalahan saat menghapus akun.', 'error'); }
+        } catch (error) { 
+            Swal.fire('Gagal', 'Terjadi kesalahan saat menghapus akun.', 'error'); 
+        }
     };
 
     // =========================================================================
@@ -94,23 +110,28 @@ export default function AdminDashboard({ activeMenu = 'overview' }) {
     // =========================================================================
     const handleSimpanMatkul = async (e) => {
         e.preventDefault();
-        if (!formMatkul.kode_mk || !formMatkul.nama_mk) return Swal.fire('Peringatan', 'Kode dan Nama MK wajib diisi!', 'warning');
+        if (!formMatkul.kode_mk || !formMatkul.nama_mk) {
+            return Swal.fire('Peringatan', 'Kode dan Nama MK wajib diisi!', 'warning');
+        }
         
         setIsLoading(true);
         try {
             if (isEditing) {
-                await axios.put(`/api/matakuliah/${formMatkul.kode_mk}`, formMatkul, getAuthHeaders());
+                await matkulService.updateMatkul(formMatkul.kode_mk, formMatkul);
                 Swal.fire({ icon: 'success', title: 'Diperbarui!', text: 'Mata Kuliah berhasil diedit.', timer: 2000, showConfirmButton: false });
             } else {
-                await axios.post('/api/matakuliah', formMatkul, getAuthHeaders());
+                await matkulService.createMatkul(formMatkul);
                 Swal.fire({ icon: 'success', title: 'Tersimpan!', text: 'Mata Kuliah ditambahkan.', timer: 2000, showConfirmButton: false });
             }
             
             setFormMatkul({ kode_mk: '', nama_mk: '', dosen_id: '' });
             setIsEditing(false);
             fetchMatkul(); 
-        } catch (error) { Swal.fire('Gagal', 'Terjadi kesalahan pada database.', 'error'); } 
-        finally { setIsLoading(false); }
+        } catch (error) { 
+            Swal.fire('Gagal', 'Terjadi kesalahan pada database.', 'error'); 
+        } finally { 
+            setIsLoading(false); 
+        }
     };
 
     const handleKlikEdit = (mk) => {
@@ -126,16 +147,23 @@ export default function AdminDashboard({ activeMenu = 'overview' }) {
 
     const handleHapusMatkul = async (kode_mk, nama_mk) => {
         const result = await Swal.fire({
-            title: 'Hapus Mata Kuliah?', text: `Anda akan menghapus ${nama_mk} (${kode_mk}). Tindakan ini permanen!`,
-            icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Ya, Hapus!', reverseButtons: true
+            title: 'Hapus Mata Kuliah?', 
+            text: `Anda akan menghapus ${nama_mk} (${kode_mk}). Tindakan ini permanen!`,
+            icon: 'warning', 
+            showCancelButton: true, 
+            confirmButtonColor: '#d33', 
+            confirmButtonText: 'Ya, Hapus!', 
+            reverseButtons: true
         });
 
         if (!result.isConfirmed) return;
         try {
-            await axios.delete(`/api/matakuliah/${kode_mk}`, getAuthHeaders());
+            await matkulService.deleteMatkul(kode_mk);
             Swal.fire({ icon: 'success', title: 'Terhapus!', text: 'Mata kuliah dilenyapkan.', timer: 1500, showConfirmButton: false });
             fetchMatkul();
-        } catch (error) { Swal.fire('Gagal', 'Tidak dapat dihapus. Pastikan tidak ada soal/ujian yang terkait.', 'error'); }
+        } catch (error) { 
+            Swal.fire('Gagal', 'Tidak dapat dihapus. Pastikan tidak ada soal/ujian yang terkait.', 'error'); 
+        }
     };
 
     return (
@@ -171,7 +199,7 @@ export default function AdminDashboard({ activeMenu = 'overview' }) {
                 </motion.div>
             )}
 
-            {/* HALAMAN 2 & 3: Verifikasi & Pengguna (Tetap dibiarkan sama seperti sebelumnya) */}
+            {/* HALAMAN 2 & 3: Verifikasi & Pengguna */}
             {activeMenu === 'verifikasi' && (
                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                     <div className="overflow-x-auto">
@@ -199,14 +227,13 @@ export default function AdminDashboard({ activeMenu = 'overview' }) {
             )}
 
             {/* ========================================================= */}
-            {/* 📚 HALAMAN 4: MASTER MATKUL (Desain Premium) */}
+            {/* 📚 HALAMAN 4: MASTER MATKUL */}
             {/* ========================================================= */}
             {activeMenu === 'matkul' && (
                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
                     
                     {/* 🌟 FORM INPUT PREMIUM */}
                     <div className={`p-8 rounded-3xl shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07)] border transition-all duration-300 relative overflow-hidden ${isEditing ? 'bg-gradient-to-r from-amber-50 to-orange-50/30 border-amber-200' : 'bg-white border-slate-100'}`}>
-                        {/* Dekorasi Latar Form */}
                         {isEditing && <div className="absolute top-0 left-0 w-1 h-full bg-amber-500"></div>}
                         
                         <div className="flex items-center gap-3 mb-6">
@@ -321,7 +348,4 @@ export default function AdminDashboard({ activeMenu = 'overview' }) {
 
         </motion.div>
     );
-}   
-
-
-
+}

@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react'; // 🤖 Tambahan useRef untuk Kamera
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import Swal from 'sweetalert2';
+import examService from '../services/exam.service';
+import proctoringService from '../services/proctoring.service';
+import { formatWaktu } from '../utils/format.utils';
 // 🤖 face-api.js di-load secara dinamis (lazy) untuk mengurangi ukuran bundle
 
 export default function TakeExam() {
@@ -92,10 +94,7 @@ export default function TakeExam() {
 
             try {
                 // Tembakkan diam-diam ke server tanpa loading di layar mahasiswa
-                const authToken = localStorage.getItem('token');
-                await axios.post('/api/proctoring/report', formData, {
-                    headers: { 'Content-Type': 'multipart/form-data', 'Authorization': `Bearer ${authToken}` }
-                });
+                await proctoringService.reportViolation(formData);
                 console.log(`📸 Busted! Bukti ${jenisPelanggaran} berhasil dikirim ke markas.`);
             } catch (error) {
                 console.error('🚨 Gagal melaporkan pelanggaran ke server:', error);
@@ -153,12 +152,8 @@ export default function TakeExam() {
         
         setIsLoading(true);
         try {
-            const authToken = localStorage.getItem('token');
-            const res = await axios.post('/api/student/verify-token', { token }, {
-                headers: { Authorization: `Bearer ${authToken}` }
-            });
-            
-            const data = res.data.data;
+            const resData = await examService.verifyToken(token);
+            const data = resData.data;
             setExamData(data.exam);
             setQuestions(data.questions);
             
@@ -187,13 +182,6 @@ export default function TakeExam() {
     // =========================================================================
     // ⏱️ 2. TIMER HITUNG MUNDUR & AUTO-SUBMIT
     // =========================================================================
-    const formatWaktu = (seconds) => {
-        const h = Math.floor(seconds / 3600);
-        const m = Math.floor((seconds % 3600) / 60);
-        const s = seconds % 60;
-        if (h > 0) return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-        return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-    };
 
     // =========================================================================
     // 📝 3. MANAJEMEN JAWABAN & SUBMIT (TERMASUK FILE)
@@ -214,7 +202,6 @@ export default function TakeExam() {
 
     const submitKeBackend = useCallback(async () => {
         try {
-            const authToken = localStorage.getItem('token');
             const formData = new FormData();
             
             formData.append('exam_id', examData.id);
@@ -226,12 +213,7 @@ export default function TakeExam() {
                 }
             });
 
-            await axios.post('/api/student/submit-exam', formData, {
-                headers: { 
-                    Authorization: `Bearer ${authToken}`,
-                    'Content-Type': 'multipart/form-data' 
-                }
-            });
+            await examService.submitExam(formData);
             
             // 🤖 Matikan kamera saat selesai ujian
             if (streamRef.current) {

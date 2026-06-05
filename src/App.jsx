@@ -1,6 +1,7 @@
 import { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { RequireAuth, RequireRole } from './components/RouteGuards';
+import { AuthProvider } from './context/AuthContext';
 
 const Login = lazy(() => import('./pages/Login'));
 const Register = lazy(() => import('./pages/Register'));
@@ -30,38 +31,40 @@ function RouteFallback() {
 
 function App() {
   return (
-    <BrowserRouter basename="/cbt">
-      <Suspense fallback={<RouteFallback />}>
-        <Routes>
-          <Route path="/" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
+    <AuthProvider>
+      <BrowserRouter basename="/cbt">
+        <Suspense fallback={<RouteFallback />}>
+          <Routes>
+            <Route path="/" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
 
-          <Route path="/take-exam" element={<RequireRole allow={['student']}><TakeExam /></RequireRole>} />
+            <Route path="/take-exam" element={<RequireRole allow={['student']}><TakeExam /></RequireRole>} />
 
-          <Route element={<RequireAuth><DashboardLayout /></RequireAuth>}>
-            <Route path="/panduan" element={<PanduanUjian />} />
+            <Route element={<RequireAuth><DashboardLayout /></RequireAuth>}>
+              <Route path="/panduan" element={<PanduanUjian />} />
 
-            <Route path="/admin" element={<RequireRole allow={['admin']}><AdminDashboard activeMenu="overview" /></RequireRole>} />
-            <Route path="/admin/verifikasi" element={<RequireRole allow={['admin']}><AdminDashboard activeMenu="verifikasi" /></RequireRole>} />
-            <Route path="/admin/pengguna" element={<RequireRole allow={['admin']}><AdminDashboard activeMenu="pengguna" /></RequireRole>} />
-            <Route path="/admin/matkul" element={<RequireRole allow={['admin']}><AdminDashboard activeMenu="matkul" /></RequireRole>} />
+              <Route path="/admin" element={<RequireRole allow={['admin']}><AdminDashboard activeMenu="overview" /></RequireRole>} />
+              <Route path="/admin/verifikasi" element={<RequireRole allow={['admin']}><AdminDashboard activeMenu="verifikasi" /></RequireRole>} />
+              <Route path="/admin/pengguna" element={<RequireRole allow={['admin']}><AdminDashboard activeMenu="pengguna" /></RequireRole>} />
+              <Route path="/admin/matkul" element={<RequireRole allow={['admin']}><AdminDashboard activeMenu="matkul" /></RequireRole>} />
 
-            <Route path="/dashboard" element={<RequireRole allow={['lecturer']}><DashboardOverview /></RequireRole>} />
-            <Route path="/manage-matkul" element={<RequireRole allow={['lecturer']}><ManageMatkul /></RequireRole>} />
-            <Route path="/manage-materi" element={<RequireRole allow={['lecturer']}><ManageMateri /></RequireRole>} />
-            <Route path="/manage-questions" element={<RequireRole allow={['lecturer']}><ManageQuestions /></RequireRole>} />
-            <Route path="/create-exam" element={<RequireRole allow={['lecturer']}><CreateExam /></RequireRole>} />
-            <Route path="/grading" element={<RequireRole allow={['lecturer']}><Grading /></RequireRole>} />
-            <Route path="/rekap-nilai" element={<RequireRole allow={['lecturer']}><RekapNilai /></RequireRole>} />
-            <Route path="/ai-proctoring" element={<RequireRole allow={['lecturer']}><AiProctoring /></RequireRole>} />
+              <Route path="/dashboard" element={<RequireRole allow={['lecturer']}><DashboardOverview /></RequireRole>} />
+              <Route path="/manage-matkul" element={<RequireRole allow={['lecturer']}><ManageMatkul /></RequireRole>} />
+              <Route path="/manage-materi" element={<RequireRole allow={['lecturer']}><ManageMateri /></RequireRole>} />
+              <Route path="/manage-questions" element={<RequireRole allow={['lecturer']}><ManageQuestions /></RequireRole>} />
+              <Route path="/create-exam" element={<RequireRole allow={['lecturer']}><CreateExam /></RequireRole>} />
+              <Route path="/grading" element={<RequireRole allow={['lecturer']}><Grading /></RequireRole>} />
+              <Route path="/rekap-nilai" element={<RequireRole allow={['lecturer']}><RekapNilai /></RequireRole>} />
+              <Route path="/ai-proctoring" element={<RequireRole allow={['lecturer']}><AiProctoring /></RequireRole>} />
 
-            <Route path="/student-dashboard" element={<RequireRole allow={['student']}><StudentDashboard /></RequireRole>} />
-            <Route path="/student-materi" element={<RequireRole allow={['student']}><StudentMateri /></RequireRole>} />
-          </Route>
-        </Routes>
-      </Suspense>
-    </BrowserRouter>
+              <Route path="/student-dashboard" element={<RequireRole allow={['student']}><StudentDashboard /></RequireRole>} />
+              <Route path="/student-materi" element={<RequireRole allow={['student']}><StudentMateri /></RequireRole>} />
+            </Route>
+          </Routes>
+        </Suspense>
+      </BrowserRouter>
+    </AuthProvider>
   );
 }
 

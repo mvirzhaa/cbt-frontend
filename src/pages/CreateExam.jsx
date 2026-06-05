@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import axios from 'axios';
 import Swal from 'sweetalert2';
+import matkulService from '../services/matkul.service';
+import examService from '../services/exam.service';
 
 export default function CreateExam() {
     const [isLoading, setIsLoading] = useState(false);
@@ -36,18 +37,20 @@ export default function CreateExam() {
 
     const fetchMatkul = async () => {
         try {
-            const token = localStorage.getItem('token');
-            const response = await axios.get('https://u-talent.uika-bogor.ac.id/cbt-api/api/matakuliah', { headers: { Authorization: `Bearer ${token}` } });
-            setMatkulList(response.data.data || []);
-        } catch (error) { console.error("Gagal menarik data matkul", error); }
+            const data = await matkulService.getMatkul();
+            setMatkulList(data || []);
+        } catch (error) { 
+            console.error("Gagal menarik data matkul", error); 
+        }
     };
 
     const fetchExams = async () => {
         try {
-            const token = localStorage.getItem('token');
-            const response = await axios.get('https://u-talent.uika-bogor.ac.id/cbt-api/api/exams', { headers: { Authorization: `Bearer ${token}` } });
-            setExamList(response.data.data || []);
-        } catch (error) { console.error("Gagal menarik data ujian", error); }
+            const data = await examService.getExams();
+            setExamList(data || []);
+        } catch (error) { 
+            console.error("Gagal menarik data ujian", error); 
+        }
     };
 
     const formatToDatetimeLocal = (dateString) => {
@@ -67,7 +70,6 @@ export default function CreateExam() {
 
         setIsLoading(true);
         try {
-            const token = localStorage.getItem('token');
             const payload = {
                 kode_mk: formExam.kode_mk,
                 nama_ujian: formExam.nama_ujian,
@@ -80,10 +82,10 @@ export default function CreateExam() {
             };
 
             if (isEditing) {
-                await axios.put(`https://u-talent.uika-bogor.ac.id/cbt-api/api/exams/${editId}`, payload, { headers: { Authorization: `Bearer ${token}` } });
+                await examService.updateExam(editId, payload);
                 Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Perubahan Disimpan!', showConfirmButton: false, timer: 2000 });
             } else {
-                await axios.post('https://u-talent.uika-bogor.ac.id/cbt-api/api/exams', payload, { headers: { Authorization: `Bearer ${token}` } });
+                await examService.createExam(payload);
                 Swal.fire({ icon: 'success', title: 'Sesi Ujian Diterbitkan!', text: `Sistem berhasil men-generate Token Ujian unik.`, confirmButtonColor: '#0f4c3a' });
             }
             resetForm();
@@ -115,14 +117,17 @@ export default function CreateExam() {
         const result = await Swal.fire({
             title: 'Yakin Hapus Ujian?',
             html: `Anda akan mencoba melenyapkan <b>${namaUjian}</b>.`,
-            icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', cancelButtonColor: '#94a3b8',
-            confirmButtonText: 'Ya, Eksekusi!', reverseButtons: true
+            icon: 'warning', 
+            showCancelButton: true, 
+            confirmButtonColor: '#d33', 
+            cancelButtonColor: '#94a3b8',
+            confirmButtonText: 'Ya, Eksekusi!', 
+            reverseButtons: true
         });
 
         if (result.isConfirmed) {
             try {
-                const token = localStorage.getItem('token');
-                await axios.delete(`https://u-talent.uika-bogor.ac.id/cbt-api/api/exams/${examId}`, { headers: { Authorization: `Bearer ${token}` } });
+                await examService.deleteExam(examId);
                 Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Ujian terhapus.', showConfirmButton: false, timer: 2000 });
                 fetchExams();
                 if (editId === examId) resetForm();
@@ -151,6 +156,7 @@ export default function CreateExam() {
     return (
         <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} className="max-w-6xl mx-auto space-y-8 pb-12">
             
+            {/* Header */}
             <div>
                 <h3 className="text-3xl font-black text-slate-900 tracking-tight">Manajemen Sesi Ujian</h3>
                 <p className="text-[14px] font-medium text-slate-500 mt-2 max-w-2xl leading-relaxed">Terbitkan jadwal, atur persentase nilai, dan awasi status sesi ujian. Ujian yang telah lewat batas waktu akan otomatis masuk ke Arsip.</p>

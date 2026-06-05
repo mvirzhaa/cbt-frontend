@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { API_BASE_URL } from '../config/api';
+import materiService from '../services/materi.service';
 
 export default function StudentMateri() {
     const [materiList, setMateriList] = useState([]);
@@ -9,14 +10,8 @@ export default function StudentMateri() {
     useEffect(() => {
         const fetchMateri = async () => {
             try {
-                const token = localStorage.getItem('token');
-                const response = await fetch(`${API_BASE_URL}/api/materi`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                const result = await response.json();
-                if (response.ok) {
-                    setMateriList(result.data || []);
-                }
+                const data = await materiService.getMateri();
+                setMateriList(data || []);
             } catch (error) {
                 console.error("Gagal menarik materi:", error);
             } finally {

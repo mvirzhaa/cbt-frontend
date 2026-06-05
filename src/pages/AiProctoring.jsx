@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { API_BASE_URL } from '../config/api';
+import proctoringService from '../services/proctoring.service';
 
 export default function AiProctoring() {
     const [violations, setViolations] = useState([]);
@@ -11,14 +12,8 @@ export default function AiProctoring() {
 
     const fetchViolations = async () => {
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${API_BASE_URL}/api/proctoring`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            const result = await response.json();
-            if (response.ok) {
-                setViolations(result.data || []);
-            }
+            const data = await proctoringService.getViolations();
+            setViolations(data || []);
         } catch (error) {
             console.error("Gagal menarik data pelanggaran:", error);
         } finally {
