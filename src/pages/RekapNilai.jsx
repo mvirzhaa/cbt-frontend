@@ -182,7 +182,7 @@ export default function RekapNilai() {
                     </label>
                     <select value={selectedMatkul} onChange={handleMatkulChange} className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-xl text-[13px] font-bold text-slate-800 outline-none focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all cursor-pointer appearance-none">
                         <option value="" disabled>-- Pilih Mata Kuliah Terlebih Dahulu --</option>
-                        {matkulList.map(mk => (
+                        {matkulList?.data?.map(mk => (
                             <option key={mk.kode_mk} value={mk.kode_mk}>{mk.kode_mk} - {mk.nama_mk}</option>
                         ))}
                     </select>
@@ -197,7 +197,7 @@ export default function RekapNilai() {
                         <option value="" disabled>
                             {!selectedMatkul ? "Pilih Matkul di samping dulu ➔" : filteredExams.length === 0 ? "Belum ada sesi ujian di matkul ini" : "-- Pilih Sesi Ujian --"}
                         </option>
-                        {filteredExams.map(ex => (
+                        {filteredExams?.data?.map(ex => (
                             <option key={ex.id} value={ex.id}>{ex.nama_ujian} (Durasi: {ex.durasi} Menit)</option>
                         ))}
                     </select>

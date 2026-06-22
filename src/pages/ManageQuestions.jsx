@@ -364,7 +364,7 @@ export default function ManageQuestions() {
                     {questionList.length === 0 ? (
                         <div className="py-16 text-center text-slate-400 font-bold text-[14px]">Belum ada soal terdaftar.</div>
                     ) : (
-                        questionList?.map((q, idx) => {
+                        questionList?.data?.map((q, idx) => {
                             const tipeInfo = formatTipeLabel(q.tipe_soal);
                             let formattedOpsi = null;
                             if (q.opsi_jawaban) {
