@@ -52,7 +52,7 @@ export default function Grading() {
         const mkId = e.target.value;
         setSelectedMatkul(mkId);
         
-        const examsForThisMatkul = allExams.filter(ex => ex.kode_mk === mkId);
+        const examsForThisMatkul = allExams?.data?.filter(ex => ex.kode_mk === mkId) || [];
         setFilteredExams(examsForThisMatkul);
         
         setSelectedExam('');
@@ -77,7 +77,7 @@ export default function Grading() {
         try {
             // Ambil semua jawaban untuk mendapatkan daftar mahasiswa unik
             const resData = await gradingService.getAllAnswers(examId);
-            const allAnswers = resData || [];
+            const allAnswers = resData?.data || resData || [];
 
             // Ekstrak mahasiswa unik
             const uniqueStudents = [];
@@ -101,7 +101,7 @@ export default function Grading() {
             // Fallback: gunakan endpoint lama jika endpoint baru tidak tersedia
             try {
                 const resData = await gradingService.getAnswers(examId);
-                const allAnswers = resData || [];
+                const allAnswers = resData?.data || resData || [];
                 const uniqueStudents = [];
                 const seenIds = new Set();
                 allAnswers.forEach(ans => {
@@ -162,7 +162,10 @@ export default function Grading() {
             Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Nilai disimpan!', showConfirmButton: false, timer: 1500 });
 
             // Update answers state untuk menandai sebagai sudah dinilai
-            setAnswers(prev => prev.map(a => a.id === responseId ? { ...a, skor: skorBaru, graded: true } : a));
+            setAnswers(prev => {
+                const prevArray = prev?.data || prev || [];
+                return prevArray.map(a => a.id === responseId ? { ...a, skor: skorBaru, graded: true } : a);
+            });
             setInputScores(prev => {
                 const newScores = { ...prev };
                 delete newScores[responseId];
@@ -239,7 +242,7 @@ export default function Grading() {
     };
 
     // Filter jawaban berdasarkan tipe
-    const filteredAnswers = answers.filter(ans => {
+    const filteredAnswers = (answers?.data || answers || []).filter(ans => {
         if (filterType === 'all') return true;
         if (filterType === 'auto') return ['TIPE_1', 'TIPE_2'].includes(ans.questions?.tipe_soal);
         if (filterType === 'manual') return ans.questions?.tipe_soal === 'TIPE_4';
@@ -284,7 +287,7 @@ export default function Grading() {
                             <option value="" disabled>
                                 {!selectedMatkul ? "Pilih Matkul di samping dulu ➔" : filteredExams.length === 0 ? "Belum ada sesi ujian di matkul ini" : "-- Pilih Sesi Ujian --"}
                             </option>
-                            {filteredExams?.data?.map(ex => (
+                            {filteredExams.map(ex => (
                                 <option key={ex.id} value={ex.id}>{ex.nama_ujian} (Durasi: {ex.durasi} Menit)</option>
                             ))}
                         </select>
@@ -300,7 +303,7 @@ export default function Grading() {
                             <option value="" disabled>
                                 {!selectedExam ? "Pilih Ujian dulu ➔" : studentList.length === 0 ? "Belum ada mahasiswa" : "-- Pilih Mahasiswa --"}
                             </option>
-                            {studentList?.data?.map(student => (
+                            {studentList.map(student => (
                                 <option key={student.id} value={student.id}>{student.nama} ({student.nim})</option>
                             ))}
                         </select>
@@ -368,7 +371,7 @@ export default function Grading() {
                             </h4>
                         </div>
                         <div className="text-[11px] text-slate-500 font-semibold uppercase tracking-wider bg-slate-100 px-3 py-1 rounded-full">
-                            Mahasiswa: {studentList.find(s => s.id === parseInt(selectedStudent))?.nama}
+                            Mahasiswa: {(studentList?.data || studentList || []).find(s => s.id === parseInt(selectedStudent))?.nama}
                         </div>
                     </div>
 
