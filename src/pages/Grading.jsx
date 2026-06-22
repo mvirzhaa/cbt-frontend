@@ -268,7 +268,7 @@ export default function Grading() {
                         </label>
                         <select value={selectedMatkul} onChange={handleMatkulChange} className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-xl text-[14px] font-bold text-slate-800 outline-none focus:bg-white focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 transition-all cursor-pointer appearance-none shadow-sm">
                             <option value="" disabled>-- Pilih Mata Kuliah Terlebih Dahulu --</option>
-                            {matkulList.map(mk => (
+                            {matkulList?.map(mk => (
                                 <option key={mk.kode_mk} value={mk.kode_mk}>{mk.kode_mk} - {mk.nama_mk}</option>
                             ))}
                         </select>
@@ -284,7 +284,7 @@ export default function Grading() {
                             <option value="" disabled>
                                 {!selectedMatkul ? "Pilih Matkul di samping dulu ➔" : filteredExams.length === 0 ? "Belum ada sesi ujian di matkul ini" : "-- Pilih Sesi Ujian --"}
                             </option>
-                            {filteredExams.map(ex => (
+                            {filteredExams?.map(ex => (
                                 <option key={ex.id} value={ex.id}>{ex.nama_ujian} (Durasi: {ex.durasi} Menit)</option>
                             ))}
                         </select>
@@ -300,7 +300,7 @@ export default function Grading() {
                             <option value="" disabled>
                                 {!selectedExam ? "Pilih Ujian dulu ➔" : studentList.length === 0 ? "Belum ada mahasiswa" : "-- Pilih Mahasiswa --"}
                             </option>
-                            {studentList.map(student => (
+                            {studentList?.map(student => (
                                 <option key={student.id} value={student.id}>{student.nama} ({student.nim})</option>
                             ))}
                         </select>

@@ -114,7 +114,7 @@ export default function DashboardLayout() {
     }
 
     const formattedDate = currentTime.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-    const userInitial = userName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+    const userInitial = userName?.split(' ')?.map(n => n[0]).join('').substring(0, 2).toUpperCase();
 
     return (
         <div className="flex h-screen bg-[#f0f4f8] font-sans overflow-hidden text-slate-800">
@@ -137,7 +137,7 @@ export default function DashboardLayout() {
 
                 <div className="flex-1 overflow-y-auto py-6 px-3 relative z-10 space-y-1">
                     <p className="px-3 text-[9px] font-bold text-[#6ee7b7]/70 uppercase tracking-[0.15em] mb-3">Navigasi Utama</p>
-                    {menuItems.map((item) => {
+                    {menuItems?.map((item) => {
                         const isActive = location.pathname === item.path;
                         return (
                             <button key={item.path} onClick={() => navigate(item.path)} className={`w-full flex items-center gap-3 px-3 py-2.5 text-[12px] font-bold rounded-lg transition-all duration-300 group relative overflow-hidden ${isActive ? 'bg-white/10 text-white shadow-[inset_0_0_15px_rgba(255,255,255,0.05)] border-l-[3px] border-[#d4af37]' : 'text-[#a7f3d0] hover:bg-white/5 hover:text-white border-l-[3px] border-transparent'}`}>
