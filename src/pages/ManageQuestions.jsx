@@ -284,7 +284,7 @@ export default function ManageQuestions() {
                             <label className="block text-[11px] font-black text-slate-500 mb-2 uppercase tracking-widest">A. Tautkan Ke Ujian</label>
                             <select required value={selectedExamId} onChange={e => setSelectedExamId(e.target.value)} className="w-full px-5 py-4 bg-slate-50 rounded-xl border border-slate-200 focus:bg-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none font-bold text-slate-800 text-[14px]">
                                 <option value="" disabled>-- Pilih Sesi Ujian --</option>
-                                {examList?.map((exam) => (
+                                {examList?.data?.map((exam) => (
                                     <option key={exam.id} value={exam.id}>{exam.nama_ujian} ({exam.kode_mk})</option>
                                 ))}
                             </select>

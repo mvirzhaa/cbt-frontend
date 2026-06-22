@@ -192,7 +192,7 @@ export default function CreateExam() {
                             <label className="block text-[11px] font-black text-slate-500 mb-3 uppercase tracking-widest">A. Pemilihan Mata Kuliah</label>
                             <select required value={formExam.kode_mk} onChange={e => setFormExam({...formExam, kode_mk: e.target.value})} className="w-full px-5 py-4 bg-slate-50 rounded-xl border-2 border-slate-200 focus:bg-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none font-bold text-slate-800 text-[14px] transition-all cursor-pointer appearance-none shadow-sm">
                                 <option value="" disabled>-- Pilih Mata Kuliah --</option>
-                                {matkulList?.map((mk) => (
+                                {matkulList?.data?.map((mk) => (
                                     <option key={mk.kode_mk} value={mk.kode_mk}>{mk.kode_mk} - {mk.nama_mk}</option>
                                 ))}
                             </select>
