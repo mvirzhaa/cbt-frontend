@@ -532,7 +532,7 @@ export default function Grading() {
                                                                         <div className="relative flex items-center">
                                                                             <input
                                                                                 type="number" min="0" max={maxScore}
-                                                                                value={inputScores[ans.id] !== undefined ? inputScores[ans.id] : (ans.skor !== null && ans.skor !== undefined ? Math.round(Number(ans.skor)) : '')}
+                                                                                value={inputScores[ans.id] !== undefined ? inputScores[ans.id] : (ans.skor !== null && ans.skor !== undefined ? parseFloat(Number(ans.skor).toFixed(2)) : '')}
                                                                                 onChange={(e) => setInputScores({ ...inputScores, [ans.id]: e.target.value })}
                                                                                 disabled={ans.skor !== null && ans.skor !== undefined && inputScores[ans.id] === undefined}
                                                                                 className="w-16 px-2.5 py-1 text-center font-bold text-slate-800 bg-white border border-slate-350 rounded-lg focus:border-[#0f4c3a] focus:ring-1 focus:ring-[#0f4c3a]/20 outline-none text-sm disabled:bg-slate-50 disabled:text-slate-500 disabled:border-slate-200 transition-all shadow-sm"

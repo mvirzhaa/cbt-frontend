@@ -86,10 +86,10 @@ export default function RekapNilai() {
             "No": index + 1,
             "NIM": s.nim,
             "Nama Mahasiswa": s.nama_mahasiswa,
-            "Skor Pilihan Ganda (100)": Math.round(s.skor_pilgan_100),
-            "Skor Esai AI (100)": Math.round(s.skor_esai_100),
-            "Skor Upload (100)": Math.round(s.skor_file_100),
-            "Total Nilai Akhir": s.final_score !== null ? Math.round(s.final_score) : 'Menunggu',
+            "Skor Pilihan Ganda (100)": parseFloat(Number(s.skor_pilgan_100).toFixed(2)),
+            "Skor Esai AI (100)": parseFloat(Number(s.skor_esai_100).toFixed(2)),
+            "Skor Upload (100)": parseFloat(Number(s.skor_file_100).toFixed(2)),
+            "Total Nilai Akhir": s.final_score !== null ? parseFloat(Number(s.final_score).toFixed(2)) : 'Menunggu',
             "Status Evaluasi": s.status === 'SELESAI' ? 'Final' : 'Menunggu Verifikasi'
         }));
 
@@ -249,13 +249,13 @@ export default function RekapNilai() {
                                             <p className="text-xs text-slate-500 font-medium">{score.nim}</p>
                                         </td>
                                         <td className="py-4 px-4 text-center font-bold text-slate-600 text-[13px]">
-                                            {Math.round(score.skor_pilgan_100)}
+                                            {parseFloat(Number(score.skor_pilgan_100).toFixed(2))}
                                         </td>
                                         <td className="py-4 px-4 text-center font-bold text-slate-600 text-[13px]">
-                                            {Math.round(score.skor_esai_100)}
+                                            {parseFloat(Number(score.skor_esai_100).toFixed(2))}
                                         </td>
                                         <td className="py-4 px-4 text-center font-bold text-slate-600 text-[13px]">
-                                            {Math.round(score.skor_file_100)}
+                                            {parseFloat(Number(score.skor_file_100).toFixed(2))}
                                         </td>
                                         <td className="py-4 px-4 text-center">
                                             {score.status === 'SELESAI' ? (
@@ -266,7 +266,7 @@ export default function RekapNilai() {
                                         </td>
                                         <td className="py-4 px-6 text-center bg-[#0f4c3a]/[0.02]">
                                             <span className={`text-xl font-black tracking-tight ${score.status === 'SELESAI' ? 'text-[#0f4c3a]' : 'text-slate-400'}`}>
-                                                {score.final_score !== null ? Math.round(score.final_score) : '-'}
+                                                {score.final_score !== null ? parseFloat(Number(score.final_score).toFixed(2)) : '-'}
                                             </span>
                                         </td>
                                         <td className="py-4 px-6 text-right">
@@ -359,11 +359,11 @@ export default function RekapNilai() {
                                 <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex justify-between items-center mt-2">
                                     <span className="text-xs font-black uppercase tracking-widest text-slate-500">Estimasi Total Akhir:</span>
                                     <span className="text-xl font-black text-[#0f4c3a]">
-                                        {Math.round(
+                                        {parseFloat(Number(
                                             (verifyModal.scores.pilgan * ((examInfo?.bobot_pilgan || 0) / 100)) +
                                             (verifyModal.scores.esai * ((examInfo?.bobot_esai || 0) / 100)) +
                                             (verifyModal.scores.file * ((examInfo?.bobot_upload || 0) / 100))
-                                        )}
+                                        ).toFixed(2))}
                                     </span>
                                 </div>
                             </div>

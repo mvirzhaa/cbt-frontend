@@ -149,7 +149,7 @@ export default function StudentDashboard() {
                                         <td className="py-5 px-8 text-right">
                                             {item.status === 'Selesai Dinilai' ? (
                                                 <span className="text-2xl font-black text-[#0f4c3a] tracking-tight">
-                                                    {Math.round(item.total_skor)}
+                                                    {parseFloat(Number(item.total_skor).toFixed(2))}
                                                 </span>
                                             ) : (
                                                 <span className="text-sm font-black text-slate-300 italic">...</span>

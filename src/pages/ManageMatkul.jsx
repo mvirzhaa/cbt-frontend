@@ -159,7 +159,7 @@ export default function ManageMatkul() {
                                         </td>
                                         <td className="py-5 px-8 text-right">
                                             <span className={`text-[20px] font-black ${score.status === 'Selesai' ? 'text-slate-800' : 'text-slate-300'}`}>
-                                                {score.status === 'Selesai' ? Math.round(score.total_skor) : '??'}
+                                                {score.status === 'Selesai' ? parseFloat(Number(score.total_skor).toFixed(2)) : '??'}
                                             </span>
                                         </td>
                                     </tr>
