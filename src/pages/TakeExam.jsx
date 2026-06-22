@@ -15,9 +15,12 @@ export default function TakeExam() {
     const [isExamStarted, setIsExamStarted] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     
-    // State Data Ujian
     const [examData, setExamData] = useState(null);
     const [questions, setQuestions] = useState([]);
+    
+    // State Syarat & Ketentuan
+    const [showTerms, setShowTerms] = useState(false);
+    const [isAgreed, setIsAgreed] = useState(false);
     
     // State Eksekusi (Teks & File)
     const [currentIndex, setCurrentIndex] = useState(0);
@@ -158,11 +161,13 @@ export default function TakeExam() {
             setQuestions(data.questions);
             
             setTimeLeft((data.exam.durasi || 90) * 60);
-            setIsExamStarted(true);
+            
+            // Tampilkan Modal Syarat & Ketentuan
+            setShowTerms(true);
             
             Swal.fire({
                 toast: true, position: 'top-end', icon: 'success',
-                title: 'Token Valid! Semoga Berhasil.', showConfirmButton: false, timer: 2000
+                title: 'Token Valid! Silakan baca syarat ketentuan.', showConfirmButton: false, timer: 2000
             });
         } catch (error) {
             Swal.fire({ icon: 'error', title: 'Akses Ditolak', text: error.response?.data?.message || 'Token tidak valid.' });
@@ -177,6 +182,13 @@ export default function TakeExam() {
             videoRef.current.srcObject = streamRef.current;
         }
     }, [isExamStarted]);
+
+    // 🚀 Lanjut ujian setelah setuju syarat
+    const handleSetujuDanMulai = () => {
+        if (!isAgreed) return;
+        setShowTerms(false);
+        setIsExamStarted(true);
+    };
 
 
     // =========================================================================
@@ -305,6 +317,73 @@ export default function TakeExam() {
                         </form>
                     </div>
                 </motion.div>
+
+                {/* 🌟 MODAL SYARAT & KETENTUAN */}
+                <AnimatePresence>
+                    {showTerms && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" />
+                            
+                            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="bg-white rounded-3xl shadow-2xl overflow-hidden max-w-2xl w-full relative z-10 flex flex-col max-h-[90vh]">
+                                
+                                <div className="p-8 border-b border-slate-100 bg-gradient-to-r from-emerald-50 to-teal-50">
+                                    <div className="flex items-center gap-4 mb-2">
+                                        <div className="w-12 h-12 bg-white rounded-xl shadow-sm border border-emerald-100 flex items-center justify-center text-emerald-600">
+                                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                                        </div>
+                                        <div>
+                                            <h3 className="text-xl font-black text-slate-800 tracking-tight">Syarat & Ketentuan Ujian</h3>
+                                            <p className="text-[13px] font-medium text-slate-500">Anda wajib menyetujui aturan berikut sebelum naskah dibuka.</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="p-8 overflow-y-auto bg-slate-50/50 flex-1">
+                                    <ul className="space-y-4">
+                                        {(!examData?.exam_terms || examData.exam_terms.length === 0) ? (
+                                            <li className="flex gap-4 p-4 bg-white rounded-2xl border border-slate-100 shadow-sm">
+                                                <div className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center flex-shrink-0 mt-0.5">✓</div>
+                                                <p className="text-[14px] font-medium text-slate-700 leading-relaxed">Menjaga integritas akademik dan kejujuran selama ujian berlangsung.</p>
+                                            </li>
+                                        ) : (
+                                            examData.exam_terms.map((term, i) => (
+                                                <li key={i} className="flex gap-4 p-4 bg-white rounded-2xl border border-slate-100 shadow-sm">
+                                                    <div className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center flex-shrink-0 mt-0.5 text-[11px] font-bold">{i+1}</div>
+                                                    <p className="text-[14px] font-medium text-slate-700 leading-relaxed">{term.isi_syarat}</p>
+                                                </li>
+                                            ))
+                                        )}
+                                        <li className="flex gap-4 p-4 bg-red-50 rounded-2xl border border-red-100 shadow-sm">
+                                            <div className="w-6 h-6 rounded-full bg-red-100 text-red-600 flex items-center justify-center flex-shrink-0 mt-0.5">!</div>
+                                            <p className="text-[14px] font-medium text-red-700 leading-relaxed">Sistem AI Proctoring merekam wajah Anda. Kecurangan akan menyebabkan ujian dibatalkan otomatis.</p>
+                                        </li>
+                                    </ul>
+                                </div>
+
+                                <div className="p-8 bg-white border-t border-slate-100">
+                                    <label className="flex items-start gap-4 p-5 rounded-2xl border-2 border-slate-200 cursor-pointer transition-all hover:bg-slate-50 mb-6 group">
+                                        <div className={`mt-0.5 w-6 h-6 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-colors ${isAgreed ? 'border-emerald-500 bg-emerald-500' : 'border-slate-300 group-hover:border-emerald-400 bg-white'}`}>
+                                            {isAgreed && <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>}
+                                        </div>
+                                        <input type="checkbox" checked={isAgreed} onChange={() => setIsAgreed(!isAgreed)} className="hidden" />
+                                        <span className={`text-[14px] font-bold leading-relaxed ${isAgreed ? 'text-emerald-700' : 'text-slate-600'}`}>
+                                            Saya telah membaca, memahami, dan menyetujui seluruh panduan serta syarat ujian di atas.
+                                        </span>
+                                    </label>
+
+                                    <div className="flex gap-4">
+                                        <button onClick={() => { setShowTerms(false); setToken(''); }} className="flex-1 py-4 px-4 rounded-xl text-[13px] font-black uppercase tracking-widest bg-slate-100 text-slate-500 hover:bg-slate-200 transition-colors">
+                                            Batal Masuk
+                                        </button>
+                                        <button onClick={handleSetujuDanMulai} disabled={!isAgreed} className="flex-[2] py-4 px-4 rounded-xl text-[13px] font-black uppercase tracking-widest text-white shadow-lg shadow-emerald-500/30 transition-all disabled:opacity-50 disabled:shadow-none bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 flex justify-center items-center gap-2">
+                                            Setuju & Mulai Ujian <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                            </motion.div>
+                        </div>
+                    )}
+                </AnimatePresence>
             </div>
         );
     }

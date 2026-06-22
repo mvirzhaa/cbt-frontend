@@ -12,6 +12,7 @@ export default function CreateExam() {
     const [isEditing, setIsEditing] = useState(false);
     const [editId, setEditId] = useState(null);
     const [activeTab, setActiveTab] = useState('aktif'); 
+    const [examTerms, setExamTerms] = useState(['']); // State untuk Syarat & Ketentuan
 
     // 🌟 STATE BARU: DITAMBAH 3 BOBOT PENILAIAN
     const [formExam, setFormExam] = useState({
@@ -78,7 +79,8 @@ export default function CreateExam() {
                 durasi: parseInt(formExam.durasi),
                 bobot_pilgan: parseInt(formExam.bobot_pilgan),
                 bobot_esai: parseInt(formExam.bobot_esai),
-                bobot_upload: parseInt(formExam.bobot_upload)
+                bobot_upload: parseInt(formExam.bobot_upload),
+                exam_terms: examTerms.filter(t => t.trim() !== '')
             };
 
             if (isEditing) {
@@ -108,6 +110,7 @@ export default function CreateExam() {
             bobot_esai: exam.bobot_esai ?? 0,
             bobot_upload: exam.bobot_upload ?? 0
         });
+        setExamTerms(exam.exam_terms?.length > 0 ? exam.exam_terms.map(t => t.isi_syarat) : ['']);
         setIsEditing(true);
         setEditId(exam.id);
         if (formRef.current) formRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -139,6 +142,7 @@ export default function CreateExam() {
 
     const resetForm = () => {
         setFormExam({ kode_mk: '', nama_ujian: '', waktu_mulai: '', waktu_selesai: '', durasi: 90, bobot_pilgan: 100, bobot_esai: 0, bobot_upload: 0 });
+        setExamTerms(['']);
         setIsEditing(false);
         setEditId(null);
     };
@@ -251,6 +255,53 @@ export default function CreateExam() {
                                     <span className="absolute right-4 top-3.5 text-slate-400 font-bold">%</span>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+
+                    {/* 🌟 SYARAT DAN KETENTUAN (DINAMIS) */}
+                    <div className="p-6 md:p-8 rounded-2xl border-2 border-emerald-100 bg-emerald-50/30">
+                        <div className="flex justify-between items-center mb-6">
+                            <div>
+                                <h4 className="text-[13px] font-black text-emerald-800 uppercase tracking-widest">D. Syarat dan Ketentuan Ujian</h4>
+                                <p className="text-[11px] font-medium text-slate-500 mt-1">Tambahkan aturan yang wajib disetujui mahasiswa sebelum memulai ujian.</p>
+                            </div>
+                        </div>
+                        
+                        <div className="space-y-3">
+                            {examTerms.map((term, index) => (
+                                <div key={index} className="flex gap-3">
+                                    <input 
+                                        type="text" 
+                                        value={term} 
+                                        onChange={(e) => {
+                                            const newTerms = [...examTerms];
+                                            newTerms[index] = e.target.value;
+                                            setExamTerms(newTerms);
+                                        }} 
+                                        placeholder={`Syarat ${index + 1}...`} 
+                                        className="w-full px-5 py-3 bg-white rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none font-medium text-slate-800 text-[13px]" 
+                                    />
+                                    {examTerms.length > 1 && (
+                                        <button 
+                                            type="button" 
+                                            onClick={() => {
+                                                const newTerms = examTerms.filter((_, i) => i !== index);
+                                                setExamTerms(newTerms);
+                                            }}
+                                            className="px-4 py-3 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-colors"
+                                        >
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                        </button>
+                                    )}
+                                </div>
+                            ))}
+                            <button 
+                                type="button" 
+                                onClick={() => setExamTerms([...examTerms, ''])}
+                                className="mt-2 inline-flex items-center gap-2 text-[12px] font-bold text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-4 py-2 rounded-lg transition-colors"
+                            >
+                                + Tambah Aturan Lainnya
+                            </button>
                         </div>
                     </div>
 
