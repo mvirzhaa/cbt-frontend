@@ -141,7 +141,7 @@ export default function ManageMatkul() {
                         <tbody className="divide-y divide-slate-100">
                             {!selectedMkId ? (
                                 <tr><td colSpan="4" className="py-16 text-center text-slate-400 font-bold text-sm">Silakan pilih mata kuliah pada dropdown di atas.</td></tr>
-                            ) : scoreList.length === 0 ? (
+                            ) : (!scoreList?.data || scoreList.data.length === 0) ? (
                                 <tr><td colSpan="4" className="py-16 text-center text-slate-400 font-bold text-sm">Belum ada data nilai mahasiswa di mata kuliah ini.</td></tr>
                             ) : (
                                 scoreList?.map((score, idx) => (

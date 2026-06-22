@@ -153,8 +153,8 @@ export default function CreateExam() {
     };
 
     const now = new Date();
-    const activeExams = examList.filter(ex => new Date(ex.waktu_selesai) > now);
-    const archivedExams = examList.filter(ex => new Date(ex.waktu_selesai) <= now);
+    const activeExams = examList?.data?.filter(ex => new Date(ex.waktu_selesai) > now) || [];
+    const archivedExams = examList?.data?.filter(ex => new Date(ex.waktu_selesai) <= now) || [];
     const displayedExams = activeTab === 'aktif' ? activeExams : archivedExams;
 
     return (

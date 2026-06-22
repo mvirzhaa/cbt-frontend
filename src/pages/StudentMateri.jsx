@@ -23,10 +23,10 @@ export default function StudentMateri() {
     }, []);
 
     // Logika Pencarian Pintar (Berdasarkan Judul atau Kode MK)
-    const filteredMateri = materiList.filter(item => 
+    const filteredMateri = materiList?.data?.filter(item => 
         item.judul.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.kode_mk.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    ) || [];
 
     return (
         <div className="p-4 md:p-8 w-full max-w-6xl mx-auto">

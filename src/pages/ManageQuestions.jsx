@@ -357,11 +357,11 @@ export default function ManageQuestions() {
             <div className="bg-white rounded-3xl border border-slate-100 shadow-[0_10px_40px_rgba(0,0,0,0.03)] overflow-hidden">
                 <div className="px-8 py-5 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
                     <h3 className="text-[14px] font-black text-slate-800 uppercase tracking-widest">Arsip Bank Soal</h3>
-                    <span className="bg-slate-800 text-white text-[10px] px-3 py-1.5 rounded-lg font-black uppercase tracking-widest shadow-sm">Total: {questionList.length} Butir</span>
+                    <span className="bg-slate-800 text-white text-[10px] px-3 py-1.5 rounded-lg font-black uppercase tracking-widest shadow-sm">Total: {questionList?.data?.length || 0} Butir</span>
                 </div>
                 
                 <div className="p-8 space-y-6">
-                    {questionList.length === 0 ? (
+                    {(!questionList?.data || questionList.data.length === 0) ? (
                         <div className="py-16 text-center text-slate-400 font-bold text-[14px]">Belum ada soal terdaftar.</div>
                     ) : (
                         questionList?.data?.map((q, idx) => {

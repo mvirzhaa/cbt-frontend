@@ -50,7 +50,7 @@ export default function RekapNilai() {
         const mkId = e.target.value;
         setSelectedMatkul(mkId);
         
-        const examsForThisMatkul = allExams.filter(ex => ex.kode_mk === mkId);
+        const examsForThisMatkul = allExams?.data?.filter(ex => ex.kode_mk === mkId) || [];
         setFilteredExams(examsForThisMatkul);
         
         setSelectedExam('');
@@ -97,8 +97,8 @@ export default function RekapNilai() {
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "Rincian_Nilai_CBT");
 
-        const mkName = matkulList.find(m => m.kode_mk === selectedMatkul)?.nama_mk || 'Matkul';
-        const examName = allExams.find(e => e.id.toString() === selectedExam)?.nama_ujian || 'Ujian';
+        const mkName = matkulList?.data?.find(m => m.kode_mk === selectedMatkul)?.nama_mk || 'Matkul';
+        const examName = allExams?.data?.find(e => e.id.toString() === selectedExam)?.nama_ujian || 'Ujian';
         XLSX.writeFile(workbook, `Rekap_${mkName}_${examName}.xlsx`);
     };
 
@@ -193,9 +193,9 @@ export default function RekapNilai() {
                         <span className="w-5 h-5 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-[10px]">2</span>
                         Pilih Sesi Ujian
                     </label>
-                    <select value={selectedExam} onChange={handleExamChange} disabled={!selectedMatkul || filteredExams.length === 0} className={`w-full px-5 py-4 border rounded-xl text-[13px] font-bold outline-none transition-all appearance-none ${!selectedMatkul ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed' : 'bg-slate-50 border-slate-200 text-slate-800 focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 cursor-pointer'}`}>
+                    <select value={selectedExam} onChange={handleExamChange} disabled={!selectedMatkul || (!filteredExams?.data || filteredExams.data.length === 0)} className={`w-full px-5 py-4 border rounded-xl text-[13px] font-bold outline-none transition-all appearance-none ${!selectedMatkul ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed' : 'bg-slate-50 border-slate-200 text-slate-800 focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 cursor-pointer'}`}>
                         <option value="" disabled>
-                            {!selectedMatkul ? "Pilih Matkul di samping dulu ➔" : filteredExams.length === 0 ? "Belum ada sesi ujian di matkul ini" : "-- Pilih Sesi Ujian --"}
+                            {!selectedMatkul ? "Pilih Matkul di samping dulu ➔" : (!filteredExams?.data || filteredExams.data.length === 0) ? "Belum ada sesi ujian di matkul ini" : "-- Pilih Sesi Ujian --"}
                         </option>
                         {filteredExams?.data?.map(ex => (
                             <option key={ex.id} value={ex.id}>{ex.nama_ujian} (Durasi: {ex.durasi} Menit)</option>

@@ -21,9 +21,9 @@ export default function StudentDashboard() {
                 setHistory(dataRiwayat || []);
 
                 // 🧠 Kalkulasi Cerdas untuk Statistik
-                const total = dataRiwayat.length;
+                const total = dataRiwayat?.data?.length || 0;
                 // Hanya hitung rata-rata dari ujian yang sudah "Selesai Dinilai"
-                const ujianSelesai = dataRiwayat.filter(h => h.status === 'Selesai Dinilai');
+                const ujianSelesai = dataRiwayat?.data?.filter(h => h.status === 'Selesai Dinilai') || [];
                 const sumNilai = ujianSelesai.reduce((acc, curr) => acc + parseFloat(curr.total_skor), 0);
                 const rataRata = ujianSelesai.length > 0 ? (sumNilai / ujianSelesai.length).toFixed(1) : 0;
 
@@ -118,7 +118,7 @@ export default function StudentDashboard() {
                         <tbody className="divide-y divide-slate-50">
                             {isLoading ? (
                                 <tr><td colSpan="3" className="py-16 text-center text-slate-400 font-bold">Memuat riwayat transkrip...</td></tr>
-                            ) : history.length === 0 ? (
+                            ) : (!history?.data || history.data.length === 0) ? (
                                 <tr>
                                     <td colSpan="3" className="py-16 text-center">
                                         <div className="w-16 h-16 bg-slate-100 text-slate-400 rounded-full flex items-center justify-center mx-auto mb-3"><svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg></div>
@@ -127,7 +127,7 @@ export default function StudentDashboard() {
                                     </td>
                                 </tr>
                             ) : (
-                                history.map((item, index) => (
+                                history?.data?.map((item, index) => (
                                     <tr key={index} className="hover:bg-slate-50/80 transition-colors group">
                                         <td className="py-5 px-8">
                                             <div className="font-black text-slate-800 text-[14px] group-hover:text-[#0f4c3a] transition-colors">{item.matkul}</div>
