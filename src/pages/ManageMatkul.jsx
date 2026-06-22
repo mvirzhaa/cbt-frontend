@@ -119,7 +119,7 @@ export default function ManageMatkul() {
                         <div className="w-full md:w-96">
                             <select value={selectedMkId} onChange={(e) => { setSelectedMkId(e.target.value); fetchScores(e.target.value); }} className="w-full px-5 py-3.5 bg-blue-50/50 rounded-xl border border-blue-200 focus:bg-white focus:border-blue-500 outline-none font-bold text-blue-900 text-[13px] transition-all shadow-sm">
                                 <option value="">-- Pilih Mata Kuliah --</option>
-                                {matkulList.map((mk, idx) => (
+                                {matkulList?.map((mk, idx) => (
                                     <option key={mk.id || idx} value={mk.id || mk.kode_mk}>{mk.kode_mk} - {mk.nama_mk}</option>
                                 ))}
                             </select>
@@ -144,7 +144,7 @@ export default function ManageMatkul() {
                             ) : scoreList.length === 0 ? (
                                 <tr><td colSpan="4" className="py-16 text-center text-slate-400 font-bold text-sm">Belum ada data nilai mahasiswa di mata kuliah ini.</td></tr>
                             ) : (
-                                scoreList.map((score, idx) => (
+                                scoreList?.map((score, idx) => (
                                     <tr key={idx} className="hover:bg-slate-50 transition-colors">
                                         <td className="py-5 px-8">
                                             <p className="text-[14px] font-black text-[#0f4c3a]">{score.nama_mahasiswa}</p>

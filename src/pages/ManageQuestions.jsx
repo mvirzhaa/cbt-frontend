@@ -73,7 +73,7 @@ export default function ManageQuestions() {
                 dbKunciJawaban = ['A', 'B', 'C', 'D', 'E'][kunciJawabanPG];
             } else if (tipeSoal === 'pg_multiple') {
                 // Multiple choice: simpan sebagai string "A,C" (sesuai format backend TIPE_2)
-                const selectedKeys = kunciJawabanMultiple.map(idx => ['A', 'B', 'C', 'D', 'E'][idx]);
+                const selectedKeys = kunciJawabanMultiple?.map(idx => ['A', 'B', 'C', 'D', 'E'][idx]);
                 dbKunciJawaban = selectedKeys.join(',');
             } else if (tipeSoal === 'esai') {
                 dbKunciJawaban = kunciEsai;
@@ -202,7 +202,7 @@ export default function ManageQuestions() {
                         ? (q.kunci_jawaban.includes(',') ? q.kunci_jawaban.split(',') : JSON.parse(q.kunci_jawaban || '[]'))
                         : (q.kunci_jawaban || []);
                     const keys = ['A', 'B', 'C', 'D', 'E'];
-                    const indices = kunciArray.map(k => keys.indexOf(k)).filter(idx => idx >= 0);
+                    const indices = kunciArray?.map(k => keys.indexOf(k)).filter(idx => idx >= 0);
                     setKunciJawabanMultiple(indices);
                     setKunciJawabanPG(0);
                 }
@@ -284,7 +284,7 @@ export default function ManageQuestions() {
                             <label className="block text-[11px] font-black text-slate-500 mb-2 uppercase tracking-widest">A. Tautkan Ke Ujian</label>
                             <select required value={selectedExamId} onChange={e => setSelectedExamId(e.target.value)} className="w-full px-5 py-4 bg-slate-50 rounded-xl border border-slate-200 focus:bg-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none font-bold text-slate-800 text-[14px]">
                                 <option value="" disabled>-- Pilih Sesi Ujian --</option>
-                                {examList.map((exam) => (
+                                {examList?.map((exam) => (
                                     <option key={exam.id} value={exam.id}>{exam.nama_ujian} ({exam.kode_mk})</option>
                                 ))}
                             </select>
@@ -364,7 +364,7 @@ export default function ManageQuestions() {
                     {questionList.length === 0 ? (
                         <div className="py-16 text-center text-slate-400 font-bold text-[14px]">Belum ada soal terdaftar.</div>
                     ) : (
-                        questionList.map((q, idx) => {
+                        questionList?.map((q, idx) => {
                             const tipeInfo = formatTipeLabel(q.tipe_soal);
                             let formattedOpsi = null;
                             if (q.opsi_jawaban) {
@@ -393,7 +393,7 @@ export default function ManageQuestions() {
                                         {/* Tampilan Detail Opsi jika PG */}
                                         {formattedOpsi && (
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pl-4">
-                                                {Object.keys(formattedOpsi).map((key) => {
+                                                {Object.keys(formattedOpsi)?.map((key) => {
                                                     const isKunci = q.kunci_jawaban === key || (q.kunci_jawaban && q.kunci_jawaban.split(',').includes(key));
                                                     return (
                                                         <div key={key} className={`flex items-center gap-2.5 text-xs font-semibold py-1 px-3 rounded-lg ${isKunci ? 'bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold' : 'text-slate-500 bg-white border border-slate-100'}`}>

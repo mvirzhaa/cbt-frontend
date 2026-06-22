@@ -346,7 +346,7 @@ export default function TakeExam() {
                                                 <p className="text-[14px] font-medium text-slate-700 leading-relaxed">Menjaga integritas akademik dan kejujuran selama ujian berlangsung.</p>
                                             </li>
                                         ) : (
-                                            examData.exam_terms.map((term, i) => (
+                                            examData?.exam_terms?.map((term, i) => (
                                                 <li key={i} className="flex gap-4 p-4 bg-white rounded-2xl border border-slate-100 shadow-sm">
                                                     <div className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center flex-shrink-0 mt-0.5 text-[11px] font-bold">{i+1}</div>
                                                     <p className="text-[14px] font-medium text-slate-700 leading-relaxed">{term.isi_syarat}</p>
@@ -616,7 +616,7 @@ export default function TakeExam() {
                     
                     <div className="flex-1 overflow-y-auto p-6">
                         <div className="grid grid-cols-5 gap-3">
-                            {questions.map((q, idx) => {
+                            {questions?.map((q, idx) => {
                                 const isAnswered = answers[q.id] && answers[q.id].trim() !== '';
                                 const isActive = currentIndex === idx;
                                 

@@ -110,7 +110,7 @@ export default function CreateExam() {
             bobot_esai: exam.bobot_esai ?? 0,
             bobot_upload: exam.bobot_upload ?? 0
         });
-        setExamTerms(exam.exam_terms?.length > 0 ? exam.exam_terms.map(t => t.isi_syarat) : ['']);
+        setExamTerms(exam.exam_terms?.length > 0 ? exam.exam_terms?.map(t => t.isi_syarat) : ['']);
         setIsEditing(true);
         setEditId(exam.id);
         if (formRef.current) formRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -192,7 +192,7 @@ export default function CreateExam() {
                             <label className="block text-[11px] font-black text-slate-500 mb-3 uppercase tracking-widest">A. Pemilihan Mata Kuliah</label>
                             <select required value={formExam.kode_mk} onChange={e => setFormExam({...formExam, kode_mk: e.target.value})} className="w-full px-5 py-4 bg-slate-50 rounded-xl border-2 border-slate-200 focus:bg-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none font-bold text-slate-800 text-[14px] transition-all cursor-pointer appearance-none shadow-sm">
                                 <option value="" disabled>-- Pilih Mata Kuliah --</option>
-                                {matkulList.map((mk) => (
+                                {matkulList?.map((mk) => (
                                     <option key={mk.kode_mk} value={mk.kode_mk}>{mk.kode_mk} - {mk.nama_mk}</option>
                                 ))}
                             </select>
@@ -268,7 +268,7 @@ export default function CreateExam() {
                         </div>
                         
                         <div className="space-y-3">
-                            {examTerms.map((term, index) => (
+                            {examTerms?.map((term, index) => (
                                 <div key={index} className="flex gap-3">
                                     <input 
                                         type="text" 
@@ -345,7 +345,7 @@ export default function CreateExam() {
                                     </td>
                                 </tr>
                             ) : (
-                                displayedExams.map((ex) => {
+                                displayedExams?.map((ex) => {
                                     const isRowEditing = editId === ex.id;
                                     const isArchived = activeTab === 'arsip';
 
