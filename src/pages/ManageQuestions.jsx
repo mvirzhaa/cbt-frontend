@@ -75,7 +75,7 @@ export default function ManageQuestions() {
                 // Multiple choice: simpan sebagai string "A,C" (sesuai format backend TIPE_2)
                 const selectedKeys = kunciJawabanMultiple?.map(idx => ['A', 'B', 'C', 'D', 'E'][idx]);
                 dbKunciJawaban = selectedKeys.join(',');
-            } else if (tipeSoal === 'esai') {
+            } else if (tipeSoal === 'esai' || tipeSoal === 'upload') {
                 dbKunciJawaban = kunciEsai;
             }
 
@@ -212,7 +212,7 @@ export default function ManageQuestions() {
                 setKunciJawabanPG(0);
                 setKunciJawabanMultiple([]);
             }
-        } else if (formTipe === 'esai') {
+        } else if (formTipe === 'esai' || formTipe === 'upload') {
             setKunciEsai(q.kunci_jawaban || '');
         }
 
@@ -337,11 +337,13 @@ export default function ManageQuestions() {
                         </div>
                     )}
 
-                    {/* INTERFACE KUNCI UNTUK ESAI */}
-                    {tipeSoal === 'esai' && (
+                    {/* INTERFACE KUNCI UNTUK ESAI & UPLOAD */}
+                    {(tipeSoal === 'esai' || tipeSoal === 'upload') && (
                         <div className="p-6 rounded-2xl border-2 border-slate-100 bg-slate-50/30">
-                            <label className="block text-[11px] font-black text-slate-500 mb-2 uppercase tracking-widest">D. Rubrik Kunci Jawaban Esai (Acuan Koreksi AI)</label>
-                            <textarea value={kunciEsai} onChange={e => setKunciEsai(e.target.value)} rows="3" placeholder="Tulis poin-poin penting atau jawaban ideal yang diharapkan dari esai ini..." className="w-full px-5 py-4 bg-white rounded-xl border border-slate-200 focus:border-blue-500 outline-none font-medium text-slate-800 text-[13px] resize-none" />
+                            <label className="block text-[11px] font-black text-slate-500 mb-2 uppercase tracking-widest">
+                                D. {tipeSoal === 'esai' ? 'Rubrik Kunci Jawaban Esai (Acuan Koreksi AI)' : 'Model / Kunci Jawaban Upload (Referensi Penilaian Dosen)'}
+                            </label>
+                            <textarea value={kunciEsai} onChange={e => setKunciEsai(e.target.value)} rows="3" placeholder={tipeSoal === 'esai' ? 'Tulis poin-poin penting atau jawaban ideal yang diharapkan dari esai ini...' : 'Tulis model jawaban atau rubrik penilaian yang menjadi acuan dosen saat menilai file yang diupload...'} className="w-full px-5 py-4 bg-white rounded-xl border border-slate-200 focus:border-blue-500 outline-none font-medium text-slate-800 text-[13px] resize-none" />
                         </div>
                     )}
 
@@ -405,10 +407,10 @@ export default function ManageQuestions() {
                                             </div>
                                         )}
 
-                                        {/* Tampilan Kunci untuk esai */}
-                                        {q.tipe_soal === 'TIPE_3' && q.kunci_jawaban && (
-                                            <div className="pl-4 border-l-2 border-purple-300 text-xs text-purple-700 italic font-medium">
-                                                Rubrik Kunci: {q.kunci_jawaban}
+                                        {/* Tampilan Kunci untuk esai & upload */}
+                                        {(q.tipe_soal === 'TIPE_3' || q.tipe_soal === 'TIPE_4') && q.kunci_jawaban && (
+                                            <div className={`pl-4 border-l-2 text-xs italic font-medium ${q.tipe_soal === 'TIPE_3' ? 'border-purple-300 text-purple-700' : 'border-amber-300 text-amber-700'}`}>
+                                                {q.tipe_soal === 'TIPE_3' ? 'Rubrik Kunci' : 'Model Jawaban'}: {q.kunci_jawaban}
                                             </div>
                                         )}
                                     </div>
