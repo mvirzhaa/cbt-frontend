@@ -642,31 +642,47 @@ export default function Grading() {
 
                                                                     {/* Tampilkan Jawaban Essay / File (jika TIPE_4) */}
                                                                     {isManualType && (
-                                                                        <div className="space-y-2 pt-2">
-                                                                            <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Penyelesaian Lengkap Mahasiswa</h5>
-                                                                            {ans.file_path ? (
-                                                                                <div className="p-4 bg-blue-50/30 border border-blue-200 rounded-xl flex items-center justify-between">
-                                                                                    <div className="flex items-center gap-3">
-                                                                                        <div className="p-2.5 bg-blue-100 text-blue-700 rounded-xl">
-                                                                                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                                                                        <div className="space-y-4 pt-2">
+                                                                            {/* Jawaban Mahasiswa */}
+                                                                            <div className="space-y-2">
+                                                                                <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Penyelesaian Lengkap Mahasiswa</h5>
+                                                                                {ans.file_path ? (
+                                                                                    <div className="p-4 bg-blue-50/30 border border-blue-200 rounded-xl flex items-center justify-between">
+                                                                                        <div className="flex items-center gap-3">
+                                                                                            <div className="p-2.5 bg-blue-100 text-blue-700 rounded-xl">
+                                                                                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                                                                                            </div>
+                                                                                            <div>
+                                                                                                <p className="text-[13px] font-bold text-slate-800">Dokumen Lampiran Ujian</p>
+                                                                                                <p className="text-[11px] font-medium text-slate-500">Silakan unduh atau tinjau berkas yang dikirimkan.</p>
+                                                                                            </div>
                                                                                         </div>
-                                                                                        <div>
-                                                                                            <p className="text-[13px] font-bold text-slate-800">Dokumen Lampiran Ujian</p>
-                                                                                            <p className="text-[11px] font-medium text-slate-500">Silakan unduh atau tinjau berkas yang dikirimkan.</p>
-                                                                                        </div>
+                                                                                        <a 
+                                                                                            href={`${backendFileBaseUrl}/${String(ans.file_path || '').replace(/^\/+/, '')}`} 
+                                                                                            target="_blank" 
+                                                                                            rel="noreferrer" 
+                                                                                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[11px] font-black uppercase tracking-wider shadow-sm transition-all cursor-pointer"
+                                                                                        >
+                                                                                            Unduh File
+                                                                                        </a>
                                                                                     </div>
-                                                                                    <a 
-                                                                                        href={`${backendFileBaseUrl}/${String(ans.file_path || '').replace(/^\/+/, '')}`} 
-                                                                                        target="_blank" 
-                                                                                        rel="noreferrer" 
-                                                                                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[11px] font-black uppercase tracking-wider shadow-sm transition-all cursor-pointer"
-                                                                                    >
-                                                                                        Unduh File
-                                                                                    </a>
-                                                                                </div>
-                                                                            ) : (
-                                                                                <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-[14px] font-medium text-slate-700 leading-relaxed whitespace-pre-wrap">
-                                                                                    {ans.jawaban_teks || <span className="text-slate-400 italic">Peserta tidak mengisi kolom teks jawaban.</span>}
+                                                                                ) : (
+                                                                                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-[14px] font-medium text-slate-700 leading-relaxed whitespace-pre-wrap">
+                                                                                        {ans.jawaban_teks || <span className="text-slate-400 italic">Peserta tidak mengisi kolom teks jawaban.</span>}
+                                                                                    </div>
+                                                                                )}
+                                                                            </div>
+
+                                                                            {/* Kunci Jawaban Essay */}
+                                                                            {ans.questions?.kunci_jawaban && (
+                                                                                <div className="space-y-2">
+                                                                                    <h5 className="text-[10px] font-black text-emerald-600 uppercase tracking-wider flex items-center gap-1.5">
+                                                                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+                                                                                        Kunci Jawaban / Model Jawaban
+                                                                                    </h5>
+                                                                                    <div className="p-4 bg-emerald-50/60 border border-emerald-200 rounded-xl text-[14px] font-medium text-emerald-900 leading-relaxed whitespace-pre-wrap">
+                                                                                        {ans.questions.kunci_jawaban}
+                                                                                    </div>
                                                                                 </div>
                                                                             )}
                                                                         </div>
