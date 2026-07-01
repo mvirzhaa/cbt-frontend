@@ -406,7 +406,7 @@ export default function Grading() {
                                             const tipe = ans.questions?.tipe_soal;
                                             const isAutoGraded = ['TIPE_1', 'TIPE_2'].includes(tipe);
                                             const isCorrect = isAutoGraded && isAnswerCorrect(ans);
-                                            const isManualType = tipe === 'TIPE_4';
+                                            const isManualType = tipe === 'TIPE_3' || tipe === 'TIPE_4';
                                             const isExpanded = !!expandedAnswers[ans.id];
 
                                             return (
