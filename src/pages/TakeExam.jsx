@@ -25,8 +25,12 @@ export default function TakeExam() {
     // State Eksekusi (Teks & File)
     const [currentIndex, setCurrentIndex] = useState(0);
     const [answers, setAnswers] = useState({}); 
-    const [files, setFiles] = useState({}); 
-    const [timeLeft, setTimeLeft] = useState(0); 
+    const [files, setFiles] = useState({});
+    const [timeLeft, setTimeLeft] = useState(0);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    // Ref (bukan state) agar cek-nya sinkron: auto-submit (timer habis) dan submit manual
+    // bisa saja terpicu nyaris bersamaan, dan re-render state tidak cukup cepat untuk mencegah keduanya jalan.
+    const isSubmittingRef = useRef(false);
 
     // =========================================================================
     // 🤖 STATE & REFS KHUSUS AI PROCTORING
@@ -88,9 +92,8 @@ export default function TakeExam() {
             if (!blob) return;
 
             // Siapkan amplop untuk dikirim ke Backend
-            const user = JSON.parse(localStorage.getItem('user'));
+            // (identitas mahasiswa diambil backend dari token JWT, tidak perlu dikirim manual)
             const formData = new FormData();
-            formData.append('user_id', user ? user.id : 0);
             formData.append('exam_id', examData.id);
             formData.append('jenis_pelanggaran', jenisPelanggaran); // "TIDAK_ADA_WAJAH" atau "LEBIH_DARI_SATU_WAJAH"
             formData.append('foto_bukti', blob, `violation-${Date.now()}.jpg`); // Masukkan file gambarnya
@@ -106,11 +109,17 @@ export default function TakeExam() {
     };
 
     // 🤖 3. MESIN SCANNER WAJAH BERJALAN (Otomatis saat kamera menyala)
-    const handleVideoPlay = () => {
-        // Lakukan pemindaian setiap 3 detik (3000ms)
+    // 🔧 Dulu ini dipasang lewat prop onPlay pada <video>, dengan clearInterval di-return dari situ.
+    // Return value dari event handler biasa TIDAK PERNAH dieksekusi oleh React (beda dari useEffect),
+    // jadi interval-nya tidak pernah benar-benar dibersihkan — kalau event `onPlay` sempat menyala
+    // ulang (browser jeda/lanjutkan video), interval-interval lama menumpuk dan jalan terus-menerus.
+    // Pindah ke useEffect supaya cleanup-nya nyata dan hanya ada satu interval aktif dalam satu waktu.
+    useEffect(() => {
+        if (!isExamStarted || !isAiReady) return;
+
         const scanInterval = setInterval(async () => {
             const faceapi = faceapiRef.current;
-            if (!videoRef.current || !isAiReady || !faceapi) return;
+            if (!videoRef.current || !faceapi) return;
 
             // Hitung jumlah wajah di depan layar
             const detections = await faceapi.detectAllFaces(videoRef.current, new faceapi.TinyFaceDetectorOptions());
@@ -129,9 +138,9 @@ export default function TakeExam() {
             }
         }, 3000);
 
-        // Hentikan scan jika ujian selesai (bisa dipanggil saat submit)
         return () => clearInterval(scanInterval);
-    };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isExamStarted, isAiReady]);
 
     // =========================================================================
     // 📡 1. MASUK RUANG UJIAN (DIMODIFIKASI UNTUK IZIN KAMERA)
@@ -170,6 +179,12 @@ export default function TakeExam() {
                 title: 'Token Valid! Silakan baca syarat ketentuan.', showConfirmButton: false, timer: 2000
             });
         } catch (error) {
+            // 🔒 Token gagal diverifikasi — kamera sudah terlanjur dinyalakan di atas, matikan lagi
+            // supaya lampu indikator kamera tidak terus menyala padahal ujian belum/tidak jadi mulai.
+            if (streamRef.current) {
+                streamRef.current.getTracks().forEach(track => track.stop());
+                streamRef.current = null;
+            }
             Swal.fire({ icon: 'error', title: 'Akses Ditolak', text: error.response?.data?.message || 'Token tidak valid.' });
         } finally {
             setIsLoading(false);
@@ -213,9 +228,14 @@ export default function TakeExam() {
     };
 
     const submitKeBackend = useCallback(async () => {
+        // 🔒 Ref sinkron: cegah auto-submit (timer habis) dan submit manual jalan berbarengan
+        if (isSubmittingRef.current) return;
+        isSubmittingRef.current = true;
+        setIsSubmitting(true);
+
         try {
             const formData = new FormData();
-            
+
             formData.append('exam_id', examData.id);
             formData.append('answers', JSON.stringify(answers));
 
@@ -226,23 +246,37 @@ export default function TakeExam() {
             });
 
             await examService.submitExam(formData);
-            
+
             // 🤖 Matikan kamera saat selesai ujian
             if (streamRef.current) {
                 streamRef.current.getTracks().forEach(track => track.stop());
             }
 
             Swal.fire({ icon: 'success', title: 'Evaluasi Selesai!', text: 'Jawaban dan Dokumen Anda berhasil direkam.', confirmButtonColor: '#0f4c3a' });
-            navigate('/student-dashboard'); 
+            navigate('/student-dashboard');
         } catch (error) {
+            if (error.response?.status === 409) {
+                // Backend menolak karena ujian ini sudah pernah tersubmit (mis. auto-submit & submit
+                // manual sama-sama sempat terkirim) — ini bukan kegagalan, jawaban pertama sudah aman.
+                if (streamRef.current) {
+                    streamRef.current.getTracks().forEach(track => track.stop());
+                }
+                Swal.fire({ icon: 'info', title: 'Sudah Terkumpul', text: 'Ujian ini sudah tercatat masuk sebelumnya.', confirmButtonColor: '#0f4c3a' });
+                navigate('/student-dashboard');
+                return;
+            }
+            isSubmittingRef.current = false;
+            setIsSubmitting(false);
             Swal.fire('Gagal Menyimpan', 'Terjadi gangguan jaringan saat mengirim data. Jangan tutup jendela ini, coba lagi!', 'error');
         }
     }, [answers, examData, files, navigate]);
 
     const handleKumpulkanManual = async () => {
+        if (isSubmittingRef.current) return;
+
         const dijawab = Object.keys(answers).filter(k => answers[k] && answers[k].trim() !== '').length;
         const total = questions.length;
-        
+
         const result = await Swal.fire({
             title: 'Akhiri Ujian?',
             html: `Anda telah menjawab <b><span style="color:#10b981;font-size:20px;">${dijawab}</span></b> dari <b>${total}</b> soal.<br/><br/><span style="font-size:13px;color:#64748b;">Data yang telah dikumpulkan tidak dapat ditarik kembali.</span>`,
@@ -251,12 +285,14 @@ export default function TakeExam() {
         });
 
         if (result.isConfirmed) {
+            if (isSubmittingRef.current) return; // timer sempat habis selagi dialog konfirmasi terbuka
             Swal.fire({ title: 'Mengirim Data...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
             await submitKeBackend();
         }
     };
 
     const handleKumpulkanOtomatis = useCallback(async () => {
+        if (isSubmittingRef.current) return;
         Swal.fire({ icon: 'info', title: 'Waktu Habis!', text: 'Sistem sedang mengenkripsi dan menyimpan jawaban Anda...', showConfirmButton: false, allowOutsideClick: false });
         await submitKeBackend();
     }, [submitKeBackend]);
@@ -372,7 +408,14 @@ export default function TakeExam() {
                                     </label>
 
                                     <div className="flex gap-4">
-                                        <button onClick={() => { setShowTerms(false); setToken(''); }} className="flex-1 py-4 px-4 rounded-xl text-[13px] font-black uppercase tracking-widest bg-slate-100 text-slate-500 hover:bg-slate-200 transition-colors">
+                                        <button onClick={() => {
+                                            // 🔒 Batal masuk setelah kamera sempat dinyalakan saat verifikasi token — matikan lagi
+                                            if (streamRef.current) {
+                                                streamRef.current.getTracks().forEach(track => track.stop());
+                                                streamRef.current = null;
+                                            }
+                                            setShowTerms(false); setToken('');
+                                        }} className="flex-1 py-4 px-4 rounded-xl text-[13px] font-black uppercase tracking-widest bg-slate-100 text-slate-500 hover:bg-slate-200 transition-colors">
                                             Batal Masuk
                                         </button>
                                         <button onClick={handleSetujuDanMulai} disabled={!isAgreed} className="flex-[2] py-4 px-4 rounded-xl text-[13px] font-black uppercase tracking-widest text-white shadow-lg shadow-emerald-500/30 transition-all disabled:opacity-50 disabled:shadow-none bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 flex justify-center items-center gap-2">
@@ -396,14 +439,13 @@ export default function TakeExam() {
             {/* ========================================================= */}
             {/* 🤖 ALAT INTELEJEN RAHASIA (DISEMBUNYIKAN DARI LAYAR) */}
             {/* ========================================================= */}
-            <video 
-                ref={videoRef} 
-                onPlay={handleVideoPlay} 
-                autoPlay 
-                muted 
-                playsInline 
+            <video
+                ref={videoRef}
+                autoPlay
+                muted
+                playsInline
                 // opacity-0 dan pointer-events-none membuat videonya 100% transparan dan tidak bisa diklik
-                className="absolute top-0 left-0 opacity-0 w-[10px] h-[10px] pointer-events-none z-[-1]" 
+                className="absolute top-0 left-0 opacity-0 w-[10px] h-[10px] pointer-events-none z-[-1]"
             />
             {/* Kanvas ini untuk memindahkan video menjadi gambar */}
             <canvas ref={canvasRef} className="hidden" />
@@ -589,9 +631,13 @@ export default function TakeExam() {
                                 </button>
                                 
                                 {currentIndex === questions.length - 1 ? (
-                                    <button onClick={handleKumpulkanManual} className="px-10 py-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-[13px] font-black uppercase tracking-widest shadow-[0_10px_20px_rgba(16,185,129,0.3)] active:scale-95 flex items-center gap-3 transition-all">
-                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" /></svg>
-                                        Akhiri & Kumpulkan
+                                    <button onClick={handleKumpulkanManual} disabled={isSubmitting} className={`px-10 py-4 rounded-xl text-[13px] font-black uppercase tracking-widest shadow-[0_10px_20px_rgba(16,185,129,0.3)] active:scale-95 flex items-center gap-3 transition-all ${isSubmitting ? 'bg-slate-300 text-slate-500 cursor-not-allowed shadow-none' : 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white'}`}>
+                                        {isSubmitting ? (
+                                            <div className="w-4 h-4 border-2 border-slate-400/40 border-t-slate-500 rounded-full animate-spin"></div>
+                                        ) : (
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" /></svg>
+                                        )}
+                                        {isSubmitting ? 'Mengirim...' : 'Akhiri & Kumpulkan'}
                                     </button>
                                 ) : (
                                     <button onClick={() => setCurrentIndex(prev => Math.min(questions.length - 1, prev + 1))} className="px-10 py-4 bg-[#0f4c3a] hover:bg-[#092e23] text-[#d4af37] rounded-xl text-[13px] font-black uppercase tracking-widest flex items-center gap-3 active:scale-95 transition-all shadow-[0_10px_20px_rgba(15,76,58,0.2)]">

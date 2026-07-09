@@ -144,7 +144,7 @@ export default function ManageMatkul() {
                             ) : (!scoreList?.data || scoreList.data.length === 0) ? (
                                 <tr><td colSpan="4" className="py-16 text-center text-slate-400 font-bold text-sm">Belum ada data nilai mahasiswa di mata kuliah ini.</td></tr>
                             ) : (
-                                scoreList?.map((score, idx) => (
+                                scoreList?.data?.map((score, idx) => (
                                     <tr key={idx} className="hover:bg-slate-50 transition-colors">
                                         <td className="py-5 px-8">
                                             <p className="text-[14px] font-black text-[#0f4c3a]">{score.nama_mahasiswa}</p>

@@ -5,6 +5,7 @@ import Swal from 'sweetalert2';
 import matkulService from '../services/matkul.service';
 import examService from '../services/exam.service';
 import gradingService from '../services/grading.service';
+import siakadService from '../services/siakad.service';
 
 export default function RekapNilai() {
     // State Master Data
@@ -27,6 +28,12 @@ export default function RekapNilai() {
         attempt: null,
         scores: { pilgan: 0, esai: 0, file: 0 }
     });
+
+    // State Target & Sync SIAKAD
+    const [siakadTarget, setSiakadTarget] = useState({ kelas: '', periode: '' });
+    const [savingTarget, setSavingTarget] = useState(false);
+    const [pushingAll, setPushingAll] = useState(false);
+    const [pushingRowId, setPushingRowId] = useState(null);
 
     useEffect(() => {
         fetchInitialData();
@@ -71,7 +78,11 @@ export default function RekapNilai() {
             const responseData = await gradingService.getAttempts(examId);
             setScores(responseData.data || responseData || []);
             setExamInfo(responseData.exam_info || null);
-        } catch (error) { 
+            setSiakadTarget({
+                kelas: responseData.exam_info?.siakad_kelas_kuliah_id || '',
+                periode: responseData.exam_info?.siakad_periode_akademik_id || ''
+            });
+        } catch (error) {
             console.error("Gagal menarik rincian nilai:", error); 
             Swal.fire('Error', 'Gagal memuat data nilai ujian ini.', 'error');
         } finally { 
@@ -155,6 +166,66 @@ export default function RekapNilai() {
         }
     };
 
+    const saveSiakadTarget = async () => {
+        if (!siakadTarget.kelas.trim() || !siakadTarget.periode.trim()) {
+            return Swal.fire('Data Kurang', 'ID Kelas dan Periode Akademik SIAKAD wajib diisi.', 'warning');
+        }
+        setSavingTarget(true);
+        try {
+            await siakadService.setExamTarget(selectedExam, {
+                siakad_kelas_kuliah_id: siakadTarget.kelas.trim(),
+                siakad_periode_akademik_id: siakadTarget.periode.trim()
+            });
+            Swal.fire({ icon: 'success', title: 'Target SIAKAD Tersimpan', timer: 1200, showConfirmButton: false });
+        } catch (error) {
+            console.error("Gagal menyimpan target SIAKAD:", error);
+            Swal.fire('Error', error.response?.data?.message || 'Gagal menyimpan target SIAKAD.', 'error');
+        } finally {
+            setSavingTarget(false);
+        }
+    };
+
+    const pushOneToSiakad = async (attempt) => {
+        setPushingRowId(attempt.attempt_id);
+        try {
+            await siakadService.pushAttempt(attempt.attempt_id);
+            Swal.fire({ icon: 'success', title: 'Masuk Antrian SIAKAD', timer: 1200, showConfirmButton: false });
+            fetchAttemptsData(selectedExam);
+        } catch (error) {
+            console.error("Gagal push ke SIAKAD:", error);
+            Swal.fire('Error', error.response?.data?.message || 'Gagal push nilai ke SIAKAD.', 'error');
+        } finally {
+            setPushingRowId(null);
+        }
+    };
+
+    const pushAllToSiakad = async () => {
+        setPushingAll(true);
+        try {
+            const result = await siakadService.pushExam(selectedExam);
+            Swal.fire({ icon: 'success', title: 'Push ke SIAKAD Dimulai', text: result.message, timer: 2000, showConfirmButton: false });
+            fetchAttemptsData(selectedExam);
+        } catch (error) {
+            console.error("Gagal push semua ke SIAKAD:", error);
+            Swal.fire('Error', error.response?.data?.message || 'Gagal push nilai ujian ke SIAKAD.', 'error');
+        } finally {
+            setPushingAll(false);
+        }
+    };
+
+    const siakadBadge = (status) => {
+        switch (status) {
+            case 'TERKIRIM':
+                return <span className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-wider"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Terkirim</span>;
+            case 'ANTRIAN':
+                return <span className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-wider"><span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span> Antrian</span>;
+            case 'GAGAL':
+                return <span className="inline-flex items-center gap-1.5 bg-red-50 text-red-700 border border-red-200 px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-wider"><span className="w-1.5 h-1.5 rounded-full bg-red-500"></span> Gagal</span>;
+            default:
+                return <span className="inline-flex items-center gap-1.5 bg-slate-100 text-slate-500 border border-slate-200 px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-wider"><span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span> Belum Sinkron</span>;
+        }
+    };
+
     return (
         <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} className="max-w-7xl mx-auto space-y-8 pb-10">
             
@@ -165,10 +236,16 @@ export default function RekapNilai() {
                     <p className="text-sm font-medium text-slate-500 mt-1">Verifikasi hasil ujian mahasiswa, override skor AI jika diperlukan, dan unduh laporan.</p>
                 </div>
                 
-                <button onClick={handleExportExcel} disabled={scores.length === 0} className={`px-6 py-3.5 rounded-xl text-[12px] font-black uppercase tracking-widest flex items-center gap-2 transition-all shadow-lg active:scale-95 ${scores.length === 0 ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none' : 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-emerald-500/30'}`}>
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" /></svg>
-                    Export ke Excel
-                </button>
+                <div className="flex gap-3">
+                    <button onClick={handleExportExcel} disabled={scores.length === 0} className={`px-6 py-3.5 rounded-xl text-[12px] font-black uppercase tracking-widest flex items-center gap-2 transition-all shadow-lg active:scale-95 ${scores.length === 0 ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none' : 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-emerald-500/30'}`}>
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" /></svg>
+                        Export ke Excel
+                    </button>
+                    <button onClick={pushAllToSiakad} disabled={!selectedExam || pushingAll || scores.length === 0} className={`px-6 py-3.5 rounded-xl text-[12px] font-black uppercase tracking-widest flex items-center gap-2 transition-all shadow-lg active:scale-95 ${!selectedExam || pushingAll || scores.length === 0 ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none' : 'bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white shadow-indigo-500/30'}`}>
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
+                        {pushingAll ? 'Mengirim...' : 'Push Semua ke SIAKAD'}
+                    </button>
+                </div>
             </div>
 
             {/* FILTER 2 TINGKAT */}
@@ -214,6 +291,35 @@ export default function RekapNilai() {
                 </div>
             )}
 
+            {/* TARGET SIAKAD */}
+            {selectedExam && (
+                <div className="bg-indigo-50 border border-indigo-100 p-5 rounded-xl flex flex-col md:flex-row gap-4 md:items-end">
+                    <div className="flex-1">
+                        <label className="block text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1.5">ID Kelas Kuliah SIAKAD</label>
+                        <input
+                            type="text"
+                            value={siakadTarget.kelas}
+                            onChange={(e) => setSiakadTarget(prev => ({ ...prev, kelas: e.target.value }))}
+                            placeholder="mis. siak_kelas_kuliah_id"
+                            className="w-full px-4 py-3 bg-white border border-indigo-200 rounded-lg text-[13px] font-bold text-slate-800 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all"
+                        />
+                    </div>
+                    <div className="flex-1">
+                        <label className="block text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1.5">ID Periode Akademik SIAKAD</label>
+                        <input
+                            type="text"
+                            value={siakadTarget.periode}
+                            onChange={(e) => setSiakadTarget(prev => ({ ...prev, periode: e.target.value }))}
+                            placeholder="mis. siak_periode_akademik_id"
+                            className="w-full px-4 py-3 bg-white border border-indigo-200 rounded-lg text-[13px] font-bold text-slate-800 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all"
+                        />
+                    </div>
+                    <button onClick={saveSiakadTarget} disabled={savingTarget} className="px-6 py-3 rounded-lg text-[11px] font-black uppercase tracking-wider bg-indigo-600 text-white hover:bg-indigo-700 shadow-md shadow-indigo-500/20 transition-all disabled:opacity-50">
+                        {savingTarget ? 'Menyimpan...' : 'Simpan Target'}
+                    </button>
+                </div>
+            )}
+
             {/* TABEL RINCIAN NILAI */}
             <div className="bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-200 overflow-hidden">
                 <div className="px-8 py-5 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
@@ -230,17 +336,18 @@ export default function RekapNilai() {
                                 <th className="py-5 px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Esai AI<br/>(0-100)</th>
                                 <th className="py-5 px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Upload<br/>(0-100)</th>
                                 <th className="py-5 px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Status</th>
+                                <th className="py-5 px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Sync SIAKAD</th>
                                 <th className="py-5 px-6 text-[10px] font-black text-[#0f4c3a] uppercase tracking-widest text-center bg-[#0f4c3a]/5">Total Akhir</th>
                                 <th className="py-5 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Aksi</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                             {loading ? (
-                                <tr><td colSpan="7" className="py-16 text-center text-slate-400 font-bold animate-pulse">Memuat data...</td></tr>
+                                <tr><td colSpan="8" className="py-16 text-center text-slate-400 font-bold animate-pulse">Memuat data...</td></tr>
                             ) : !selectedExam ? (
-                                <tr><td colSpan="7" className="py-20 text-center text-slate-400 font-bold text-sm">Silakan pilih Sesi Ujian pada filter di atas untuk melihat rincian.</td></tr>
+                                <tr><td colSpan="8" className="py-20 text-center text-slate-400 font-bold text-sm">Silakan pilih Sesi Ujian pada filter di atas untuk melihat rincian.</td></tr>
                             ) : scores.length === 0 ? (
-                                <tr><td colSpan="7" className="py-20 text-center text-slate-400 font-bold text-sm">Belum ada mahasiswa yang mengumpulkan ujian ini.</td></tr>
+                                <tr><td colSpan="8" className="py-20 text-center text-slate-400 font-bold text-sm">Belum ada mahasiswa yang mengumpulkan ujian ini.</td></tr>
                             ) : (
                                 scores.map((score, index) => (
                                     <tr key={index} className="hover:bg-slate-50/80 transition-colors group">
@@ -264,18 +371,32 @@ export default function RekapNilai() {
                                                 <span className="inline-flex items-center gap-1.5 bg-amber-50 text-amber-700 border border-amber-200 px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-wider"><span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> Pending</span>
                                             )}
                                         </td>
+                                        <td className="py-4 px-4 text-center" title={score.siakad_error || ''}>
+                                            {siakadBadge(score.siakad_sync_status)}
+                                        </td>
                                         <td className="py-4 px-6 text-center bg-[#0f4c3a]/[0.02]">
                                             <span className={`text-xl font-black tracking-tight ${score.status === 'SELESAI' ? 'text-[#0f4c3a]' : 'text-slate-400'}`}>
                                                 {score.final_score !== null ? parseFloat(Number(score.final_score).toFixed(2)) : '-'}
                                             </span>
                                         </td>
                                         <td className="py-4 px-6 text-right">
-                                            <button 
-                                                onClick={() => openVerifyModal(score)}
-                                                className={`px-4 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all ${score.status === 'SELESAI' ? 'bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200' : 'bg-blue-600 text-white hover:bg-blue-700 shadow-md shadow-blue-500/20'}`}
-                                            >
-                                                {score.status === 'SELESAI' ? 'Edit Nilai' : 'Verifikasi'}
-                                            </button>
+                                            <div className="flex items-center justify-end gap-2">
+                                                <button
+                                                    onClick={() => openVerifyModal(score)}
+                                                    className={`px-4 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all ${score.status === 'SELESAI' ? 'bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200' : 'bg-blue-600 text-white hover:bg-blue-700 shadow-md shadow-blue-500/20'}`}
+                                                >
+                                                    {score.status === 'SELESAI' ? 'Edit Nilai' : 'Verifikasi'}
+                                                </button>
+                                                {score.status === 'SELESAI' && (
+                                                    <button
+                                                        onClick={() => pushOneToSiakad(score)}
+                                                        disabled={pushingRowId === score.attempt_id}
+                                                        className={`px-4 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all disabled:opacity-50 ${score.siakad_sync_status === 'GAGAL' ? 'bg-red-50 text-red-600 hover:bg-red-100 border border-red-200' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100 border border-indigo-200'}`}
+                                                    >
+                                                        {pushingRowId === score.attempt_id ? 'Mengirim...' : score.siakad_sync_status === 'GAGAL' ? 'Retry' : 'Push'}
+                                                    </button>
+                                                )}
+                                            </div>
                                         </td>
                                     </tr>
                                 ))

@@ -4,23 +4,30 @@ import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import adminService from '../services/admin.service';
 import matkulService from '../services/matkul.service';
+import siakadService from '../services/siakad.service';
 
 export default function AdminDashboard({ activeMenu = 'overview' }) {
     const navigate = useNavigate();
-    
+
     const [pendingUsers, setPendingUsers] = useState([]);
-    const [activeUsers, setActiveUsers] = useState([]); 
+    const [activeUsers, setActiveUsers] = useState([]);
     const [matkulList, setMatkulList] = useState([]);
-    const [formMatkul, setFormMatkul] = useState({ kode_mk: '', nama_mk: '', dosen_id: '' });
+    const [formMatkul, setFormMatkul] = useState({ kode_mk: '', nama_mk: '', dosen_id: '', siakad_id: '' });
     const [isLoading, setIsLoading] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
+
+    // State picker SIAKAD
+    const [siakadCourses, setSiakadCourses] = useState([]);
+    const [siakadSearch, setSiakadSearch] = useState('');
+    const [siakadPickerOpen, setSiakadPickerOpen] = useState(false);
+    const [siakadLoading, setSiakadLoading] = useState(false);
 
     const fetchPendingUsers = useCallback(async () => {
         try {
             const data = await adminService.getPendingUsers();
-            setPendingUsers(data || []);
-        } catch (error) { 
-            console.error("Gagal menarik antrean:", error); 
+            setPendingUsers(data?.data || []);
+        } catch (error) {
+            console.error("Gagal menarik antrean:", error);
         }
     }, []);
 
@@ -28,37 +35,68 @@ export default function AdminDashboard({ activeMenu = 'overview' }) {
         try {
             const data = await adminService.getActiveUsers();
             const myEmail = localStorage.getItem('email') || '';
-            const filteredUsers = (data || []).filter(u => u.email !== myEmail && u.role !== 'super_admin');
+            const filteredUsers = (data?.data || []).filter(u => u.email !== myEmail && u.role !== 'super_admin');
             setActiveUsers(filteredUsers);
-        } catch (error) { 
-            console.error("Gagal menarik pengguna aktif:", error); 
+        } catch (error) {
+            console.error("Gagal menarik pengguna aktif:", error);
         }
     }, []);
 
     const fetchMatkul = useCallback(async () => {
         try {
             const data = await matkulService.getMatkul();
-            setMatkulList(data || []);
-        } catch (error) { 
-            console.error("Gagal matkul:", error); 
+            setMatkulList(data?.data || []);
+        } catch (error) {
+            console.error("Gagal matkul:", error);
+        }
+    }, []);
+
+    const fetchSiakadCourses = useCallback(async () => {
+        setSiakadLoading(true);
+        try {
+            const result = await siakadService.searchMataKuliah({ size: 100 });
+            setSiakadCourses(result.data || []);
+        } catch (error) {
+            console.error("Gagal menarik mata kuliah SIAKAD:", error);
+        } finally {
+            setSiakadLoading(false);
         }
     }, []);
 
     // Otomatis menarik data
     useEffect(() => {
         if (activeMenu === 'overview') {
-            fetchPendingUsers(); 
-            fetchActiveUsers(); 
+            fetchPendingUsers();
+            fetchActiveUsers();
             fetchMatkul();
         } else if (activeMenu === 'verifikasi') {
             fetchPendingUsers();
         } else if (activeMenu === 'pengguna') {
             fetchActiveUsers();
         } else if (activeMenu === 'matkul') {
-            fetchMatkul(); 
+            fetchMatkul();
             fetchActiveUsers(); // Untuk Dropdown Dosen
+            fetchSiakadCourses(); // Untuk Picker SIAKAD
         }
-    }, [activeMenu, fetchActiveUsers, fetchMatkul, fetchPendingUsers]);
+    }, [activeMenu, fetchActiveUsers, fetchMatkul, fetchPendingUsers, fetchSiakadCourses]);
+
+    const filteredSiakadCourses = siakadSearch.trim()
+        ? siakadCourses.filter(c =>
+            c.nama?.toLowerCase().includes(siakadSearch.toLowerCase()) ||
+            c.kode?.toLowerCase().includes(siakadSearch.toLowerCase())
+          )
+        : siakadCourses;
+
+    const handlePickSiakadCourse = (course) => {
+        setFormMatkul(prev => ({
+            ...prev,
+            kode_mk: (course.kode || '').toUpperCase(),
+            nama_mk: course.nama || '',
+            siakad_id: course.id
+        }));
+        setSiakadPickerOpen(false);
+        setSiakadSearch('');
+    };
 
     // =========================================================================
     // ⚔️ FUNGSI AKSI ADMIN
@@ -124,24 +162,25 @@ export default function AdminDashboard({ activeMenu = 'overview' }) {
                 Swal.fire({ icon: 'success', title: 'Tersimpan!', text: 'Mata Kuliah ditambahkan.', timer: 2000, showConfirmButton: false });
             }
             
-            setFormMatkul({ kode_mk: '', nama_mk: '', dosen_id: '' });
+            setFormMatkul({ kode_mk: '', nama_mk: '', dosen_id: '', siakad_id: '' });
             setIsEditing(false);
-            fetchMatkul(); 
-        } catch (error) { 
-            Swal.fire('Gagal', 'Terjadi kesalahan pada database.', 'error'); 
-        } finally { 
-            setIsLoading(false); 
+            fetchMatkul();
+        } catch (error) {
+            const msg = error.response?.data?.message || 'Terjadi kesalahan pada database.';
+            Swal.fire('Gagal', msg, 'error');
+        } finally {
+            setIsLoading(false);
         }
     };
 
     const handleKlikEdit = (mk) => {
-        setFormMatkul({ kode_mk: mk.kode_mk, nama_mk: mk.nama_mk, dosen_id: mk.users ? mk.users.id : '' });
+        setFormMatkul({ kode_mk: mk.kode_mk, nama_mk: mk.nama_mk, dosen_id: mk.users ? mk.users.id : '', siakad_id: mk.siakad_id || '' });
         setIsEditing(true);
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
     const handleBatalEdit = () => {
-        setFormMatkul({ kode_mk: '', nama_mk: '', dosen_id: '' });
+        setFormMatkul({ kode_mk: '', nama_mk: '', dosen_id: '', siakad_id: '' });
         setIsEditing(false);
     };
 
@@ -252,6 +291,41 @@ export default function AdminDashboard({ activeMenu = 'overview' }) {
                                 </p>
                             </div>
                         </div>
+
+                        {!isEditing && (
+                            <div className="mb-6 relative">
+                                <label className="block text-[11px] font-black text-slate-500 uppercase mb-2">Cari dari SIAKAD (opsional)</label>
+                                <input
+                                    type="text"
+                                    value={siakadSearch}
+                                    onChange={e => { setSiakadSearch(e.target.value); setSiakadPickerOpen(true); }}
+                                    onFocus={() => setSiakadPickerOpen(true)}
+                                    onBlur={() => setTimeout(() => setSiakadPickerOpen(false), 150)}
+                                    placeholder={siakadLoading ? 'Memuat daftar mata kuliah SIAKAD...' : 'Ketik nama atau kode mata kuliah...'}
+                                    className="w-full px-5 py-4 bg-slate-50 rounded-xl border border-slate-200 outline-none text-[13px] font-bold text-slate-700 shadow-sm transition-all focus:bg-white focus:border-[#0f4c3a] focus:ring-4 focus:ring-[#0f4c3a]/10"
+                                />
+                                {formMatkul.siakad_id && (
+                                    <span className="inline-flex items-center gap-1.5 mt-2 bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-wider">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span> Terhubung ke SIAKAD
+                                    </span>
+                                )}
+                                {siakadPickerOpen && filteredSiakadCourses.length > 0 && (
+                                    <div className="absolute z-20 mt-1 w-full max-h-64 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-xl divide-y divide-slate-100">
+                                        {filteredSiakadCourses.slice(0, 50).map(course => (
+                                            <button
+                                                type="button"
+                                                key={course.id}
+                                                onClick={() => handlePickSiakadCourse(course)}
+                                                className="w-full text-left px-4 py-3 hover:bg-slate-50 transition-colors"
+                                            >
+                                                <p className="text-[12px] font-black text-slate-800">{course.nama}</p>
+                                                <p className="text-[10px] font-bold text-slate-400">{course.kode} · Semester {course.semester} · {course.totalSks} SKS</p>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                         <div className="flex flex-col lg:flex-row gap-5 items-end">
                             <div className="flex-[0.8] w-full">

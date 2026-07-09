@@ -52,18 +52,7 @@ export default function ManageMateri() {
         formData.append('judul', judul);
         formData.append('deskripsi', deskripsi);
         formData.append('file_materi', file);
-
-        // Try getting user from localStorage
-        let userObj = null;
-        try {
-            const userStr = localStorage.getItem('user');
-            if (userStr) {
-                userObj = JSON.parse(userStr);
-            }
-        } catch (e) {
-            console.error("Parse user failed:", e);
-        }
-        formData.append('dosen_id', userObj ? userObj.id : 1);
+        // (dosen_id diambil backend dari token JWT, tidak perlu dikirim manual)
 
         try {
             const result = await materiService.uploadMateri(formData);
