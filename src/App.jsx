@@ -5,6 +5,7 @@ import { AuthProvider } from './context/AuthContext';
 
 const Login = lazy(() => import('./pages/Login'));
 const Register = lazy(() => import('./pages/Register'));
+const SsoCallback = lazy(() => import('./pages/SsoCallback'));
 const Profile = lazy(() => import('./pages/profile'));
 const DashboardLayout = lazy(() => import('./components/DashboardLayout'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
@@ -37,6 +38,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/sso" element={<SsoCallback />} />
             <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
 
             <Route path="/take-exam" element={<RequireRole allow={['student']}><TakeExam /></RequireRole>} />
