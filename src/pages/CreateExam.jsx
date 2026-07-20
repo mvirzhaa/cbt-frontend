@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import matkulService from '../services/matkul.service';
 import examService from '../services/exam.service';
 
 export default function CreateExam() {
+    const navigate = useNavigate();
     const [isLoading, setIsLoading] = useState(false);
     const [matkulList, setMatkulList] = useState([]);
     const [examList, setExamList] = useState([]);
@@ -378,15 +380,23 @@ export default function CreateExam() {
                                                 )}
                                             </td>
 
-                                            <td className="py-5 px-8 text-right space-x-2">
-                                                {!isArchived && (
-                                                    <button onClick={() => handleEditClick(ex)} className="inline-flex items-center justify-center w-8 h-8 text-amber-600 bg-amber-50 border border-amber-200 hover:bg-amber-500 hover:text-white rounded-lg transition-colors shadow-sm" title="Edit Ujian">
-                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                            <td className="py-5 px-8 text-right">
+                                                <div className="flex items-center justify-end gap-2">
+                                                    <span className="bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px] font-black px-2.5 py-1.5 rounded-lg" title="Jumlah Soal">
+                                                        {ex.jumlah_soal ?? 0} Soal
+                                                    </span>
+                                                    <button onClick={() => navigate(`/exams/${ex.id}/soal`)} className="inline-flex items-center justify-center w-8 h-8 text-blue-600 bg-blue-50 border border-blue-200 hover:bg-blue-600 hover:text-white rounded-lg transition-colors shadow-sm" title="Kelola Soal">
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                                                     </button>
-                                                )}
-                                                <button onClick={() => handleHapusClick(ex.id, ex.nama_ujian)} className="inline-flex items-center justify-center w-8 h-8 text-red-600 bg-red-50 border border-red-200 hover:bg-red-600 hover:text-white rounded-lg transition-colors shadow-sm" title="Hapus Ujian">
-                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                                </button>
+                                                    {!isArchived && (
+                                                        <button onClick={() => handleEditClick(ex)} className="inline-flex items-center justify-center w-8 h-8 text-amber-600 bg-amber-50 border border-amber-200 hover:bg-amber-500 hover:text-white rounded-lg transition-colors shadow-sm" title="Edit Ujian">
+                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                                        </button>
+                                                    )}
+                                                    <button onClick={() => handleHapusClick(ex.id, ex.nama_ujian)} className="inline-flex items-center justify-center w-8 h-8 text-red-600 bg-red-50 border border-red-200 hover:bg-red-600 hover:text-white rounded-lg transition-colors shadow-sm" title="Hapus Ujian">
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                    </button>
+                                                </div>
                                             </td>
                                         </tr>
                                     );

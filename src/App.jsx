@@ -11,6 +11,8 @@ const DashboardLayout = lazy(() => import('./components/DashboardLayout'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 const DashboardOverview = lazy(() => import('./pages/DashboardOverview'));
 const ManageQuestions = lazy(() => import('./pages/ManageQuestions'));
+const ExamQuestions = lazy(() => import('./pages/ExamQuestions'));
+const CpmkManagement = lazy(() => import('./pages/CpmkManagement'));
 const CreateExam = lazy(() => import('./pages/CreateExam'));
 const Grading = lazy(() => import('./pages/Grading'));
 const RekapNilai = lazy(() => import('./pages/RekapNilai'));
@@ -55,6 +57,8 @@ function App() {
               <Route path="/manage-matkul" element={<RequireRole allow={['lecturer']}><ManageMatkul /></RequireRole>} />
               <Route path="/manage-materi" element={<RequireRole allow={['lecturer']}><ManageMateri /></RequireRole>} />
               <Route path="/manage-questions" element={<RequireRole allow={['lecturer']}><ManageQuestions /></RequireRole>} />
+              <Route path="/exams/:examId/soal" element={<RequireRole allow={['lecturer']}><ExamQuestions /></RequireRole>} />
+              <Route path="/cpmk" element={<RequireRole allow={['lecturer']}><CpmkManagement /></RequireRole>} />
               <Route path="/create-exam" element={<RequireRole allow={['lecturer']}><CreateExam /></RequireRole>} />
               <Route path="/grading" element={<RequireRole allow={['lecturer']}><Grading /></RequireRole>} />
               <Route path="/rekap-nilai" element={<RequireRole allow={['lecturer']}><RekapNilai /></RequireRole>} />

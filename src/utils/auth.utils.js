@@ -1,3 +1,15 @@
+export function getUserIdFromToken(token) {
+  if (!token) return null;
+  try {
+    const payloadPart = token.split('.')[1];
+    const payload = JSON.parse(atob(payloadPart.replace(/-/g, '+').replace(/_/g, '/')));
+    const id = payload.id || payload.userId;
+    return id !== undefined && id !== null ? String(id) : null;
+  } catch (error) {
+    return null;
+  }
+}
+
 export function normalizeRole(rawRole) {
   return (rawRole || '').toLowerCase().replace(/[^a-z]/g, '');
 }
