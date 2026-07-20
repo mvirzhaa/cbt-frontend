@@ -14,6 +14,7 @@ export default function ExamQuestions() {
     const [exam, setExam] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
     const [questionList, setQuestionList] = useState([]);
+    const totalBobotSoal = questionList.reduce((sum, q) => sum + (parseFloat(q.bobot_nilai) || 0), 0);
 
     // State Form
     const [editId, setEditId] = useState(null);
@@ -346,9 +347,16 @@ export default function ExamQuestions() {
 
             {/* DAFTAR SOAL UJIAN INI */}
             <div className="bg-white rounded-3xl border border-slate-100 shadow-[0_10px_40px_rgba(0,0,0,0.03)] overflow-hidden">
-                <div className="px-8 py-5 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+                <div className="px-8 py-5 border-b border-slate-100 bg-slate-50 flex justify-between items-center gap-3">
                     <h3 className="text-[14px] font-black text-slate-800 uppercase tracking-widest">Soal Ujian Ini</h3>
-                    <span className="bg-slate-800 text-white text-[10px] px-3 py-1.5 rounded-lg font-black uppercase tracking-widest shadow-sm">Total: {questionList.length} Butir</span>
+                    <div className="flex items-center gap-2">
+                        {exam?.grading_type === 'PER_SOAL' && (
+                            <span className={`text-[10px] px-3 py-1.5 rounded-lg font-black uppercase tracking-widest shadow-sm ${totalBobotSoal === 100 ? 'bg-emerald-600 text-white' : 'bg-red-100 text-red-700 border border-red-300 animate-pulse'}`}>
+                                Bobot: {totalBobotSoal}/100
+                            </span>
+                        )}
+                        <span className="bg-slate-800 text-white text-[10px] px-3 py-1.5 rounded-lg font-black uppercase tracking-widest shadow-sm">Total: {questionList.length} Butir</span>
+                    </div>
                 </div>
 
                 <div className="p-8 space-y-6">

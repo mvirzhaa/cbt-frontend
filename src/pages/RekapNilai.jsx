@@ -142,7 +142,9 @@ export default function RekapNilai() {
 
     const submitVerification = async () => {
         try {
-            const payload = {
+            // Mode Per Soal: nilai akhir dihitung server-side dari bobot tiap soal,
+            // tidak ada override kategori pilgan/esai/upload untuk dikirim.
+            const payload = examInfo?.grading_type === 'PER_SOAL' ? {} : {
                 skor_pilgan_100: verifyModal.scores.pilgan,
                 skor_esai_100: verifyModal.scores.esai,
                 skor_file_100: verifyModal.scores.file
@@ -439,54 +441,72 @@ export default function RekapNilai() {
                                     </div>
                                 </div>
 
-                                <p className="text-sm text-slate-600 font-medium leading-relaxed">
-                                    Anda dapat menyesuaikan skor di bawah ini sebelum mempublikasikan nilai akhir. Skor dihitung dalam skala 0 - 100.
-                                </p>
+                                {examInfo?.grading_type === 'PER_SOAL' ? (
+                                    <>
+                                        <p className="text-sm text-slate-600 font-medium leading-relaxed">
+                                            Ujian ini bermode <b>Per Soal</b> — nilai akhir dihitung otomatis dari bobot tiap soal (bukan persentase kategori), langsung dari jawaban yang sudah dinilai. Tidak ada skor kategori untuk disesuaikan manual di sini; koreksi skor per soal dilakukan di halaman Penilaian & Evaluasi.
+                                        </p>
+                                        <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex justify-between items-center mt-2">
+                                            <span className="text-xs font-black uppercase tracking-widest text-slate-500">Nilai Akhir Saat Ini:</span>
+                                            <span className="text-xl font-black text-[#0f4c3a]">
+                                                {verifyModal.attempt?.final_score !== null && verifyModal.attempt?.final_score !== undefined
+                                                    ? parseFloat(Number(verifyModal.attempt.final_score).toFixed(2))
+                                                    : 'Belum dihitung'}
+                                            </span>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <p className="text-sm text-slate-600 font-medium leading-relaxed">
+                                            Anda dapat menyesuaikan skor di bawah ini sebelum mempublikasikan nilai akhir. Skor dihitung dalam skala 0 - 100.
+                                        </p>
 
-                                <div className="grid grid-cols-3 gap-4">
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-500 mb-1">Pilgan ({examInfo?.bobot_pilgan}%)</label>
-                                        <input 
-                                            type="number" 
-                                            min="0" max="100"
-                                            value={verifyModal.scores.pilgan}
-                                            onChange={(e) => handleScoreChange('pilgan', e.target.value)}
-                                            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm font-bold text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-500 mb-1">Esai AI ({examInfo?.bobot_esai}%)</label>
-                                        <input 
-                                            type="number" 
-                                            min="0" max="100"
-                                            value={verifyModal.scores.esai}
-                                            onChange={(e) => handleScoreChange('esai', e.target.value)}
-                                            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm font-bold text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-500 mb-1">Upload ({examInfo?.bobot_upload}%)</label>
-                                        <input 
-                                            type="number" 
-                                            min="0" max="100"
-                                            value={verifyModal.scores.file}
-                                            onChange={(e) => handleScoreChange('file', e.target.value)}
-                                            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm font-bold text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                                        />
-                                    </div>
-                                </div>
-                                
-                                {/* Live Preview Total Score */}
-                                <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex justify-between items-center mt-2">
-                                    <span className="text-xs font-black uppercase tracking-widest text-slate-500">Estimasi Total Akhir:</span>
-                                    <span className="text-xl font-black text-[#0f4c3a]">
-                                        {parseFloat(Number(
-                                            (verifyModal.scores.pilgan * ((examInfo?.bobot_pilgan || 0) / 100)) +
-                                            (verifyModal.scores.esai * ((examInfo?.bobot_esai || 0) / 100)) +
-                                            (verifyModal.scores.file * ((examInfo?.bobot_upload || 0) / 100))
-                                        ).toFixed(2))}
-                                    </span>
-                                </div>
+                                        <div className="grid grid-cols-3 gap-4">
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-500 mb-1">Pilgan ({examInfo?.bobot_pilgan}%)</label>
+                                                <input
+                                                    type="number"
+                                                    min="0" max="100"
+                                                    value={verifyModal.scores.pilgan}
+                                                    onChange={(e) => handleScoreChange('pilgan', e.target.value)}
+                                                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm font-bold text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-500 mb-1">Esai AI ({examInfo?.bobot_esai}%)</label>
+                                                <input
+                                                    type="number"
+                                                    min="0" max="100"
+                                                    value={verifyModal.scores.esai}
+                                                    onChange={(e) => handleScoreChange('esai', e.target.value)}
+                                                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm font-bold text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-500 mb-1">Upload ({examInfo?.bobot_upload}%)</label>
+                                                <input
+                                                    type="number"
+                                                    min="0" max="100"
+                                                    value={verifyModal.scores.file}
+                                                    onChange={(e) => handleScoreChange('file', e.target.value)}
+                                                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm font-bold text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {/* Live Preview Total Score */}
+                                        <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex justify-between items-center mt-2">
+                                            <span className="text-xs font-black uppercase tracking-widest text-slate-500">Estimasi Total Akhir:</span>
+                                            <span className="text-xl font-black text-[#0f4c3a]">
+                                                {parseFloat(Number(
+                                                    (verifyModal.scores.pilgan * ((examInfo?.bobot_pilgan || 0) / 100)) +
+                                                    (verifyModal.scores.esai * ((examInfo?.bobot_esai || 0) / 100)) +
+                                                    (verifyModal.scores.file * ((examInfo?.bobot_upload || 0) / 100))
+                                                ).toFixed(2))}
+                                            </span>
+                                        </div>
+                                    </>
+                                )}
                             </div>
                             
                             <div className="bg-slate-50 px-6 py-4 border-t border-slate-100 flex justify-end gap-3">

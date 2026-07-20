@@ -23,6 +23,7 @@ export default function CreateExam() {
         waktu_mulai: '',
         waktu_selesai: '',
         durasi: 90,
+        grading_type: 'PER_KATEGORI',
         bobot_pilgan: 100, // Default Pilgan 100%
         bobot_esai: 0,
         bobot_upload: 0
@@ -32,6 +33,7 @@ export default function CreateExam() {
 
     // Hitung total persentase secara real-time
     const totalPersentase = parseInt(formExam.bobot_pilgan || 0) + parseInt(formExam.bobot_esai || 0) + parseInt(formExam.bobot_upload || 0);
+    const isPerSoal = formExam.grading_type === 'PER_SOAL';
 
     useEffect(() => {
         fetchMatkul();
@@ -66,8 +68,9 @@ export default function CreateExam() {
     const handleSimpanUjian = async (e) => {
         e.preventDefault();
         
-        // 🌟 BENTENG VALIDASI: Total Harus 100%
-        if (totalPersentase !== 100) {
+        // 🌟 BENTENG VALIDASI: Total Harus 100% (hanya relevan untuk mode Per Kategori;
+        // mode Per Soal divalidasi dari total bobot_nilai tiap soal, bukan di sini)
+        if (!isPerSoal && totalPersentase !== 100) {
             return Swal.fire('Distribusi Nilai Salah', `Total Persentase Penilaian harus tepat 100%. Saat ini totalnya: ${totalPersentase}%`, 'warning');
         }
 
@@ -79,6 +82,7 @@ export default function CreateExam() {
                 waktu_mulai: formExam.waktu_mulai,
                 waktu_selesai: formExam.waktu_selesai,
                 durasi: parseInt(formExam.durasi),
+                grading_type: formExam.grading_type,
                 bobot_pilgan: parseInt(formExam.bobot_pilgan),
                 bobot_esai: parseInt(formExam.bobot_esai),
                 bobot_upload: parseInt(formExam.bobot_upload),
@@ -108,6 +112,7 @@ export default function CreateExam() {
             waktu_mulai: formatToDatetimeLocal(exam.waktu_mulai),
             waktu_selesai: formatToDatetimeLocal(exam.waktu_selesai),
             durasi: exam.durasi,
+            grading_type: exam.grading_type || 'PER_KATEGORI',
             bobot_pilgan: exam.bobot_pilgan ?? 100, // Ambil dari DB
             bobot_esai: exam.bobot_esai ?? 0,
             bobot_upload: exam.bobot_upload ?? 0
@@ -143,7 +148,7 @@ export default function CreateExam() {
     };
 
     const resetForm = () => {
-        setFormExam({ kode_mk: '', nama_ujian: '', waktu_mulai: '', waktu_selesai: '', durasi: 90, bobot_pilgan: 100, bobot_esai: 0, bobot_upload: 0 });
+        setFormExam({ kode_mk: '', nama_ujian: '', waktu_mulai: '', waktu_selesai: '', durasi: 90, grading_type: 'PER_KATEGORI', bobot_pilgan: 100, bobot_esai: 0, bobot_upload: 0 });
         setExamTerms(['']);
         setIsEditing(false);
         setEditId(null);
@@ -223,41 +228,58 @@ export default function CreateExam() {
                         </div>
                     </div>
 
-                    {/* 🌟 DISTRIBUSI BOBOT NILAI (CUSTOM FORMULA) */}
+                    {/* 🌟 MODE PENILAIAN */}
                     <div className="p-6 md:p-8 rounded-2xl border-2 border-blue-100 bg-blue-50/30">
-                        <div className="flex justify-between items-center mb-6">
-                            <div>
-                                <h4 className="text-[13px] font-black text-blue-800 uppercase tracking-widest">C. Distribusi Persentase Penilaian (%)</h4>
-                                <p className="text-[11px] font-medium text-slate-500 mt-1">Atur persentase bobot masing-masing kategori terhadap Nilai Akhir.</p>
-                            </div>
-                            <div className={`px-4 py-2 rounded-xl text-[13px] font-black border-2 transition-colors ${totalPersentase === 100 ? 'bg-emerald-100 text-emerald-700 border-emerald-300' : 'bg-red-100 text-red-600 border-red-300 animate-pulse'}`}>
-                                Total: {totalPersentase}%
-                            </div>
+                        <h4 className="text-[13px] font-black text-blue-800 uppercase tracking-widest mb-1">C. Mode Penilaian</h4>
+                        <p className="text-[11px] font-medium text-slate-500 mb-5">Pilih cara Nilai Akhir dihitung untuk ujian ini.</p>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                            <button type="button" onClick={() => setFormExam({...formExam, grading_type: 'PER_KATEGORI'})} className={`text-left p-4 rounded-xl border-2 transition-colors ${!isPerSoal ? 'border-blue-500 bg-white shadow-sm' : 'border-slate-200 bg-white/50 hover:bg-white'}`}>
+                                <span className="block text-[13px] font-black text-slate-800">Per Kategori</span>
+                                <span className="block text-[11px] font-medium text-slate-500 mt-1">Bobot % per jenis soal (Pilgan/Esai/Upload), berlaku untuk seluruh ujian.</span>
+                            </button>
+                            <button type="button" onClick={() => setFormExam({...formExam, grading_type: 'PER_SOAL'})} className={`text-left p-4 rounded-xl border-2 transition-colors ${isPerSoal ? 'border-blue-500 bg-white shadow-sm' : 'border-slate-200 bg-white/50 hover:bg-white'}`}>
+                                <span className="block text-[13px] font-black text-slate-800">Per Soal</span>
+                                <span className="block text-[11px] font-medium text-slate-500 mt-1">Tiap soal punya bobotnya sendiri, langsung dijumlah jadi Nilai Akhir.</span>
+                            </button>
                         </div>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <div>
-                                <label className="block text-[11px] font-bold text-slate-600 mb-2">Bobot Pilihan Ganda</label>
-                                <div className="relative">
-                                    <input type="number" min="0" max="100" value={formExam.bobot_pilgan} onChange={e => setFormExam({...formExam, bobot_pilgan: e.target.value})} className="w-full px-5 py-3 bg-white rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none font-bold text-slate-800 text-[14px]" />
-                                    <span className="absolute right-4 top-3.5 text-slate-400 font-bold">%</span>
-                                </div>
+
+                        {isPerSoal ? (
+                            <div className="px-5 py-4 rounded-xl bg-white border border-blue-200 text-[12px] font-medium text-slate-600 leading-relaxed">
+                                Atur bobot tiap soal di menu <b>Kelola Soal</b> ujian ini. Total bobot semua soal harus tepat <b>100</b> sebelum nilai bisa diverifikasi/dipublikasikan.
                             </div>
-                            <div>
-                                <label className="block text-[11px] font-bold text-slate-600 mb-2">Bobot Uraian Esai (AI)</label>
-                                <div className="relative">
-                                    <input type="number" min="0" max="100" value={formExam.bobot_esai} onChange={e => setFormExam({...formExam, bobot_esai: e.target.value})} className="w-full px-5 py-3 bg-white rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none font-bold text-slate-800 text-[14px]" />
-                                    <span className="absolute right-4 top-3.5 text-slate-400 font-bold">%</span>
+                        ) : (
+                            <>
+                                <div className="flex justify-end mb-4">
+                                    <div className={`px-4 py-2 rounded-xl text-[13px] font-black border-2 transition-colors ${totalPersentase === 100 ? 'bg-emerald-100 text-emerald-700 border-emerald-300' : 'bg-red-100 text-red-600 border-red-300 animate-pulse'}`}>
+                                        Total: {totalPersentase}%
+                                    </div>
                                 </div>
-                            </div>
-                            <div>
-                                <label className="block text-[11px] font-bold text-slate-600 mb-2">Bobot Unggah Dokumen</label>
-                                <div className="relative">
-                                    <input type="number" min="0" max="100" value={formExam.bobot_upload} onChange={e => setFormExam({...formExam, bobot_upload: e.target.value})} className="w-full px-5 py-3 bg-white rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none font-bold text-slate-800 text-[14px]" />
-                                    <span className="absolute right-4 top-3.5 text-slate-400 font-bold">%</span>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                    <div>
+                                        <label className="block text-[11px] font-bold text-slate-600 mb-2">Bobot Pilihan Ganda</label>
+                                        <div className="relative">
+                                            <input type="number" min="0" max="100" value={formExam.bobot_pilgan} onChange={e => setFormExam({...formExam, bobot_pilgan: e.target.value})} className="w-full px-5 py-3 bg-white rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none font-bold text-slate-800 text-[14px]" />
+                                            <span className="absolute right-4 top-3.5 text-slate-400 font-bold">%</span>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-[11px] font-bold text-slate-600 mb-2">Bobot Uraian Esai (AI)</label>
+                                        <div className="relative">
+                                            <input type="number" min="0" max="100" value={formExam.bobot_esai} onChange={e => setFormExam({...formExam, bobot_esai: e.target.value})} className="w-full px-5 py-3 bg-white rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none font-bold text-slate-800 text-[14px]" />
+                                            <span className="absolute right-4 top-3.5 text-slate-400 font-bold">%</span>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-[11px] font-bold text-slate-600 mb-2">Bobot Unggah Dokumen</label>
+                                        <div className="relative">
+                                            <input type="number" min="0" max="100" value={formExam.bobot_upload} onChange={e => setFormExam({...formExam, bobot_upload: e.target.value})} className="w-full px-5 py-3 bg-white rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none font-bold text-slate-800 text-[14px]" />
+                                            <span className="absolute right-4 top-3.5 text-slate-400 font-bold">%</span>
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
-                        </div>
+                            </>
+                        )}
                     </div>
 
                     {/* 🌟 SYARAT DAN KETENTUAN (DINAMIS) */}
