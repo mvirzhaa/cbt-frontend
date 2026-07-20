@@ -5,6 +5,7 @@ import Swal from 'sweetalert2';
 import examService from '../services/exam.service';
 import proctoringService from '../services/proctoring.service';
 import { formatWaktu } from '../utils/format.utils';
+import MathText from '../components/MathText';
 // 🤖 face-api.js di-load secara dinamis (lazy) untuk mengurangi ukuran bundle
 
 export default function TakeExam() {
@@ -497,7 +498,7 @@ export default function TakeExam() {
 
                             <div className="px-10 py-8">
                                 <div className="text-[17px] text-slate-800 font-medium leading-loose mb-10 whitespace-pre-wrap">
-                                    {currentQuestion.isi_soal}
+                                    <MathText text={currentQuestion.isi_soal} />
                                 </div>
 
                                 <div className="bg-white">

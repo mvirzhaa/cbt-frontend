@@ -5,6 +5,7 @@ import { API_BASE_URL } from '../config/api';
 import matkulService from '../services/matkul.service';
 import examService from '../services/exam.service';
 import gradingService from '../services/grading.service';
+import MathText from '../components/MathText';
 
 export default function Grading() {
     const backendFileBaseUrl = API_BASE_URL.replace(/\/+$/, '');
@@ -440,7 +441,7 @@ export default function Grading() {
                                                         <td className="py-4 px-6 space-y-2">
                                                             <div>
                                                                 <p className={`text-[14px] font-semibold text-slate-700 leading-normal ${isExpanded ? '' : 'line-clamp-2'}`}>
-                                                                    {ans.questions?.isi_soal}
+                                                                    <MathText text={ans.questions?.isi_soal} />
                                                                 </p>
                                                             </div>
                                                             
@@ -583,7 +584,7 @@ export default function Grading() {
                                                                     <div className="space-y-1">
                                                                         <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Pertanyaan / Instruksi</h5>
                                                                         <p className="text-[14px] font-semibold text-slate-700 leading-relaxed whitespace-pre-wrap">
-                                                                            {ans.questions?.isi_soal}
+                                                                            <MathText text={ans.questions?.isi_soal} />
                                                                         </p>
                                                                     </div>
 
