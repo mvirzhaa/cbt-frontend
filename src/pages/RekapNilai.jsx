@@ -113,6 +113,21 @@ export default function RekapNilai() {
         XLSX.writeFile(workbook, `Rekap_${mkName}_${examName}.xlsx`);
     };
 
+    // Estimasi nilai akhir SEBELUM diverifikasi/dipublikasikan, biar dosen tidak perlu buka
+    // modal verifikasi dulu baru bisa lihat angkanya.
+    const estimateFinalScore = (score) => {
+        if (examInfo?.grading_type === 'PER_SOAL') {
+            return score.preview_final_score !== null && score.preview_final_score !== undefined
+                ? score.preview_final_score
+                : null;
+        }
+        return (
+            (score.skor_pilgan_100 * ((examInfo?.bobot_pilgan || 0) / 100)) +
+            (score.skor_esai_100 * ((examInfo?.bobot_esai || 0) / 100)) +
+            (score.skor_file_100 * ((examInfo?.bobot_upload || 0) / 100))
+        );
+    };
+
     const openVerifyModal = (attempt) => {
         setVerifyModal({
             isOpen: true,
@@ -377,9 +392,25 @@ export default function RekapNilai() {
                                             {siakadBadge(score.siakad_sync_status)}
                                         </td>
                                         <td className="py-4 px-6 text-center bg-[#0f4c3a]/[0.02]">
-                                            <span className={`text-xl font-black tracking-tight ${score.status === 'SELESAI' ? 'text-[#0f4c3a]' : 'text-slate-400'}`}>
-                                                {score.final_score !== null ? parseFloat(Number(score.final_score).toFixed(2)) : '-'}
-                                            </span>
+                                            {score.final_score !== null ? (
+                                                <span className="text-xl font-black tracking-tight text-[#0f4c3a]">
+                                                    {parseFloat(Number(score.final_score).toFixed(2))}
+                                                </span>
+                                            ) : (() => {
+                                                const estimate = estimateFinalScore(score);
+                                                return estimate !== null ? (
+                                                    <div>
+                                                        <span className="text-xl font-black tracking-tight text-slate-400 italic">
+                                                            ≈{parseFloat(Number(estimate).toFixed(2))}
+                                                        </span>
+                                                        <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mt-0.5">
+                                                            {score.is_all_graded ? 'Estimasi' : 'Estimasi, belum semua dinilai'}
+                                                        </p>
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-xl font-black tracking-tight text-slate-300">-</span>
+                                                );
+                                            })()}
                                         </td>
                                         <td className="py-4 px-6 text-right">
                                             <div className="flex items-center justify-end gap-2">
@@ -447,13 +478,20 @@ export default function RekapNilai() {
                                             Ujian ini bermode <b>Per Soal</b> — nilai akhir dihitung otomatis dari bobot tiap soal (bukan persentase kategori), langsung dari jawaban yang sudah dinilai. Tidak ada skor kategori untuk disesuaikan manual di sini; koreksi skor per soal dilakukan di halaman Penilaian & Evaluasi.
                                         </p>
                                         <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex justify-between items-center mt-2">
-                                            <span className="text-xs font-black uppercase tracking-widest text-slate-500">Nilai Akhir Saat Ini:</span>
+                                            <span className="text-xs font-black uppercase tracking-widest text-slate-500">
+                                                {verifyModal.attempt?.final_score !== null && verifyModal.attempt?.final_score !== undefined ? 'Nilai Akhir Terpublikasi:' : 'Estimasi Nilai Akhir:'}
+                                            </span>
                                             <span className="text-xl font-black text-[#0f4c3a]">
                                                 {verifyModal.attempt?.final_score !== null && verifyModal.attempt?.final_score !== undefined
                                                     ? parseFloat(Number(verifyModal.attempt.final_score).toFixed(2))
-                                                    : 'Belum dihitung'}
+                                                    : (verifyModal.attempt?.preview_final_score !== null && verifyModal.attempt?.preview_final_score !== undefined
+                                                        ? `≈${parseFloat(Number(verifyModal.attempt.preview_final_score).toFixed(2))}`
+                                                        : 'Belum ada jawaban dinilai')}
                                             </span>
                                         </div>
+                                        {verifyModal.attempt && !verifyModal.attempt.is_all_graded && verifyModal.attempt.final_score === null && (
+                                            <p className="text-xs text-amber-600 font-medium">⚠ Belum semua soal dinilai — estimasi ini masih bisa berubah.</p>
+                                        )}
                                     </>
                                 ) : (
                                     <>
@@ -505,6 +543,9 @@ export default function RekapNilai() {
                                                 ).toFixed(2))}
                                             </span>
                                         </div>
+                                        {verifyModal.attempt && !verifyModal.attempt.is_all_graded && (
+                                            <p className="text-xs text-amber-600 font-medium">⚠ Belum semua soal dinilai — estimasi ini masih bisa berubah.</p>
+                                        )}
                                     </>
                                 )}
                             </div>
