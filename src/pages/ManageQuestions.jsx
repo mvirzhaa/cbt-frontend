@@ -445,6 +445,9 @@ export default function ManageQuestions() {
                                                     <span className={`px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-wider border ${b.sumber === 'AI_GENERATED' ? 'bg-violet-50 text-violet-700 border-violet-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>
                                                         {b.sumber === 'AI_GENERATED' ? '✨ AI Generated' : 'Manual'}
                                                     </span>
+                                                    <span className="px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-wider border bg-slate-100 text-slate-600 border-slate-200">
+                                                        Bobot: {b.bobot_nilai ?? 10}
+                                                    </span>
                                                     {b.sub_cpmk && (
                                                         <span className="bg-amber-50 text-amber-700 border border-amber-200 px-2.5 py-1 rounded-md text-[9px] font-bold uppercase tracking-wider">
                                                             {b.cpmk?.kode_cpmk} • {b.sub_cpmk.kode_sub_cpmk}

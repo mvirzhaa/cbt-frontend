@@ -398,6 +398,9 @@ export default function ExamQuestions() {
                                             <span className={`px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-wider border ${tipeInfo.css}`}>
                                                 {tipeInfo.label}
                                             </span>
+                                            <span className="px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-wider border bg-slate-100 text-slate-600 border-slate-200">
+                                                Bobot: {q.bobot_nilai ?? 10}
+                                            </span>
                                         </div>
 
                                         <p className="font-bold text-slate-800 text-[15px] leading-relaxed"><MathText text={q.isi_soal} /></p>
