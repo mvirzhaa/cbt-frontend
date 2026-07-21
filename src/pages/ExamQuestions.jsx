@@ -24,6 +24,7 @@ export default function ExamQuestions() {
     const [kunciJawabanPG, setKunciJawabanPG] = useState(0);
     const [kunciJawabanMultiple, setKunciJawabanMultiple] = useState([]);
     const [kunciEsai, setKunciEsai] = useState('');
+    const [bobotNilai, setBobotNilai] = useState(10);
 
     // State Modal Impor Bank Soal
     const [showImportModal, setShowImportModal] = useState(false);
@@ -83,7 +84,8 @@ export default function ExamQuestions() {
                 opsi_jawaban: (tipeSoal === 'pg' || tipeSoal === 'pg_multiple')
                     ? [opsi[0], opsi[1], opsi[2], opsi[3], opsi[4]]
                     : null,
-                kunci_jawaban: dbKunciJawaban
+                kunci_jawaban: dbKunciJawaban,
+                bobot_nilai: parseFloat(bobotNilai) || 0
             };
 
             if (editId) {
@@ -137,6 +139,7 @@ export default function ExamQuestions() {
 
         setTipeSoal(formTipe);
         setPertanyaan(q.isi_soal);
+        setBobotNilai(q.bobot_nilai ?? 10);
 
         if ((formTipe === 'pg' || formTipe === 'pg_multiple') && q.opsi_jawaban) {
             try {
@@ -187,6 +190,7 @@ export default function ExamQuestions() {
         setKunciJawabanPG(0);
         setKunciJawabanMultiple([]);
         setKunciEsai('');
+        setBobotNilai(10);
     };
 
     const toggleMultipleChoice = (index) => {
@@ -300,6 +304,18 @@ export default function ExamQuestions() {
                                 <p className="text-[9px] font-black text-blue-400 uppercase tracking-widest mb-1">Preview</p>
                                 <p className="text-slate-800 text-[14px]"><MathText text={pertanyaan} /></p>
                             </div>
+                        )}
+                    </div>
+
+                    <div>
+                        <label className="block text-[11px] font-black text-slate-500 mb-2 uppercase tracking-widest">Bobot Nilai Soal Ini</label>
+                        <div className="relative max-w-[200px]">
+                            <input type="number" min="0" max="100" step="0.01" required value={bobotNilai} onChange={e => setBobotNilai(e.target.value)} className="w-full px-5 py-3 bg-slate-50 rounded-xl border border-slate-200 focus:bg-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none font-bold text-slate-800 text-[14px]" />
+                        </div>
+                        {exam?.grading_type === 'PER_SOAL' && (
+                            <p className="text-[10px] text-slate-400 mt-1.5">
+                                Total bobot semua soal di ujian ini saat ini <b>{totalBobotSoal}</b>{editId ? '' : ` + soal ini = ${(totalBobotSoal + (parseFloat(bobotNilai) || 0)).toFixed(2)}`}. Harus tepat 100 sebelum nilai bisa diverifikasi (mode Per Soal).
+                            </p>
                         )}
                     </div>
 
