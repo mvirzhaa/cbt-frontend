@@ -179,7 +179,7 @@ export default function RekapNilai() {
             fetchAttemptsData(selectedExam);
         } catch (error) {
             console.error("Gagal verifikasi:", error);
-            Swal.fire('Error', 'Terjadi kesalahan saat memverifikasi nilai.', 'error');
+            Swal.fire('Gagal Verifikasi', error.response?.data?.message || 'Terjadi kesalahan saat memverifikasi nilai.', 'error');
         }
     };
 
@@ -299,14 +299,22 @@ export default function RekapNilai() {
             </div>
 
             {/* INFORMASI BOBOT */}
-            {examInfo && (
+            {examInfo && (examInfo.grading_type === 'PER_SOAL' ? (
+                <div className={`p-4 rounded-xl flex gap-4 text-sm font-medium items-center border ${examInfo.total_bobot_soal === 100 ? 'bg-blue-50 border-blue-100 text-blue-800' : 'bg-red-50 border-red-200 text-red-700'}`}>
+                    <span className="text-xl">⚖️</span>
+                    <p>
+                        <strong>Mode Per Soal:</strong> Total bobot semua soal saat ini <b>{examInfo.total_bobot_soal}</b>/100.
+                        {examInfo.total_bobot_soal !== 100 && ' Verifikasi akan ditolak sampai totalnya tepat 100 — perbaiki bobot tiap soal di menu Kelola Soal.'}
+                    </p>
+                </div>
+            ) : (
                 <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl flex gap-4 text-sm font-medium text-blue-800 items-center">
                     <span className="text-xl">⚖️</span>
                     <p>
                         <strong>Bobot Ujian:</strong> Pilihan Ganda ({examInfo.bobot_pilgan}%) | Esai ({examInfo.bobot_esai}%) | Upload ({examInfo.bobot_upload}%)
                     </p>
                 </div>
-            )}
+            ))}
 
             {/* TARGET SIAKAD */}
             {selectedExam && (
@@ -398,13 +406,14 @@ export default function RekapNilai() {
                                                 </span>
                                             ) : (() => {
                                                 const estimate = estimateFinalScore(score);
+                                                const bobotSoalBelumPas = examInfo?.grading_type === 'PER_SOAL' && examInfo?.total_bobot_soal !== 100;
                                                 return estimate !== null ? (
                                                     <div>
-                                                        <span className="text-xl font-black tracking-tight text-slate-400 italic">
+                                                        <span className={`text-xl font-black tracking-tight italic ${bobotSoalBelumPas ? 'text-red-400' : 'text-slate-400'}`}>
                                                             ≈{parseFloat(Number(estimate).toFixed(2))}
                                                         </span>
-                                                        <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mt-0.5">
-                                                            {score.is_all_graded ? 'Estimasi' : 'Estimasi, belum semua dinilai'}
+                                                        <p className={`text-[9px] font-bold uppercase tracking-wider mt-0.5 ${bobotSoalBelumPas ? 'text-red-400' : 'text-slate-400'}`}>
+                                                            {bobotSoalBelumPas ? 'Bobot soal belum 100' : score.is_all_graded ? 'Estimasi' : 'Estimasi, belum semua dinilai'}
                                                         </p>
                                                     </div>
                                                 ) : (
@@ -491,6 +500,9 @@ export default function RekapNilai() {
                                         </div>
                                         {verifyModal.attempt && !verifyModal.attempt.is_all_graded && verifyModal.attempt.final_score === null && (
                                             <p className="text-xs text-amber-600 font-medium">⚠ Belum semua soal dinilai — estimasi ini masih bisa berubah.</p>
+                                        )}
+                                        {examInfo?.total_bobot_soal !== 100 && (
+                                            <p className="text-xs text-red-600 font-medium">⚠ Total bobot semua soal saat ini {examInfo?.total_bobot_soal}, bukan 100 — verifikasi akan ditolak sampai diperbaiki di menu Kelola Soal.</p>
                                         )}
                                     </>
                                 ) : (
