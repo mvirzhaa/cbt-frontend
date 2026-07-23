@@ -515,7 +515,7 @@ export default function TakeExam() {
                                                         <input type="radio" name={`soal-${currentQuestion.id}`} value={opt.label_pilihan} checked={isSelected} onChange={() => handlePilihJawaban(currentQuestion.id, opt.label_pilihan)} className="hidden" />
                                                         <div className="flex gap-2">
                                                             <span className={`font-black text-[16px] ${isSelected ? 'text-blue-700' : 'text-slate-500'}`}>{opt.label_pilihan}.</span>
-                                                            <span className={`text-[15px] leading-relaxed ${isSelected ? 'text-blue-900 font-semibold' : 'text-slate-700 font-medium'}`}>{opt.teks_pilihan}</span>
+                                                            <span className={`text-[15px] leading-relaxed ${isSelected ? 'text-blue-900 font-semibold' : 'text-slate-700 font-medium'}`}><MathText text={opt.teks_pilihan} /></span>
                                                         </div>
                                                     </label>
                                                 )
@@ -552,7 +552,7 @@ export default function TakeExam() {
                                                             }} className="hidden" />
                                                             <div className="flex gap-2">
                                                                 <span className={`font-black text-[16px] ${isSelected ? 'text-purple-700' : 'text-slate-500'}`}>{opt.label_pilihan}.</span>
-                                                                <span className={`text-[15px] leading-relaxed ${isSelected ? 'text-purple-900 font-semibold' : 'text-slate-700 font-medium'}`}>{opt.teks_pilihan}</span>
+                                                                <span className={`text-[15px] leading-relaxed ${isSelected ? 'text-purple-900 font-semibold' : 'text-slate-700 font-medium'}`}><MathText text={opt.teks_pilihan} /></span>
                                                             </div>
                                                         </label>
                                                     );

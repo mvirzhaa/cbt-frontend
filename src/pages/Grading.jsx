@@ -624,7 +624,7 @@ export default function Grading() {
                                                                                                         {key}
                                                                                                     </span>
                                                                                                     <div className="space-y-0.5">
-                                                                                                        <p className="text-[13px] leading-normal">{value}</p>
+                                                                                                        <p className="text-[13px] leading-normal"><MathText text={value} /></p>
                                                                                                         <div className="flex gap-2 mt-1">
                                                                                                             {isSelected && <span className="text-[9px] font-black text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded uppercase tracking-wider">Dipilih Siswa</span>}
                                                                                                             {isCorrectAnswer && <span className="text-[9px] font-black text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded uppercase tracking-wider">Jawaban Benar</span>}

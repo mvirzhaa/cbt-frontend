@@ -464,7 +464,7 @@ export default function ManageQuestions() {
                                                             return (
                                                                 <div key={opt.id} className={`flex items-center gap-2.5 text-xs font-semibold py-1 px-3 rounded-lg ${isKunci ? 'bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold' : 'text-slate-500 bg-white border border-slate-100'}`}>
                                                                     <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black ${isKunci ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-400'}`}>{opt.label_pilihan}</span>
-                                                                    <span className="truncate">{opt.teks_pilihan}</span>
+                                                                    <span className="truncate"><MathText text={opt.teks_pilihan} /></span>
                                                                 </div>
                                                             );
                                                         })}
