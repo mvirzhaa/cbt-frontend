@@ -39,7 +39,7 @@ export default function TakeExam() {
     const videoRef = useRef(null);   // Tempat kamera berjalan secara ghoib
     const canvasRef = useRef(null);  // Tempat melukis/menangkap screenshot
     const streamRef = useRef(null);  // Pengendali nyala/mati kamera
-    const lastReportTime = useRef(0); // Cooldown agar tidak spam screenshot tiap detik
+    const lastReportTimeByType = useRef({}); // Cooldown PER jenis pelanggaran agar tidak spam screenshot tiap detik
     const faceapiRef = useRef(null); // 🤖 Referensi ke modul face-api.js (lazy loaded)
     const [isAiReady, setIsAiReady] = useState(false);
 
@@ -69,13 +69,17 @@ export default function TakeExam() {
     }, []);
 
     // 🤖 2. FUNGSI MENANGKAP PELAKU KECURANGAN
-    // Cooldown 15 detik dicek di sini (bukan di masing-masing pemanggil) supaya semua jenis
-    // deteksi (wajah, ganti tab, keluar fullscreen, copy-paste, devtools) berbagi satu jaring
-    // pengaman anti-spam yang sama.
+    // Cooldown 15 detik dicek di sini (bukan di masing-masing pemanggil) supaya tiap jenis deteksi
+    // (wajah, ganti tab, keluar fullscreen, copy-paste, devtools) punya jaring pengaman anti-spam-nya
+    // sendiri-sendiri. PENTING: cooldown-nya PER JENIS (bukan satu cooldown global) — kalau global,
+    // jenis yang sering nge-trigger (mis. TIDAK_ADA_WAJAH tiap beberapa detik) bisa menghabiskan
+    // jatah cooldown terus-menerus dan membuat jenis lain (mis. BERPINDAH_TAB) tidak pernah sempat
+    // terlaporkan sama sekali walau benar-benar terjadi.
     const tangkapDanLapor = async (jenisPelanggaran) => {
         const now = Date.now();
-        if (now - lastReportTime.current < 15000) return; // Belum 15 detik sejak laporan terakhir, diamkan
-        lastReportTime.current = now;
+        const lastForType = lastReportTimeByType.current[jenisPelanggaran] || 0;
+        if (now - lastForType < 15000) return; // Belum 15 detik sejak laporan terakhir untuk jenis ini, diamkan
+        lastReportTimeByType.current[jenisPelanggaran] = now;
 
         const video = videoRef.current;
         const canvas = canvasRef.current;
@@ -152,6 +156,17 @@ export default function TakeExam() {
                 video,
                 new faceapi.TinyFaceDetectorOptions({ scoreThreshold: FACE_SCORE_THRESHOLD })
             );
+            // 🔍 Log sementara untuk diagnosis: kalau TIDAK_ADA_WAJAH masih terus muncul padahal wajah
+            // jelas ada, buka DevTools Console (F12) saat ujian berjalan dan lihat baris ini — kalau
+            // videoWidth/videoHeight 0 berarti stream kamera bermasalah; kalau ada skor tapi di bawah
+            // FACE_SCORE_THRESHOLD berarti perlu diturunkan lagi; kalau detections selalu [] tanpa skor
+            // sama sekali, model tidak menemukan kandidat wajah sama sekali (bukan soal threshold).
+            console.debug('[AI Proctoring] scan tick', {
+                videoWidth: video.videoWidth,
+                videoHeight: video.videoHeight,
+                jumlahWajah: detections.length,
+                skor: detections.map(d => d.score),
+            });
 
             // 🕵️ Heuristik devtools terbuka: celah antara ukuran window luar vs area render dalam
             // (tidak sempurna — bisa false-positive di browser/zoom tertentu — tapi cukup sebagai sinyal awal)
