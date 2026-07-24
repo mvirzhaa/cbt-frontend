@@ -69,16 +69,21 @@ export default function TakeExam() {
     }, []);
 
     // 🤖 2. FUNGSI MENANGKAP PELAKU KECURANGAN
+    // Cooldown 15 detik dicek di sini (bukan di masing-masing pemanggil) supaya semua jenis
+    // deteksi (wajah, ganti tab, keluar fullscreen, copy-paste, devtools) berbagi satu jaring
+    // pengaman anti-spam yang sama.
     const tangkapDanLapor = async (jenisPelanggaran) => {
-        // Aktifkan masa tunggu (Cooldown) 15 detik. 
-        // Artinya, setelah memotret, AI tidak akan memotret lagi selama 15 detik agar server tidak meledak.
-        lastReportTime.current = Date.now(); 
+        const now = Date.now();
+        if (now - lastReportTime.current < 15000) return; // Belum 15 detik sejak laporan terakhir, diamkan
+        lastReportTime.current = now;
 
         const video = videoRef.current;
         const canvas = canvasRef.current;
         
-        // Pastikan video, canvas, dan data ujian sudah ada
+        // Pastikan video, canvas, dan data ujian sudah ada, dan video punya frame siap untuk
+        // difoto (kalau belum, drawImage akan menghasilkan foto hitam — lebih baik lewati saja).
         if (!video || !canvas || !examData) return;
+        if (video.paused || video.readyState < video.HAVE_CURRENT_DATA) return;
 
         // Setel ukuran kanvas persis dengan ukuran kamera
         canvas.width = video.videoWidth;
@@ -120,14 +125,24 @@ export default function TakeExam() {
 
         const scanInterval = setInterval(async () => {
             const faceapi = faceapiRef.current;
-            if (!videoRef.current || !faceapi) return;
+            const video = videoRef.current;
+            if (!video || !faceapi) return;
+
+            // 🎥 Kalau video belum punya frame siap (buffering/berpindah tab/kamera lag),
+            // jangan dianggap "tidak ada wajah" — lewati saja tick ini. Tanpa cek ini, frame
+            // kosong/hitam bisa disalahartikan sebagai TIDAK_ADA_WAJAH sekaligus menghasilkan
+            // foto bukti hitam (drawImage dari video yang belum punya data juga hitam).
+            if (video.paused || video.readyState < video.HAVE_CURRENT_DATA) return;
 
             // Hitung jumlah wajah di depan layar
-            const detections = await faceapi.detectAllFaces(videoRef.current, new faceapi.TinyFaceDetectorOptions());
+            const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions());
 
-            // Cek apakah Cooldown 15 detiknya sudah selesai
-            const now = Date.now();
-            if (now - lastReportTime.current < 15000) return; // Jika belum 15 detik, diam saja (skip)
+            // 🕵️ Heuristik devtools terbuka: celah antara ukuran window luar vs area render dalam
+            // (tidak sempurna — bisa false-positive di browser/zoom tertentu — tapi cukup sebagai sinyal awal)
+            const devtoolsGap = Math.max(window.outerWidth - window.innerWidth, window.outerHeight - window.innerHeight);
+            if (devtoolsGap > 160) {
+                tangkapDanLapor('DEVTOOLS_TERDETEKSI');
+            }
 
             // 🚨 EKSEKUSI JEBAKAN BATMAN
             if (detections.length === 0) {
@@ -142,6 +157,53 @@ export default function TakeExam() {
         return () => clearInterval(scanInterval);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isExamStarted, isAiReady]);
+
+    // 🤖 3b. DETEKSI GANTI TAB / MINIMIZE (tidak butuh face-api, jadi terpisah dari scan loop di atas)
+    useEffect(() => {
+        if (!isExamStarted) return;
+        const handleVisibilityChange = () => {
+            if (document.hidden) {
+                tangkapDanLapor('BERPINDAH_TAB');
+            }
+        };
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isExamStarted]);
+
+    // 🤖 3c. DETEKSI KELUAR DARI MODE LAYAR PENUH
+    // 🔇 Dicatat diam-diam (mengikuti pola deteksi wajah yang sudah ada) — mahasiswa TIDAK diberi
+    // tahu bahwa ini tercatat sebagai pelanggaran, supaya tidak bisa menyesuaikan perilaku untuk
+    // menghindari deteksi berikutnya. Pemberitahuan hanya muncul di dashboard dosen.
+    useEffect(() => {
+        if (!isExamStarted) return;
+        const handleFullscreenChange = () => {
+            if (!document.fullscreenElement) {
+                tangkapDanLapor('KELUAR_LAYAR_PENUH');
+            }
+        };
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isExamStarted]);
+
+    // 💓 3d. HEARTBEAT PENGAWAS AI — ping berkala ke backend selama ujian berlangsung.
+    // Kalau ping ini berhenti (mis. mahasiswa mematikan script lewat devtools), backend
+    // otomatis mencatat pelanggaran PENGAWAS_AI_TIDAK_AKTIF (lihat proctoringHeartbeatService.js di BE).
+    useEffect(() => {
+        if (!isExamStarted || !examData) return;
+        const heartbeatInterval = setInterval(() => {
+            proctoringService.sendHeartbeat(examData.id).catch(() => {});
+        }, 10000);
+        return () => clearInterval(heartbeatInterval);
+    }, [isExamStarted, examData]);
+
+    // 🚨 Handler copy/cut/paste/klik-kanan — dipasang langsung sebagai prop React di kontainer
+    // ujian (lihat JSX di bawah), bukan listener document global, supaya tidak mengganggu halaman lain.
+    const handleClipboardAttempt = (e) => {
+        e.preventDefault();
+        tangkapDanLapor('MENYALIN_TEMPEL');
+    };
 
     // =========================================================================
     // 📡 1. MASUK RUANG UJIAN (DIMODIFIKASI UNTUK IZIN KAMERA)
@@ -204,7 +266,63 @@ export default function TakeExam() {
         if (!isAgreed) return;
         setShowTerms(false);
         setIsExamStarted(true);
+        // 🖥️ Minta mode layar penuh (best-effort — beberapa browser/iframe bisa menolak, tidak fatal)
+        if (document.documentElement.requestFullscreen) {
+            document.documentElement.requestFullscreen().catch(() => {});
+        }
+
+        // 🖥️ 3e. DETEKSI SAFE EXAM BROWSER (mode detect-only — dicatat, TIDAK memblokir ujian).
+        // Safe Exam Browser menyisipkan token "SEB" di User-Agent-nya sendiri. Dicek sekali saja
+        // di sini (bukan tiap tick scanner) karena User-Agent tidak berubah selama sesi berjalan.
+        if (!/SEB/i.test(navigator.userAgent)) {
+            tangkapDanLapor('TIDAK_MENGGUNAKAN_SEB');
+        }
     };
+
+    // ⌨️ 3f. DETEKSI KETIKAN TIDAK WAJAR (metadata saja — TIDAK merekam isi ketikan).
+    // InputEvent.inputType membedakan ketikan manual ('insertText') dari teks yang masuk lewat
+    // paste/drag-drop/autofill ('insertFromPaste', 'insertFromDrop', dst). Paste lewat Ctrl+V
+    // sudah tertangkap oleh handleClipboardAttempt (event paste), tapi ini menangkap jalur lain
+    // yang tidak memicu event paste biasa (drag teks ke kolom, autofill, dsb).
+    const JENIS_INPUT_MENCURIGAKAN = ['insertFromPaste', 'insertFromDrop', 'insertFromYank', 'insertReplacementText'];
+    const handleInputMencurigakan = (e) => {
+        if (e.target?.tagName !== 'TEXTAREA') return;
+        if (JENIS_INPUT_MENCURIGAKAN.includes(e.nativeEvent?.inputType)) {
+            tangkapDanLapor('KETIKAN_TIDAK_WAJAR');
+        }
+    };
+
+    // 🖱️ 3g. DETEKSI MOUSE & KEYBOARD TIDAK AKTIF (indikasi kemungkinan remote control/automation,
+    // atau perangkat ditinggal begitu saja). Hanya melacak WAKTU aktivitas terakhir (metadata),
+    // bukan koordinat/isi — dicek berbarengan (mouse DAN keyboard sama-sama diam) supaya mahasiswa
+    // yang murni mengetik esai panjang tanpa menyentuh mouse tidak salah dilaporkan.
+    const lastMouseActivity = useRef(Date.now());
+    const lastKeyActivity = useRef(Date.now());
+    const MOUSE_INACTIVE_THRESHOLD = 3 * 60 * 1000; // 3 menit
+
+    useEffect(() => {
+        if (!isExamStarted) return;
+        const catatMouse = () => { lastMouseActivity.current = Date.now(); };
+        const catatKeyboard = () => { lastKeyActivity.current = Date.now(); };
+        window.addEventListener('mousemove', catatMouse);
+        window.addEventListener('keydown', catatKeyboard);
+
+        const inactiveCheckInterval = setInterval(() => {
+            const now = Date.now();
+            const mouseDiam = now - lastMouseActivity.current > MOUSE_INACTIVE_THRESHOLD;
+            const keyboardDiam = now - lastKeyActivity.current > MOUSE_INACTIVE_THRESHOLD;
+            if (mouseDiam && keyboardDiam) {
+                tangkapDanLapor('MOUSE_TIDAK_AKTIF');
+            }
+        }, 30000);
+
+        return () => {
+            window.removeEventListener('mousemove', catatMouse);
+            window.removeEventListener('keydown', catatKeyboard);
+            clearInterval(inactiveCheckInterval);
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isExamStarted]);
 
 
     // =========================================================================
@@ -252,6 +370,7 @@ export default function TakeExam() {
             if (streamRef.current) {
                 streamRef.current.getTracks().forEach(track => track.stop());
             }
+            if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
 
             Swal.fire({ icon: 'success', title: 'Evaluasi Selesai!', text: 'Jawaban dan Dokumen Anda berhasil direkam.', confirmButtonColor: '#0f4c3a' });
             navigate('/student-dashboard');
@@ -262,6 +381,7 @@ export default function TakeExam() {
                 if (streamRef.current) {
                     streamRef.current.getTracks().forEach(track => track.stop());
                 }
+                if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
                 Swal.fire({ icon: 'info', title: 'Sudah Terkumpul', text: 'Ujian ini sudah tercatat masuk sebelumnya.', confirmButtonColor: '#0f4c3a' });
                 navigate('/student-dashboard');
                 return;
@@ -435,8 +555,15 @@ export default function TakeExam() {
     const currentQuestion = questions[currentIndex];
 
     return (
-        <div className="flex flex-col h-[calc(100vh-64px)] -m-6 bg-slate-100 relative"> 
-            
+        <div
+            className="flex flex-col h-[calc(100vh-64px)] -m-6 bg-slate-100 relative"
+            onCopy={handleClipboardAttempt}
+            onCut={handleClipboardAttempt}
+            onPaste={handleClipboardAttempt}
+            onContextMenu={handleClipboardAttempt}
+            onInput={handleInputMencurigakan}
+        >
+
             {/* ========================================================= */}
             {/* 🤖 ALAT INTELEJEN RAHASIA (DISEMBUNYIKAN DARI LAYAR) */}
             {/* ========================================================= */}
@@ -466,7 +593,7 @@ export default function TakeExam() {
                         </div>
                     </div>
                 </div>
-                
+
                 <div className="flex flex-col items-end">
                     <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Sisa Waktu</span>
                     <div className={`flex items-center gap-2 px-5 py-2 rounded-xl border-2 font-black text-2xl tracking-[0.1em] transition-colors shadow-inner ${timeLeft < 300 ? 'bg-red-50 text-red-600 border-red-200 animate-pulse' : 'bg-slate-50 text-[#0f4c3a] border-slate-200'}`}>
