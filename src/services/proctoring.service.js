@@ -10,8 +10,18 @@ export const proctoringService = {
     return response.data;
   },
 
-  async getViolations() {
-    const response = await api.get('/api/proctoring');
+  async sendHeartbeat(exam_id) {
+    const response = await api.post('/api/proctoring/heartbeat', { exam_id });
+    return response.data;
+  },
+
+  async getViolations(params = {}) {
+    const response = await api.get('/api/proctoring', { params });
+    return response.data;
+  },
+
+  async reviewViolation(id) {
+    const response = await api.patch(`/api/proctoring/${id}/review`);
     return response.data;
   }
 };
