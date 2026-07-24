@@ -120,6 +120,19 @@ export default function TakeExam() {
     // jadi interval-nya tidak pernah benar-benar dibersihkan — kalau event `onPlay` sempat menyala
     // ulang (browser jeda/lanjutkan video), interval-interval lama menumpuk dan jalan terus-menerus.
     // Pindah ke useEffect supaya cleanup-nya nyata dan hanya ada satu interval aktif dalam satu waktu.
+    // 🎯 Threshold default face-api.js (0.5) cukup ketat untuk kualitas webcam/pencahayaan rata-rata —
+    // wajah yang jelas ada di foto bisa saja ke-skor di bawah itu dan disaring habis jadi "0 wajah".
+    // Diturunkan ke 0.3 supaya wajah dengan sudut agak menunduk (menatap layar, bukan lurus ke kamera)
+    // atau pencahayaan kurang ideal tetap terdeteksi.
+    const FACE_SCORE_THRESHOLD = 0.3;
+    // 🔁 Selain itu, deteksi & foto bukti dijalankan sebagai dua langkah terpisah (deteksi dulu, baru
+    // tangkapDanLapor menggambar frame BARU beberapa saat kemudian) — kalau wajah cuma absen sesaat di
+    // satu frame deteksi, hasil foto bisa saja sudah menunjukkan wajah lagi. Mensyaratkan 2 kali
+    // berturut-turut "0 wajah" sebelum melapor meredam kedipan/mismatch semacam itu, tanpa
+    // menghilangkan kemampuan mendeteksi mahasiswa yang benar-benar pergi dari layar.
+    const wajahHilangBerturutRef = useRef(0);
+    const WAJAH_HILANG_AMBANG = 2;
+
     useEffect(() => {
         if (!isExamStarted || !isAiReady) return;
 
@@ -135,7 +148,10 @@ export default function TakeExam() {
             if (video.paused || video.readyState < video.HAVE_CURRENT_DATA) return;
 
             // Hitung jumlah wajah di depan layar
-            const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions());
+            const detections = await faceapi.detectAllFaces(
+                video,
+                new faceapi.TinyFaceDetectorOptions({ scoreThreshold: FACE_SCORE_THRESHOLD })
+            );
 
             // 🕵️ Heuristik devtools terbuka: celah antara ukuran window luar vs area render dalam
             // (tidak sempurna — bisa false-positive di browser/zoom tertentu — tapi cukup sebagai sinyal awal)
@@ -146,11 +162,17 @@ export default function TakeExam() {
 
             // 🚨 EKSEKUSI JEBAKAN BATMAN
             if (detections.length === 0) {
-                // Mahasiswa kabur dari layar / menutupi kamera
-                tangkapDanLapor('TIDAK_ADA_WAJAH');
-            } else if (detections.length > 1) {
-                // Ada teman nyontek ikut melihat ke layar
-                tangkapDanLapor('LEBIH_DARI_SATU_WAJAH');
+                wajahHilangBerturutRef.current += 1;
+                if (wajahHilangBerturutRef.current >= WAJAH_HILANG_AMBANG) {
+                    // Mahasiswa kabur dari layar / menutupi kamera
+                    tangkapDanLapor('TIDAK_ADA_WAJAH');
+                }
+            } else {
+                wajahHilangBerturutRef.current = 0;
+                if (detections.length > 1) {
+                    // Ada teman nyontek ikut melihat ke layar
+                    tangkapDanLapor('LEBIH_DARI_SATU_WAJAH');
+                }
             }
         }, 3000);
 
