@@ -43,11 +43,14 @@ export default function SsoCallback() {
     localStorage.setItem('email', payload.email);
     localStorage.setItem('nama', payload.email);
 
+    // BASE_URL (dari vite.config.js `base`) mengandung prefix deployment (mis. "/cbt/")
+    // — wajib dipakai karena ini navigasi absolut dari root domain, bukan lewat router.
+    const base = import.meta.env.BASE_URL;
     const roleKind = getRoleKind(payload.role);
     const target =
-      roleKind === 'lecturer' ? '/dashboard' :
-      roleKind === 'student' ? '/student-dashboard' :
-      '/';
+      roleKind === 'lecturer' ? `${base}dashboard` :
+      roleKind === 'student' ? `${base}student-dashboard` :
+      base;
 
     // Full navigation (bukan react-router navigate) supaya AuthProvider re-init dari
     // localStorage yang baru saja ditulis, sama seperti pola SSO receiver di fe-ucl.
