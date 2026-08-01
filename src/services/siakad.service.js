@@ -24,6 +24,16 @@ export const siakadService = {
   async searchMataKuliah(params = {}) {
     const response = await api.get('/api/siakad/matakuliah', { params });
     return response.data;
+  },
+
+  async getRencanaEvaluasi(kodeMk, periodeId) {
+    const response = await api.get('/api/siakad/rencana-evaluasi', { params: { kode_mk: kodeMk, periode_id: periodeId } });
+    return response.data;
+  },
+
+  async syncCpmkExternalIds(kodeMk, periodeId) {
+    const response = await api.post(`/api/siakad/mata-kuliah/${kodeMk}/sync-cpmk`, null, { params: { periode_id: periodeId } });
+    return response.data;
   }
 };
 

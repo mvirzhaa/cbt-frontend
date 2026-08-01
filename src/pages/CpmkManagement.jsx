@@ -50,6 +50,10 @@ export default function CpmkManagement() {
                         <label class="block text-[11px] font-black text-slate-500 mb-1 uppercase tracking-widest">Deskripsi</label>
                         <textarea id="swal-deskripsi-cpmk" class="swal2-textarea !m-0 !w-full" placeholder="Deskripsi capaian pembelajaran mata kuliah...">${existing?.deskripsi || ''}</textarea>
                     </div>
+                    <div>
+                        <label class="block text-[11px] font-black text-slate-500 mb-1 uppercase tracking-widest">ID SIAKAD (external_id, opsional)</label>
+                        <input id="swal-external-id-cpmk" class="swal2-input !m-0 !w-full" placeholder="uuid CPMK di SIAKAD — bisa diisi lewat 'Sync CPMK' di Rekap Nilai" value="${existing?.external_id || ''}">
+                    </div>
                 </div>
             `,
             showCancelButton: true,
@@ -60,11 +64,12 @@ export default function CpmkManagement() {
             preConfirm: () => {
                 const kode_cpmk = document.getElementById('swal-kode-cpmk').value.trim();
                 const deskripsi = document.getElementById('swal-deskripsi-cpmk').value.trim();
+                const external_id = document.getElementById('swal-external-id-cpmk').value.trim();
                 if (!kode_cpmk || !deskripsi) {
                     Swal.showValidationMessage('Kode CPMK dan deskripsi wajib diisi.');
                     return false;
                 }
-                return { kode_cpmk, deskripsi };
+                return { kode_cpmk, deskripsi, external_id: external_id || null };
             }
         });
 
@@ -116,6 +121,10 @@ export default function CpmkManagement() {
                         <label class="block text-[11px] font-black text-slate-500 mb-1 uppercase tracking-widest">Deskripsi</label>
                         <textarea id="swal-deskripsi-sub" class="swal2-textarea !m-0 !w-full" placeholder="Deskripsi sub capaian pembelajaran...">${existing?.deskripsi || ''}</textarea>
                     </div>
+                    <div>
+                        <label class="block text-[11px] font-black text-slate-500 mb-1 uppercase tracking-widest">ID SIAKAD (external_id, opsional)</label>
+                        <input id="swal-external-id-sub" class="swal2-input !m-0 !w-full" placeholder="uuid Sub-CPMK di SIAKAD — bisa diisi lewat 'Sync CPMK' di Rekap Nilai" value="${existing?.external_id || ''}">
+                    </div>
                 </div>
             `,
             showCancelButton: true,
@@ -126,11 +135,12 @@ export default function CpmkManagement() {
             preConfirm: () => {
                 const kode_sub_cpmk = document.getElementById('swal-kode-sub').value.trim();
                 const deskripsi = document.getElementById('swal-deskripsi-sub').value.trim();
+                const external_id = document.getElementById('swal-external-id-sub').value.trim();
                 if (!kode_sub_cpmk || !deskripsi) {
                     Swal.showValidationMessage('Kode Sub-CPMK dan deskripsi wajib diisi.');
                     return false;
                 }
-                return { kode_sub_cpmk, deskripsi };
+                return { kode_sub_cpmk, deskripsi, external_id: external_id || null };
             }
         });
 
@@ -210,6 +220,11 @@ export default function CpmkManagement() {
                                                 <div className="flex items-center gap-2">
                                                     <span className="px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider bg-[#0f4c3a]/10 text-[#0f4c3a] border border-[#0f4c3a]/20">{c.kode_cpmk}</span>
                                                     <span className="text-[11px] font-bold text-slate-400">{(c.sub_cpmk || []).length} Sub-CPMK</span>
+                                                    {c.external_id ? (
+                                                        <span className="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200" title={c.external_id}>✓ SIAKAD</span>
+                                                    ) : (
+                                                        <span className="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-slate-50 text-slate-400 border border-slate-200">Belum SIAKAD</span>
+                                                    )}
                                                 </div>
                                                 <p className="mt-2 text-[14px] font-semibold text-slate-800 leading-relaxed">{c.deskripsi}</p>
                                             </div>
@@ -233,6 +248,11 @@ export default function CpmkManagement() {
                                                     <div key={sc.id} className="flex items-start justify-between gap-4 p-4 rounded-xl bg-slate-50/70 border border-slate-100">
                                                         <div>
                                                             <span className="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-200">{sc.kode_sub_cpmk}</span>
+                                                            {sc.external_id ? (
+                                                                <span className="ml-1.5 px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200" title={sc.external_id}>✓ SIAKAD</span>
+                                                            ) : (
+                                                                <span className="ml-1.5 px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-slate-50 text-slate-400 border border-slate-200">Belum SIAKAD</span>
+                                                            )}
                                                             <p className="mt-1.5 text-[13px] font-semibold text-slate-700 leading-relaxed">{sc.deskripsi}</p>
                                                         </div>
                                                         <div className="flex gap-2 shrink-0">

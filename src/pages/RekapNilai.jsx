@@ -30,10 +30,13 @@ export default function RekapNilai() {
     });
 
     // State Target & Sync SIAKAD
-    const [siakadTarget, setSiakadTarget] = useState({ kelas: '', periode: '' });
+    const [siakadTarget, setSiakadTarget] = useState({ kelas: '', periode: '', rencana: '' });
     const [savingTarget, setSavingTarget] = useState(false);
     const [pushingAll, setPushingAll] = useState(false);
     const [pushingRowId, setPushingRowId] = useState(null);
+    const [rencanaOptions, setRencanaOptions] = useState([]);
+    const [loadingRencana, setLoadingRencana] = useState(false);
+    const [syncingCpmk, setSyncingCpmk] = useState(false);
 
     useEffect(() => {
         fetchInitialData();
@@ -80,8 +83,10 @@ export default function RekapNilai() {
             setExamInfo(responseData.exam_info || null);
             setSiakadTarget({
                 kelas: responseData.exam_info?.siakad_kelas_kuliah_id || '',
-                periode: responseData.exam_info?.siakad_periode_akademik_id || ''
+                periode: responseData.exam_info?.siakad_periode_akademik_id || '',
+                rencana: responseData.exam_info?.siakad_rencana_evaluasi_id || ''
             });
+            setRencanaOptions([]);
         } catch (error) {
             console.error("Gagal menarik rincian nilai:", error); 
             Swal.fire('Error', 'Gagal memuat data nilai ujian ini.', 'error');
@@ -191,7 +196,8 @@ export default function RekapNilai() {
         try {
             await siakadService.setExamTarget(selectedExam, {
                 siakad_kelas_kuliah_id: siakadTarget.kelas.trim(),
-                siakad_periode_akademik_id: siakadTarget.periode.trim()
+                siakad_periode_akademik_id: siakadTarget.periode.trim(),
+                siakad_rencana_evaluasi_id: siakadTarget.rencana.trim() || null
             });
             Swal.fire({ icon: 'success', title: 'Target SIAKAD Tersimpan', timer: 1200, showConfirmButton: false });
         } catch (error) {
@@ -199,6 +205,51 @@ export default function RekapNilai() {
             Swal.fire('Error', error.response?.data?.message || 'Gagal menyimpan target SIAKAD.', 'error');
         } finally {
             setSavingTarget(false);
+        }
+    };
+
+    // Jalur D setup: cari daftar komponen (rencanaEvaluasiId) dari SIAKAD untuk
+    // MK+periode ujian ini, supaya dosen tidak perlu tempel UUID manual.
+    const cariKomponenSiakad = async () => {
+        if (!siakadTarget.periode.trim()) {
+            return Swal.fire('Data Kurang', 'Isi ID Periode Akademik SIAKAD dulu (di atas), baru cari komponennya.', 'warning');
+        }
+        setLoadingRencana(true);
+        try {
+            const result = await siakadService.getRencanaEvaluasi(examInfo?.kode_mk, siakadTarget.periode.trim());
+            const list = result?.data?.rencanaEvaluasi || [];
+            setRencanaOptions(list);
+            if (list.length === 0) {
+                Swal.fire('Kosong', 'Tidak ada komponen Rencana Evaluasi ditemukan untuk mata kuliah/periode ini di SIAKAD.', 'info');
+            }
+        } catch (error) {
+            console.error("Gagal menarik Rencana Evaluasi SIAKAD:", error);
+            Swal.fire('Error', error.response?.data?.message || 'Gagal menarik daftar komponen dari SIAKAD.', 'error');
+        } finally {
+            setLoadingRencana(false);
+        }
+    };
+
+    // Auto-isi cpmk.external_id/sub_cpmk.external_id lokal dengan mencocokkan kode
+    // ke masterCpmk SIAKAD, supaya breakdown per soal bisa ke-push (lihat siakad_ready
+    // di menu Kelola Soal).
+    const syncCpmkFromSiakad = async () => {
+        if (!siakadTarget.periode.trim()) {
+            return Swal.fire('Data Kurang', 'Isi ID Periode Akademik SIAKAD dulu (di atas), baru sinkronkan CPMK.', 'warning');
+        }
+        setSyncingCpmk(true);
+        try {
+            const result = await siakadService.syncCpmkExternalIds(examInfo?.kode_mk, siakadTarget.periode.trim());
+            Swal.fire({
+                icon: 'success',
+                title: 'Sinkronisasi CPMK Selesai',
+                html: `<b>${result.matched?.length || 0}</b> CPMK/Sub-CPMK berhasil dicocokkan.<br><b>${result.unmatched?.length || 0}</b> tidak ditemukan di data lokal (cek kode CPMK di menu CPMK &amp; Sub-CPMK).`
+            });
+        } catch (error) {
+            console.error("Gagal sync CPMK dari SIAKAD:", error);
+            Swal.fire('Error', error.response?.data?.message || 'Gagal sinkronisasi CPMK dengan SIAKAD.', 'error');
+        } finally {
+            setSyncingCpmk(false);
         }
     };
 
@@ -316,32 +367,70 @@ export default function RekapNilai() {
                 </div>
             ))}
 
-            {/* TARGET SIAKAD */}
+            {/* TARGET SIAKAD (Jalur D) */}
             {selectedExam && (
-                <div className="bg-indigo-50 border border-indigo-100 p-5 rounded-xl flex flex-col md:flex-row gap-4 md:items-end">
-                    <div className="flex-1">
-                        <label className="block text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1.5">ID Kelas Kuliah SIAKAD</label>
-                        <input
-                            type="text"
-                            value={siakadTarget.kelas}
-                            onChange={(e) => setSiakadTarget(prev => ({ ...prev, kelas: e.target.value }))}
-                            placeholder="mis. siak_kelas_kuliah_id"
-                            className="w-full px-4 py-3 bg-white border border-indigo-200 rounded-lg text-[13px] font-bold text-slate-800 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all"
-                        />
+                <div className="bg-indigo-50 border border-indigo-100 p-5 rounded-xl space-y-4">
+                    <div className="flex flex-col md:flex-row gap-4 md:items-end">
+                        <div className="flex-1">
+                            <label className="block text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1.5">ID Kelas Kuliah SIAKAD</label>
+                            <input
+                                type="text"
+                                value={siakadTarget.kelas}
+                                onChange={(e) => setSiakadTarget(prev => ({ ...prev, kelas: e.target.value }))}
+                                placeholder="mis. siak_kelas_kuliah_id"
+                                className="w-full px-4 py-3 bg-white border border-indigo-200 rounded-lg text-[13px] font-bold text-slate-800 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all"
+                            />
+                        </div>
+                        <div className="flex-1">
+                            <label className="block text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1.5">ID Periode Akademik SIAKAD</label>
+                            <input
+                                type="text"
+                                value={siakadTarget.periode}
+                                onChange={(e) => setSiakadTarget(prev => ({ ...prev, periode: e.target.value }))}
+                                placeholder="mis. siak_periode_akademik_id"
+                                className="w-full px-4 py-3 bg-white border border-indigo-200 rounded-lg text-[13px] font-bold text-slate-800 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all"
+                            />
+                        </div>
                     </div>
-                    <div className="flex-1">
-                        <label className="block text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1.5">ID Periode Akademik SIAKAD</label>
-                        <input
-                            type="text"
-                            value={siakadTarget.periode}
-                            onChange={(e) => setSiakadTarget(prev => ({ ...prev, periode: e.target.value }))}
-                            placeholder="mis. siak_periode_akademik_id"
-                            className="w-full px-4 py-3 bg-white border border-indigo-200 rounded-lg text-[13px] font-bold text-slate-800 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all"
-                        />
+
+                    <div className="flex flex-col md:flex-row gap-4 md:items-end border-t border-indigo-100 pt-4">
+                        <div className="flex-1">
+                            <label className="block text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1.5">ID Komponen Evaluasi SIAKAD (rencanaEvaluasiId)</label>
+                            <input
+                                type="text"
+                                value={siakadTarget.rencana}
+                                onChange={(e) => setSiakadTarget(prev => ({ ...prev, rencana: e.target.value }))}
+                                placeholder="mis. siak_rencana_evaluasi_id (UTS/UAS/dst)"
+                                className="w-full px-4 py-3 bg-white border border-indigo-200 rounded-lg text-[13px] font-bold text-slate-800 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all"
+                            />
+                            {rencanaOptions.length > 0 && (
+                                <select
+                                    onChange={(e) => e.target.value && setSiakadTarget(prev => ({ ...prev, rencana: e.target.value }))}
+                                    defaultValue=""
+                                    className="mt-2 w-full px-4 py-2.5 bg-white border border-indigo-200 rounded-lg text-[12px] font-bold text-slate-700 outline-none focus:border-indigo-500"
+                                >
+                                    <option value="" disabled>-- Pilih dari hasil pencarian SIAKAD --</option>
+                                    {rencanaOptions.map(re => (
+                                        <option key={re.id} value={re.id}>{re.metodeEvaluasi} ({re.bobotEvaluasi}%){re.jenisEvaluasi ? ` — ${re.jenisEvaluasi}` : ''}</option>
+                                    ))}
+                                </select>
+                            )}
+                        </div>
+                        <div className="flex gap-2 shrink-0">
+                            <button onClick={cariKomponenSiakad} disabled={loadingRencana} className="px-5 py-3 rounded-lg text-[11px] font-black uppercase tracking-wider bg-white text-indigo-600 border border-indigo-200 hover:bg-indigo-100 transition-all disabled:opacity-50">
+                                {loadingRencana ? 'Mencari...' : '🔍 Cari Komponen'}
+                            </button>
+                            <button onClick={syncCpmkFromSiakad} disabled={syncingCpmk} className="px-5 py-3 rounded-lg text-[11px] font-black uppercase tracking-wider bg-white text-indigo-600 border border-indigo-200 hover:bg-indigo-100 transition-all disabled:opacity-50">
+                                {syncingCpmk ? 'Sinkron...' : '🔄 Sync CPMK'}
+                            </button>
+                            <button onClick={saveSiakadTarget} disabled={savingTarget} className="px-6 py-3 rounded-lg text-[11px] font-black uppercase tracking-wider bg-indigo-600 text-white hover:bg-indigo-700 shadow-md shadow-indigo-500/20 transition-all disabled:opacity-50">
+                                {savingTarget ? 'Menyimpan...' : '💾 Simpan Target'}
+                            </button>
+                        </div>
                     </div>
-                    <button onClick={saveSiakadTarget} disabled={savingTarget} className="px-6 py-3 rounded-lg text-[11px] font-black uppercase tracking-wider bg-indigo-600 text-white hover:bg-indigo-700 shadow-md shadow-indigo-500/20 transition-all disabled:opacity-50">
-                        {savingTarget ? 'Menyimpan...' : 'Simpan Target'}
-                    </button>
+                    <p className="text-[10px] font-medium text-indigo-400 leading-relaxed">
+                        Push ke SIAKAD (Jalur D) butuh ketiga ID di atas terisi. "Cari Komponen" &amp; "Sync CPMK" butuh ID Periode Akademik sudah diisi terlebih dahulu.
+                    </p>
                 </div>
             )}
 

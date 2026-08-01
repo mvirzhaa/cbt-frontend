@@ -5,6 +5,7 @@ import Swal from 'sweetalert2';
 import examService from '../services/exam.service';
 import questionService from '../services/question.service';
 import questionBankService from '../services/questionBank.service';
+import cpmkService from '../services/cpmk.service';
 import MathText from '../components/MathText';
 
 export default function ExamQuestions() {
@@ -14,12 +15,14 @@ export default function ExamQuestions() {
     const [exam, setExam] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
     const [questionList, setQuestionList] = useState([]);
+    const [cpmkList, setCpmkList] = useState([]);
     const totalBobotSoal = questionList.reduce((sum, q) => sum + (parseFloat(q.bobot_nilai) || 0), 0);
 
     // State Form
     const [editId, setEditId] = useState(null);
     const [tipeSoal, setTipeSoal] = useState('pg');
     const [pertanyaan, setPertanyaan] = useState('');
+    const [subCpmkId, setSubCpmkId] = useState('');
     const [opsi, setOpsi] = useState(['', '', '', '', '']);
     const [kunciJawabanPG, setKunciJawabanPG] = useState(0);
     const [kunciJawabanMultiple, setKunciJawabanMultiple] = useState([]);
@@ -52,11 +55,27 @@ export default function ExamQuestions() {
         }
     };
 
+    const fetchCpmk = async (kodeMk) => {
+        try {
+            const data = await cpmkService.getCpmk({ kode_mk: kodeMk });
+            setCpmkList(data?.data || []);
+        } catch (error) {
+            console.error("Gagal menarik data CPMK.", error);
+        }
+    };
+
     useEffect(() => {
         fetchExam();
         fetchQuestions();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [examId]);
+
+    useEffect(() => {
+        if (exam?.kode_mk) fetchCpmk(exam.kode_mk);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [exam?.kode_mk]);
+
+    const subCpmkOptions = cpmkList.flatMap(c => (c.sub_cpmk || []).map(sc => ({ ...sc, cpmkLabel: c.kode_cpmk })));
 
     const handleSimpanSoal = async (e) => {
         e.preventDefault();
@@ -85,7 +104,8 @@ export default function ExamQuestions() {
                     ? [opsi[0], opsi[1], opsi[2], opsi[3], opsi[4]]
                     : null,
                 kunci_jawaban: dbKunciJawaban,
-                bobot_nilai: parseFloat(bobotNilai) || 0
+                bobot_nilai: parseFloat(bobotNilai) || 0,
+                sub_cpmk_id: subCpmkId ? parseInt(subCpmkId) : null
             };
 
             if (editId) {
@@ -140,6 +160,7 @@ export default function ExamQuestions() {
         setTipeSoal(formTipe);
         setPertanyaan(q.isi_soal);
         setBobotNilai(q.bobot_nilai ?? 10);
+        setSubCpmkId(q.sub_cpmk_id ? String(q.sub_cpmk_id) : '');
 
         if ((formTipe === 'pg' || formTipe === 'pg_multiple') && q.opsi_jawaban) {
             try {
@@ -186,6 +207,7 @@ export default function ExamQuestions() {
         setEditId(null);
         setTipeSoal('pg');
         setPertanyaan('');
+        setSubCpmkId('');
         setOpsi(['', '', '', '', '']);
         setKunciJawabanPG(0);
         setKunciJawabanMultiple([]);
@@ -319,6 +341,19 @@ export default function ExamQuestions() {
                         )}
                     </div>
 
+                    <div>
+                        <label className="block text-[11px] font-black text-slate-500 mb-2 uppercase tracking-widest">Sub-CPMK (opsional)</label>
+                        <select value={subCpmkId} onChange={e => setSubCpmkId(e.target.value)} className="w-full max-w-md px-5 py-3 bg-slate-50 rounded-xl border border-slate-200 focus:bg-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none font-bold text-slate-800 text-[14px]">
+                            <option value="">-- Tanpa Sub-CPMK --</option>
+                            {subCpmkOptions.map(sc => (
+                                <option key={sc.id} value={sc.id}>{sc.cpmkLabel} • {sc.kode_sub_cpmk}</option>
+                            ))}
+                        </select>
+                        <p className="text-[10px] text-slate-400 mt-1.5">
+                            Dipakai buat hitung capaian CPMK &amp; push breakdown nilai ke SIAKAD (Jalur D) — soal tanpa Sub-CPMK yang punya ID SIAKAD (lihat menu CPMK &amp; Sub-CPMK) tidak akan ikut ter-push.
+                        </p>
+                    </div>
+
                     {(tipeSoal === 'pg' || tipeSoal === 'pg_multiple') && (
                         <div className="p-6 md:p-8 rounded-2xl border-2 border-slate-100 bg-slate-50/30 space-y-5">
                             <h4 className="text-[12px] font-black text-slate-600 uppercase tracking-widest">C. Opsi & Kunci Jawaban</h4>
@@ -401,6 +436,15 @@ export default function ExamQuestions() {
                                             <span className="px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-wider border bg-slate-100 text-slate-600 border-slate-200">
                                                 Bobot: {q.bobot_nilai ?? 10}
                                             </span>
+                                            {q.sub_cpmk_id ? (
+                                                <span className={`px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-wider border ${q.siakad_ready ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`} title={q.siakad_ready ? 'Siap di-push ke SIAKAD (Jalur D)' : 'Sub-CPMK belum tersambung ke ID SIAKAD — sync dulu di menu CPMK & Sub-CPMK'}>
+                                                    {q.siakad_ready ? '✓ Siap SIAKAD' : '⚠ Sub-CPMK belum sync SIAKAD'}
+                                                </span>
+                                            ) : (
+                                                <span className="px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-wider border bg-slate-50 text-slate-400 border-slate-200" title="Tanpa Sub-CPMK, tidak ikut push breakdown ke SIAKAD">
+                                                    Tanpa Sub-CPMK
+                                                </span>
+                                            )}
                                         </div>
 
                                         <p className="font-bold text-slate-800 text-[15px] leading-relaxed"><MathText text={q.isi_soal} /></p>
