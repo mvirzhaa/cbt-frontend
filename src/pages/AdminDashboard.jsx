@@ -5,6 +5,7 @@ import Swal from 'sweetalert2';
 import adminService from '../services/admin.service';
 import matkulService from '../services/matkul.service';
 import siakadService from '../services/siakad.service';
+import SiakadSearchPicker from '../components/SiakadSearchPicker';
 
 export default function AdminDashboard({ activeMenu = 'overview' }) {
     const navigate = useNavigate();
@@ -293,38 +294,25 @@ export default function AdminDashboard({ activeMenu = 'overview' }) {
                         </div>
 
                         {!isEditing && (
-                            <div className="mb-6 relative">
-                                <label className="block text-[11px] font-black text-slate-500 uppercase mb-2">Cari dari SIAKAD (opsional)</label>
-                                <input
-                                    type="text"
-                                    value={siakadSearch}
-                                    onChange={e => { setSiakadSearch(e.target.value); setSiakadPickerOpen(true); }}
-                                    onFocus={() => setSiakadPickerOpen(true)}
-                                    onBlur={() => setTimeout(() => setSiakadPickerOpen(false), 150)}
-                                    placeholder={siakadLoading ? 'Memuat daftar mata kuliah SIAKAD...' : 'Ketik nama atau kode mata kuliah...'}
-                                    className="w-full px-5 py-4 bg-slate-50 rounded-xl border border-slate-200 outline-none text-[13px] font-bold text-slate-700 shadow-sm transition-all focus:bg-white focus:border-[#0f4c3a] focus:ring-4 focus:ring-[#0f4c3a]/10"
-                                />
-                                {formMatkul.siakad_id && (
-                                    <span className="inline-flex items-center gap-1.5 mt-2 bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-wider">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span> Terhubung ke SIAKAD
-                                    </span>
+                            <SiakadSearchPicker
+                                label="Cari dari SIAKAD (opsional)"
+                                searchValue={siakadSearch}
+                                onSearchChange={setSiakadSearch}
+                                isOpen={siakadPickerOpen}
+                                onOpenChange={setSiakadPickerOpen}
+                                items={filteredSiakadCourses}
+                                getKey={course => course.id}
+                                renderItem={course => (
+                                    <>
+                                        <p className="text-[12px] font-black text-slate-800">{course.nama}</p>
+                                        <p className="text-[10px] font-bold text-slate-400">{course.kode} · Semester {course.semester} · {course.totalSks} SKS</p>
+                                    </>
                                 )}
-                                {siakadPickerOpen && filteredSiakadCourses.length > 0 && (
-                                    <div className="absolute z-20 mt-1 w-full max-h-64 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-xl divide-y divide-slate-100">
-                                        {filteredSiakadCourses.slice(0, 50).map(course => (
-                                            <button
-                                                type="button"
-                                                key={course.id}
-                                                onClick={() => handlePickSiakadCourse(course)}
-                                                className="w-full text-left px-4 py-3 hover:bg-slate-50 transition-colors"
-                                            >
-                                                <p className="text-[12px] font-black text-slate-800">{course.nama}</p>
-                                                <p className="text-[10px] font-bold text-slate-400">{course.kode} · Semester {course.semester} · {course.totalSks} SKS</p>
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
+                                onSelect={handlePickSiakadCourse}
+                                loading={siakadLoading}
+                                connected={!!formMatkul.siakad_id}
+                                placeholder="Ketik nama atau kode mata kuliah..."
+                            />
                         )}
 
                         <div className="flex flex-col lg:flex-row gap-5 items-end">

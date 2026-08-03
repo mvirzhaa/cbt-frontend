@@ -34,6 +34,16 @@ export const siakadService = {
   async syncCpmkExternalIds(kodeMk, periodeId) {
     const response = await api.post(`/api/siakad/mata-kuliah/${kodeMk}/sync-cpmk`, null, { params: { periode_id: periodeId } });
     return response.data;
+  },
+
+  async getPemetaanCpmk(kodeMk) {
+    const response = await api.get(`/api/siakad/mata-kuliah/${kodeMk}/pemetaan-cpmk`);
+    return response.data;
+  },
+
+  async resolveCpmk(kodeMk, payload) {
+    const response = await api.post(`/api/siakad/mata-kuliah/${kodeMk}/resolve-cpmk`, payload);
+    return response.data;
   }
 };
 

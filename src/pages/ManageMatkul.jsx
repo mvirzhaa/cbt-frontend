@@ -1,15 +1,24 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import Swal from 'sweetalert2';
 import matkulService from '../services/matkul.service';
+import siakadService from '../services/siakad.service';
+import SiakadSearchPicker from '../components/SiakadSearchPicker';
 
 export default function ManageMatkul() {
     const [isLoading, setIsLoading] = useState(false);
-    
+
     // State Form Tambah Matkul
     const [kodeMk, setKodeMk] = useState('');
     const [namaMk, setNamaMk] = useState('');
-    
+    const [siakadId, setSiakadId] = useState('');
+
+    // State picker SIAKAD (cari matkul dari SIAKAD, autofill form di atas)
+    const [siakadCourses, setSiakadCourses] = useState([]);
+    const [siakadSearch, setSiakadSearch] = useState('');
+    const [siakadPickerOpen, setSiakadPickerOpen] = useState(false);
+    const [siakadLoading, setSiakadLoading] = useState(false);
+
     // State Data & Dropdown
     const [matkulList, setMatkulList] = useState([]);
     const [selectedMkId, setSelectedMkId] = useState('');
@@ -17,7 +26,35 @@ export default function ManageMatkul() {
 
     useEffect(() => {
         fetchMatkul();
+        fetchSiakadCourses();
     }, []);
+
+    const fetchSiakadCourses = useCallback(async () => {
+        setSiakadLoading(true);
+        try {
+            const result = await siakadService.searchMataKuliah({ size: 100 });
+            setSiakadCourses(result.data || []);
+        } catch (error) {
+            console.error("Gagal menarik mata kuliah SIAKAD:", error);
+        } finally {
+            setSiakadLoading(false);
+        }
+    }, []);
+
+    const filteredSiakadCourses = siakadSearch.trim()
+        ? siakadCourses.filter(c =>
+            c.nama?.toLowerCase().includes(siakadSearch.toLowerCase()) ||
+            c.kode?.toLowerCase().includes(siakadSearch.toLowerCase())
+          )
+        : siakadCourses;
+
+    const handlePickSiakadCourse = (course) => {
+        setKodeMk((course.kode || '').toUpperCase());
+        setNamaMk(course.nama || '');
+        setSiakadId(course.id || '');
+        setSiakadPickerOpen(false);
+        setSiakadSearch('');
+    };
 
     const fetchMatkul = async () => {
         try {
@@ -42,19 +79,46 @@ export default function ManageMatkul() {
         }
     };
 
+    const handleEditSiakadId = async () => {
+        if (!selectedMkId) {
+            return Swal.fire({ icon: 'warning', title: 'Pilih Mata Kuliah Dulu', confirmButtonColor: '#0f4c3a' });
+        }
+        const mk = matkulList?.data?.find(m => (m.id || m.kode_mk) === selectedMkId);
+        const { value: siakadIdBaru } = await Swal.fire({
+            title: `Edit ID SIAKAD — ${mk?.kode_mk || selectedMkId}`,
+            input: 'text',
+            inputValue: mk?.siakad_id || '',
+            inputPlaceholder: 'uuid mata kuliah di SIAKAD',
+            showCancelButton: true,
+            confirmButtonText: 'Simpan',
+            cancelButtonText: 'Batal',
+            confirmButtonColor: '#0f4c3a'
+        });
+        if (siakadIdBaru === undefined) return;
+
+        try {
+            await matkulService.updateMatkul(mk?.kode_mk || selectedMkId, { siakad_id: siakadIdBaru.trim() || null });
+            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'ID SIAKAD tersimpan!', showConfirmButton: false, timer: 1800 });
+            fetchMatkul();
+        } catch (error) {
+            Swal.fire('Gagal', error.response?.data?.message || 'Terjadi kesalahan saat menyimpan ID SIAKAD.', 'error');
+        }
+    };
+
     const handleTambahMatkul = async (e) => {
         e.preventDefault();
         setIsLoading(true);
         try {
-            await matkulService.createMatkul({ kode_mk: kodeMk, nama_mk: namaMk });
+            await matkulService.createMatkul({ kode_mk: kodeMk, nama_mk: namaMk, siakad_id: siakadId.trim() || null });
             Swal.fire({
                 icon: 'success',
                 title: 'Mata Kuliah Ditambahkan!',
                 text: `Mata kuliah ${kodeMk} - ${namaMk} berhasil ditambahkan.`,
                 confirmButtonColor: '#0f4c3a'
             });
-            setKodeMk(''); 
+            setKodeMk('');
             setNamaMk('');
+            setSiakadId('');
             fetchMatkul(); // Refresh list matkul
         } catch (error) {
             Swal.fire({
@@ -86,6 +150,25 @@ export default function ManageMatkul() {
                 </div>
 
                 <form onSubmit={handleTambahMatkul} className="p-8 space-y-6">
+                    <SiakadSearchPicker
+                        label="Cari dari SIAKAD (opsional)"
+                        searchValue={siakadSearch}
+                        onSearchChange={setSiakadSearch}
+                        isOpen={siakadPickerOpen}
+                        onOpenChange={setSiakadPickerOpen}
+                        items={filteredSiakadCourses}
+                        getKey={course => course.id}
+                        renderItem={course => (
+                            <>
+                                <p className="text-[12px] font-black text-slate-800">{course.nama}</p>
+                                <p className="text-[10px] font-bold text-slate-400">{course.kode} · Semester {course.semester} · {course.totalSks} SKS</p>
+                            </>
+                        )}
+                        onSelect={handlePickSiakadCourse}
+                        loading={siakadLoading}
+                        connected={!!siakadId}
+                        placeholder="Ketik nama atau kode mata kuliah..."
+                    />
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                             <label className="block text-[11px] font-black text-slate-500 mb-2 uppercase tracking-widest">Kode Mata Kuliah</label>
@@ -95,6 +178,11 @@ export default function ManageMatkul() {
                             <label className="block text-[11px] font-black text-slate-500 mb-2 uppercase tracking-widest">Nama Mata Kuliah</label>
                             <input type="text" required value={namaMk} onChange={e => setNamaMk(e.target.value)} placeholder="Misal: Algoritma dan Pemrograman" className="w-full px-5 py-3.5 bg-slate-50 rounded-xl border border-slate-200 focus:bg-white focus:ring-2 focus:ring-[#0f4c3a]/20 focus:border-[#0f4c3a] outline-none font-bold text-slate-800 text-[13px] transition-all" />
                         </div>
+                    </div>
+                    <div>
+                        <label className="block text-[11px] font-black text-slate-500 mb-2 uppercase tracking-widest">ID Mata Kuliah SIAKAD (opsional)</label>
+                        <input type="text" value={siakadId} onChange={e => setSiakadId(e.target.value)} placeholder="uuid mata kuliah di SIAKAD — wajib diisi kalau mau pakai integrasi Jalur D" className="w-full px-5 py-3.5 bg-slate-50 rounded-xl border border-slate-200 focus:bg-white focus:ring-2 focus:ring-[#0f4c3a]/20 focus:border-[#0f4c3a] outline-none font-bold text-slate-800 text-[13px] transition-all" />
+                        <p className="text-[10px] text-slate-400 mt-1.5">Dipakai buat cari daftar Rencana Evaluasi &amp; sinkron CPMK dari SIAKAD di menu Rekap Nilai. Bisa diisi/diubah belakangan lewat "Edit ID SIAKAD" di bawah.</p>
                     </div>
                     <button type="submit" disabled={isLoading} className="w-full py-4 rounded-xl text-[13px] font-black text-white bg-gradient-to-r from-[#0f4c3a] to-[#16654e] hover:from-[#092e23] hover:to-[#0f4c3a] shadow-lg shadow-[#0f4c3a]/20 transition-all uppercase tracking-widest">
                         {isLoading ? 'Menyimpan...' : 'Tambahkan Mata Kuliah'}
@@ -116,13 +204,16 @@ export default function ManageMatkul() {
                             <p className="text-[12px] font-bold text-slate-400 uppercase tracking-widest mt-1">Pilih mata kuliah untuk melihat nilai mahasiswa</p>
                         </div>
                         
-                        <div className="w-full md:w-96">
-                            <select value={selectedMkId} onChange={(e) => { setSelectedMkId(e.target.value); fetchScores(e.target.value); }} className="w-full px-5 py-3.5 bg-blue-50/50 rounded-xl border border-blue-200 focus:bg-white focus:border-blue-500 outline-none font-bold text-blue-900 text-[13px] transition-all shadow-sm">
+                        <div className="w-full md:w-96 flex gap-2 items-start">
+                            <select value={selectedMkId} onChange={(e) => { setSelectedMkId(e.target.value); fetchScores(e.target.value); }} className="flex-1 px-5 py-3.5 bg-blue-50/50 rounded-xl border border-blue-200 focus:bg-white focus:border-blue-500 outline-none font-bold text-blue-900 text-[13px] transition-all shadow-sm">
                                 <option value="">-- Pilih Mata Kuliah --</option>
                                 {matkulList?.data?.map((mk, idx) => (
-                                    <option key={mk.id || idx} value={mk.id || mk.kode_mk}>{mk.kode_mk} - {mk.nama_mk}</option>
+                                    <option key={mk.id || idx} value={mk.id || mk.kode_mk}>{mk.kode_mk} - {mk.nama_mk}{mk.siakad_id ? ' ✓' : ''}</option>
                                 ))}
                             </select>
+                            <button type="button" onClick={handleEditSiakadId} disabled={!selectedMkId} className="shrink-0 px-4 py-3.5 rounded-xl text-[11px] font-black uppercase tracking-wider bg-white text-[#0f4c3a] border border-[#0f4c3a]/20 hover:bg-[#0f4c3a]/5 transition-all disabled:opacity-40 disabled:cursor-not-allowed" title="Edit ID SIAKAD mata kuliah ini">
+                                🔗 ID SIAKAD
+                            </button>
                         </div>
                     </div>
                 </div>

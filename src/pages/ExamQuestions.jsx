@@ -6,7 +6,9 @@ import examService from '../services/exam.service';
 import questionService from '../services/question.service';
 import questionBankService from '../services/questionBank.service';
 import cpmkService from '../services/cpmk.service';
+import siakadService from '../services/siakad.service';
 import MathText from '../components/MathText';
+import SiakadSearchPicker from '../components/SiakadSearchPicker';
 
 export default function ExamQuestions() {
     const { examId } = useParams();
@@ -28,6 +30,14 @@ export default function ExamQuestions() {
     const [kunciJawabanMultiple, setKunciJawabanMultiple] = useState([]);
     const [kunciEsai, setKunciEsai] = useState('');
     const [bobotNilai, setBobotNilai] = useState(10);
+
+    // State picker Sub-CPMK live dari SIAKAD (auto-provision cpmk/sub_cpmk
+    // lokal di belakang layar begitu dosen pilih — lihat resolveCpmkFromSiakad)
+    const [siakadCpmkData, setSiakadCpmkData] = useState({ cpmkData: [] });
+    const [siakadCpmkSearch, setSiakadCpmkSearch] = useState('');
+    const [siakadCpmkPickerOpen, setSiakadCpmkPickerOpen] = useState(false);
+    const [siakadCpmkLoading, setSiakadCpmkLoading] = useState(false);
+    const [resolvingCpmk, setResolvingCpmk] = useState(false);
 
     // State Modal Impor Bank Soal
     const [showImportModal, setShowImportModal] = useState(false);
@@ -64,6 +74,18 @@ export default function ExamQuestions() {
         }
     };
 
+    const fetchSiakadCpmk = async (kodeMk) => {
+        setSiakadCpmkLoading(true);
+        try {
+            const result = await siakadService.getPemetaanCpmk(kodeMk);
+            setSiakadCpmkData(result?.data || { cpmkData: [] });
+        } catch (error) {
+            console.error("Gagal menarik Pemetaan CPMK dari SIAKAD.", error);
+        } finally {
+            setSiakadCpmkLoading(false);
+        }
+    };
+
     useEffect(() => {
         fetchExam();
         fetchQuestions();
@@ -72,10 +94,47 @@ export default function ExamQuestions() {
 
     useEffect(() => {
         if (exam?.kode_mk) fetchCpmk(exam.kode_mk);
+        if (exam?.mata_kuliah?.siakad_id) fetchSiakadCpmk(exam.kode_mk);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [exam?.kode_mk]);
+    }, [exam?.kode_mk, exam?.mata_kuliah?.siakad_id]);
 
     const subCpmkOptions = cpmkList.flatMap(c => (c.sub_cpmk || []).map(sc => ({ ...sc, cpmkLabel: c.kode_cpmk })));
+
+    // Leaf Sub-CPMK dari SIAKAD (cuma yang benar2 punya subCpmk — CPMK tanpa
+    // Sub-CPMK di SIAKAD tidak dimunculkan, sama seperti dropdown lokal di
+    // bawah yang juga cuma bisa pilih Sub-CPMK, bukan CPMK level induk).
+    const siakadSubCpmkItems = (siakadCpmkData?.cpmkData || []).flatMap(c =>
+        (c.subCpmk || c.sub_cpmk || []).map(sub => ({
+            cpmkKode: c.kode, cpmkDeskripsi: c.deskripsi, cpmkExternalId: c.id,
+            subKode: sub.kode, subDeskripsi: sub.deskripsi, subExternalId: sub.id
+        }))
+    );
+    const filteredSiakadSubCpmk = siakadCpmkSearch.trim()
+        ? siakadSubCpmkItems.filter(i =>
+            i.subKode?.toLowerCase().includes(siakadCpmkSearch.toLowerCase()) ||
+            i.subDeskripsi?.toLowerCase().includes(siakadCpmkSearch.toLowerCase()) ||
+            i.cpmkKode?.toLowerCase().includes(siakadCpmkSearch.toLowerCase())
+          )
+        : siakadSubCpmkItems;
+
+    const handlePickSiakadSubCpmk = async (item) => {
+        setResolvingCpmk(true);
+        try {
+            const result = await siakadService.resolveCpmk(exam.kode_mk, {
+                cpmk: { kode: item.cpmkKode, deskripsi: item.cpmkDeskripsi, external_id: item.cpmkExternalId },
+                sub_cpmk: { kode: item.subKode, deskripsi: item.subDeskripsi, external_id: item.subExternalId }
+            });
+            setSubCpmkId(String(result.data.sub_cpmk_id));
+            await fetchCpmk(exam.kode_mk); // biar row yg baru dibuat/dipakai ulang langsung muncul di dropdown di bawah
+            setSiakadCpmkPickerOpen(false);
+            setSiakadCpmkSearch('');
+        } catch (error) {
+            console.error("Gagal menyiapkan CPMK/Sub-CPMK dari SIAKAD.", error);
+            Swal.fire('Gagal', error.response?.data?.message || 'Gagal menyiapkan Sub-CPMK dari SIAKAD.', 'error');
+        } finally {
+            setResolvingCpmk(false);
+        }
+    };
 
     const handleSimpanSoal = async (e) => {
         e.preventDefault();
@@ -343,6 +402,31 @@ export default function ExamQuestions() {
 
                     <div>
                         <label className="block text-[11px] font-black text-slate-500 mb-2 uppercase tracking-widest">Sub-CPMK (opsional)</label>
+
+                        {exam?.mata_kuliah?.siakad_id && (
+                            <div className="max-w-md">
+                                <SiakadSearchPicker
+                                    label={null}
+                                    searchValue={siakadCpmkSearch}
+                                    onSearchChange={setSiakadCpmkSearch}
+                                    isOpen={siakadCpmkPickerOpen}
+                                    onOpenChange={setSiakadCpmkPickerOpen}
+                                    items={filteredSiakadSubCpmk}
+                                    getKey={item => `${item.cpmkKode}-${item.subKode}`}
+                                    renderItem={item => (
+                                        <>
+                                            <p className="text-[12px] font-black text-slate-800">{item.subKode} — {item.subDeskripsi}</p>
+                                            <p className="text-[10px] font-bold text-slate-400">Induk CPMK: {item.cpmkKode}</p>
+                                        </>
+                                    )}
+                                    onSelect={handlePickSiakadSubCpmk}
+                                    loading={siakadCpmkLoading || resolvingCpmk}
+                                    placeholder="Cari Sub-CPMK langsung dari SIAKAD..."
+                                />
+                                <p className="text-[10px] text-slate-400 -mt-4 mb-4">Pilih dari SIAKAD di atas, atau dari yang sudah pernah dipakai di dropdown bawah ini.</p>
+                            </div>
+                        )}
+
                         <select value={subCpmkId} onChange={e => setSubCpmkId(e.target.value)} className="w-full max-w-md px-5 py-3 bg-slate-50 rounded-xl border border-slate-200 focus:bg-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none font-bold text-slate-800 text-[14px]">
                             <option value="">-- Tanpa Sub-CPMK --</option>
                             {subCpmkOptions.map(sc => (
