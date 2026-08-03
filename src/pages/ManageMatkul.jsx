@@ -161,7 +161,7 @@ export default function ManageMatkul() {
                         renderItem={course => (
                             <>
                                 <p className="text-[12px] font-black text-slate-800">{course.nama}</p>
-                                <p className="text-[10px] font-bold text-slate-400">{course.kode} · Semester {course.semester} · {course.totalSks} SKS</p>
+                                <p className="text-[10px] font-bold text-slate-400">{course.kode}</p>
                             </>
                         )}
                         onSelect={handlePickSiakadCourse}
