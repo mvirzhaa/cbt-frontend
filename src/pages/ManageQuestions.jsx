@@ -347,7 +347,7 @@ export default function ManageQuestions() {
                                 </div>
                                 <div>
                                     <label className="block text-[11px] font-black text-slate-500 mb-2 uppercase tracking-widest">B. Jenis Pertanyaan</label>
-                                    <div className="grid grid-cols-4 gap-2">
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                                         {TIPE_OPTIONS.map(t => (
                                             <button key={t.id} type="button" onClick={() => setTipeSoal(t.id)} className={`py-3.5 px-2 rounded-xl text-[11px] font-black uppercase tracking-wider border-2 text-center transition-all ${tipeSoal === t.id ? 'bg-[#0f4c3a] border-[#0f4c3a] text-white' : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'}`}>
                                                 {t.label}

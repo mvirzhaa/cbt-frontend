@@ -313,8 +313,8 @@ export default function Grading() {
 
                 {/* Filter Tipe Soal + Recalculate Button */}
                 {selectedStudent && (
-                    <div className="flex items-center justify-between gap-3 pt-4 border-t border-slate-200">
-                        <div className="flex items-center gap-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4 border-t border-slate-200">
+                        <div className="flex flex-wrap items-center gap-3">
                             <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Filter Tipe:</span>
                             <button
                                 onClick={() => setFilterType('all')}
@@ -340,7 +340,7 @@ export default function Grading() {
                         <button
                             onClick={handleRecalculate}
                             disabled={recalculating || !selectedExam}
-                            className="px-5 py-2.5 bg-gradient-to-r from-[#0f4c3a] to-[#1a6b52] hover:from-[#0a3628] hover:to-[#0f4c3a] text-white rounded-xl text-[11px] font-black uppercase tracking-widest shadow-lg shadow-[#0f4c3a]/20 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                            className="w-full sm:w-auto justify-center px-5 py-2.5 bg-gradient-to-r from-[#0f4c3a] to-[#1a6b52] hover:from-[#0a3628] hover:to-[#0f4c3a] text-white rounded-xl text-[11px] font-black uppercase tracking-widest shadow-lg shadow-[#0f4c3a]/20 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                         >
                             {recalculating ? (
                                 <>

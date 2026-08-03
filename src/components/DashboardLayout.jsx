@@ -8,6 +8,8 @@ export default function DashboardLayout() {
     const location = useLocation();
     const { user, isAdmin, isStudent: isMahasiswa, logout } = useAuth();
     const [currentTime, setCurrentTime] = useState(new Date());
+    const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [prevPathname, setPrevPathname] = useState(location.pathname);
 
     const userName = user?.nama || 'Pengguna Sistem';
 
@@ -20,6 +22,14 @@ export default function DashboardLayout() {
         const timer = setInterval(() => setCurrentTime(new Date()), 1000);
         return () => clearInterval(timer);
     }, []);
+
+    // Tutup sidebar mobile otomatis tiap pindah halaman (adjust state during
+    // render, bukan lewat useEffect, sesuai pola resmi React untuk reset
+    // state saat sebuah value berubah)
+    if (location.pathname !== prevPathname) {
+        setPrevPathname(location.pathname);
+        if (sidebarOpen) setSidebarOpen(false);
+    }
 
     const handleLogout = async () => {
         // 🌟 DIALOG KONFIRMASI LOGOUT PREMIUM
@@ -119,8 +129,16 @@ export default function DashboardLayout() {
 
     return (
         <div className="flex h-screen bg-[#f0f4f8] font-sans overflow-hidden text-slate-800">
+            {/* BACKDROP (mobile only, muncul saat sidebar terbuka) */}
+            {sidebarOpen && (
+                <div
+                    className="fixed inset-0 bg-black/50 z-20 lg:hidden"
+                    onClick={() => setSidebarOpen(false)}
+                ></div>
+            )}
+
             {/* SIDEBAR */}
-            <aside className="w-64 bg-gradient-to-b from-[#0f4c3a] to-[#092e23] text-white flex flex-col shadow-xl z-20 relative font-medium">
+            <aside className={`fixed inset-y-0 left-0 z-30 w-64 bg-gradient-to-b from-[#0f4c3a] to-[#092e23] text-white flex flex-col shadow-xl font-medium transform transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:relative lg:translate-x-0 lg:z-20`}>
                 <div className="absolute inset-0 opacity-[0.03] bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] pointer-events-none"></div>
 
                 {/* 🌟 BAGIAN PROFIL YANG SUDAH DIUBAH MENJADI LINK */}
@@ -158,18 +176,28 @@ export default function DashboardLayout() {
             </aside>
 
             {/* AREA KONTEN */}
-            <main className="flex-1 flex flex-col overflow-hidden relative">
-                <header className="h-14 bg-white/90 backdrop-blur-md border-b border-slate-200/80 flex justify-between items-center px-6 z-10 shadow-sm">
-                    <div>
-                        <h2 className="text-sm font-black text-slate-800 tracking-tight">Portal Akademik CBT</h2>
-                        <p className="text-[10px] font-bold text-[#0f4c3a] uppercase tracking-widest mt-0.5">Universitas Ibn Khaldun Bogor</p>
+            <main className="flex-1 flex flex-col overflow-hidden relative min-w-0">
+                <header className="h-14 bg-white/90 backdrop-blur-md border-b border-slate-200/80 flex justify-between items-center px-4 sm:px-6 z-10 shadow-sm gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                        <button
+                            type="button"
+                            onClick={() => setSidebarOpen(true)}
+                            className="lg:hidden shrink-0 p-2 -ml-1 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-colors"
+                            aria-label="Buka menu navigasi"
+                        >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
+                        </button>
+                        <div className="min-w-0">
+                            <h2 className="text-sm font-black text-slate-800 tracking-tight truncate">Portal Akademik CBT</h2>
+                            <p className="text-[10px] font-bold text-[#0f4c3a] uppercase tracking-widest mt-0.5 truncate">Universitas Ibn Khaldun Bogor</p>
+                        </div>
                     </div>
-                    <div className="text-right flex flex-col justify-center bg-slate-100/50 px-4 py-1.5 rounded border border-slate-200/50">
+                    <div className="hidden sm:flex text-right flex-col justify-center bg-slate-100/50 px-4 py-1.5 rounded border border-slate-200/50 shrink-0">
                         <span className="text-xs font-black text-slate-700 tracking-wide">{currentTime.toLocaleTimeString('id-ID')} <span className="text-[9px] text-slate-500 font-bold">WIB</span></span>
                         <span className="text-[9px] font-bold text-slate-500 uppercase">{formattedDate}</span>
                     </div>
                 </header>
-                <div className="flex-1 overflow-y-auto p-6 relative">
+                <div className="flex-1 overflow-y-auto p-4 sm:p-6 relative">
                     <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px] opacity-40"></div>
                     <div className="relative z-10"><Outlet /></div>
                 </div>

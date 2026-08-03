@@ -101,7 +101,7 @@ export default function StudentDashboard() {
 
             {/* 🌟 TABEL RIWAYAT TRANSKRIP NILAI */}
             <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden relative">
-                <div className="px-8 py-6 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+                <div className="px-4 sm:px-8 py-6 border-b border-slate-100 bg-slate-50/50 flex flex-wrap gap-2 justify-between items-center">
                     <h3 className="text-[14px] font-black text-slate-800 uppercase tracking-widest">Riwayat & Transkrip Ujian</h3>
                     <span className="bg-slate-200 text-slate-700 text-[10px] px-3 py-1.5 rounded-lg font-black uppercase tracking-widest shadow-sm">Data Resmi</span>
                 </div>
@@ -110,9 +110,9 @@ export default function StudentDashboard() {
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="border-b border-slate-200 bg-white">
-                                <th className="py-5 px-8 text-[11px] font-black text-slate-400 uppercase tracking-widest">Mata Kuliah & Sesi Ujian</th>
-                                <th className="py-5 px-8 text-[11px] font-black text-slate-400 uppercase tracking-widest text-center">Status Evaluasi</th>
-                                <th className="py-5 px-8 text-[11px] font-black text-slate-400 uppercase tracking-widest text-right">Skor Akhir</th>
+                                <th className="py-4 sm:py-5 px-4 sm:px-8 text-[11px] font-black text-slate-400 uppercase tracking-widest">Mata Kuliah & Sesi Ujian</th>
+                                <th className="py-4 sm:py-5 px-4 sm:px-8 text-[11px] font-black text-slate-400 uppercase tracking-widest text-center">Status Evaluasi</th>
+                                <th className="py-4 sm:py-5 px-4 sm:px-8 text-[11px] font-black text-slate-400 uppercase tracking-widest text-right">Skor Akhir</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-50">
@@ -129,11 +129,11 @@ export default function StudentDashboard() {
                             ) : (
                                 history?.data?.map((item, index) => (
                                     <tr key={index} className="hover:bg-slate-50/80 transition-colors group">
-                                        <td className="py-5 px-8">
+                                        <td className="py-4 sm:py-5 px-4 sm:px-8">
                                             <div className="font-black text-slate-800 text-[14px] group-hover:text-[#0f4c3a] transition-colors">{item.matkul}</div>
                                             <div className="text-[12px] font-semibold text-slate-500 mt-1">{item.exam_nama}</div>
                                         </td>
-                                        <td className="py-5 px-8 text-center">
+                                        <td className="py-4 sm:py-5 px-4 sm:px-8 text-center">
                                             {item.status === 'Selesai Dinilai' ? (
                                                 <span className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider">
                                                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>
@@ -146,7 +146,7 @@ export default function StudentDashboard() {
                                                 </span>
                                             )}
                                         </td>
-                                        <td className="py-5 px-8 text-right">
+                                        <td className="py-4 sm:py-5 px-4 sm:px-8 text-right">
                                             {item.status === 'Selesai Dinilai' ? (
                                                 <span className="text-2xl font-black text-[#0f4c3a] tracking-tight">
                                                     {parseFloat(Number(item.total_skor).toFixed(2))}

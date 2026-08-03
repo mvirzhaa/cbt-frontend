@@ -593,7 +593,7 @@ export default function TakeExam() {
 
     return (
         <div
-            className="flex flex-col h-[calc(100vh-64px)] -m-6 bg-slate-100 relative"
+            className="flex flex-col h-[calc(100dvh-64px)] -m-4 sm:-m-6 bg-slate-100 relative"
             onCopy={handleClipboardAttempt}
             onCut={handleClipboardAttempt}
             onPaste={handleClipboardAttempt}
@@ -617,24 +617,24 @@ export default function TakeExam() {
             {/* ========================================================= */}
 
             {/* 🌟 HEADER MELAYANG EKSKLUSIF */}
-            <div className="h-20 bg-white border-b border-slate-200 flex justify-between items-center px-8 shadow-sm sticky top-0 z-30">
-                <div className="flex items-center gap-5">
+            <div className="min-h-20 bg-white border-b border-slate-200 flex flex-wrap gap-y-2 justify-between items-center px-4 sm:px-8 py-3 shadow-sm sticky top-0 z-30">
+                <div className="flex items-center gap-3 sm:gap-5 min-w-0">
                     <div className="p-3 bg-gradient-to-br from-[#0f4c3a] to-[#16654e] text-white rounded-xl shadow-md hidden sm:block">
                         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
                     </div>
-                    <div>
-                        <h2 className="text-[16px] font-black text-slate-800 tracking-tight">{examData?.nama_ujian || 'Ujian CBT Resmi'}</h2>
-                        <div className="flex items-center gap-2 mt-1">
+                    <div className="min-w-0">
+                        <h2 className="text-[14px] sm:text-[16px] font-black text-slate-800 tracking-tight truncate">{examData?.nama_ujian || 'Ujian CBT Resmi'}</h2>
+                        <div className="flex flex-wrap items-center gap-2 mt-1">
                             <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-widest border border-blue-100">{examData?.kode_mk}</span>
-                            <span className="text-[12px] font-semibold text-slate-500">{examData?.mata_kuliah?.nama_mk || 'Mata Kuliah Akademik'}</span>
+                            <span className="text-[12px] font-semibold text-slate-500 truncate">{examData?.mata_kuliah?.nama_mk || 'Mata Kuliah Akademik'}</span>
                         </div>
                     </div>
                 </div>
 
                 <div className="flex flex-col items-end">
                     <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Sisa Waktu</span>
-                    <div className={`flex items-center gap-2 px-5 py-2 rounded-xl border-2 font-black text-2xl tracking-[0.1em] transition-colors shadow-inner ${timeLeft < 300 ? 'bg-red-50 text-red-600 border-red-200 animate-pulse' : 'bg-slate-50 text-[#0f4c3a] border-slate-200'}`}>
-                        <svg className="w-5 h-5 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    <div className={`flex items-center gap-2 px-3 sm:px-5 py-1.5 sm:py-2 rounded-xl border-2 font-black text-lg sm:text-2xl tracking-[0.1em] transition-colors shadow-inner ${timeLeft < 300 ? 'bg-red-50 text-red-600 border-red-200 animate-pulse' : 'bg-slate-50 text-[#0f4c3a] border-slate-200'}`}>
+                        <svg className="w-4 h-4 sm:w-5 sm:h-5 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                         {formatWaktu(timeLeft)}
                     </div>
                 </div>
@@ -647,20 +647,20 @@ export default function TakeExam() {
                     <AnimatePresence mode="wait">
                         <motion.div key={currentIndex} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }} className="bg-white rounded-[2rem] shadow-[0_10px_40px_rgba(0,0,0,0.03)] border border-slate-200 min-h-full flex flex-col overflow-hidden">
                             
-                            <div className="bg-slate-50 border-b border-slate-100 px-10 py-6 flex justify-between items-center">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-12 h-12 bg-white border-2 border-slate-200 rounded-2xl flex items-center justify-center font-black text-xl text-slate-800 shadow-sm">
+                            <div className="bg-slate-50 border-b border-slate-100 px-4 sm:px-6 md:px-10 py-4 sm:py-6 flex flex-wrap gap-y-2 justify-between items-center">
+                                <div className="flex items-center gap-3 sm:gap-4">
+                                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white border-2 border-slate-200 rounded-2xl flex items-center justify-center font-black text-lg sm:text-xl text-slate-800 shadow-sm">
                                         {currentIndex + 1}
                                     </div>
-                                    <h3 className="text-[13px] font-black text-slate-400 uppercase tracking-widest">Dari {questions.length} Pertanyaan</h3>
+                                    <h3 className="text-[12px] sm:text-[13px] font-black text-slate-400 uppercase tracking-widest">Dari {questions.length} Pertanyaan</h3>
                                 </div>
-                                <span className="bg-amber-50 text-amber-600 px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest border border-amber-200 flex items-center gap-2">
+                                <span className="bg-amber-50 text-amber-600 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-[11px] font-black uppercase tracking-widest border border-amber-200 flex items-center gap-2">
                                     <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
                                     Bobot: {currentQuestion.bobot_nilai || '10'}
                                 </span>
                             </div>
 
-                            <div className="px-10 py-8">
+                            <div className="px-4 sm:px-6 md:px-10 py-6 sm:py-8">
                                 <div className="text-[17px] text-slate-800 font-medium leading-loose mb-10 whitespace-pre-wrap">
                                     <MathText text={currentQuestion.isi_soal} />
                                 </div>
@@ -789,14 +789,14 @@ export default function TakeExam() {
                                 </div>
                             </div>
 
-                            <div className="mt-auto px-10 py-6 bg-slate-50 border-t border-slate-200 flex justify-between items-center rounded-b-[2rem]">
-                                <button onClick={() => setCurrentIndex(prev => Math.max(0, prev - 1))} disabled={currentIndex === 0} className={`px-8 py-4 rounded-xl text-[12px] font-black uppercase tracking-widest flex items-center gap-3 transition-all ${currentIndex === 0 ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none' : 'bg-white border-2 border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-100 active:scale-95 shadow-sm'}`}>
+                            <div className="mt-auto px-4 sm:px-6 md:px-10 py-4 sm:py-6 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 rounded-b-[2rem]">
+                                <button onClick={() => setCurrentIndex(prev => Math.max(0, prev - 1))} disabled={currentIndex === 0} className={`w-full sm:w-auto px-8 py-4 rounded-xl text-[12px] font-black uppercase tracking-widest flex items-center justify-center gap-3 transition-all order-2 sm:order-1 ${currentIndex === 0 ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none' : 'bg-white border-2 border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-100 active:scale-95 shadow-sm'}`}>
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M15 19l-7-7 7-7" /></svg>
                                     Soal Sebelumnya
                                 </button>
-                                
+
                                 {currentIndex === questions.length - 1 ? (
-                                    <button onClick={handleKumpulkanManual} disabled={isSubmitting} className={`px-10 py-4 rounded-xl text-[13px] font-black uppercase tracking-widest shadow-[0_10px_20px_rgba(16,185,129,0.3)] active:scale-95 flex items-center gap-3 transition-all ${isSubmitting ? 'bg-slate-300 text-slate-500 cursor-not-allowed shadow-none' : 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white'}`}>
+                                    <button onClick={handleKumpulkanManual} disabled={isSubmitting} className={`w-full sm:w-auto order-1 sm:order-2 px-10 py-4 rounded-xl text-[13px] font-black uppercase tracking-widest shadow-[0_10px_20px_rgba(16,185,129,0.3)] active:scale-95 flex items-center justify-center gap-3 transition-all ${isSubmitting ? 'bg-slate-300 text-slate-500 cursor-not-allowed shadow-none' : 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white'}`}>
                                         {isSubmitting ? (
                                             <div className="w-4 h-4 border-2 border-slate-400/40 border-t-slate-500 rounded-full animate-spin"></div>
                                         ) : (
@@ -805,7 +805,7 @@ export default function TakeExam() {
                                         {isSubmitting ? 'Mengirim...' : 'Akhiri & Kumpulkan'}
                                     </button>
                                 ) : (
-                                    <button onClick={() => setCurrentIndex(prev => Math.min(questions.length - 1, prev + 1))} className="px-10 py-4 bg-[#0f4c3a] hover:bg-[#092e23] text-[#d4af37] rounded-xl text-[13px] font-black uppercase tracking-widest flex items-center gap-3 active:scale-95 transition-all shadow-[0_10px_20px_rgba(15,76,58,0.2)]">
+                                    <button onClick={() => setCurrentIndex(prev => Math.min(questions.length - 1, prev + 1))} className="w-full sm:w-auto order-1 sm:order-2 px-10 py-4 bg-[#0f4c3a] hover:bg-[#092e23] text-[#d4af37] rounded-xl text-[13px] font-black uppercase tracking-widest flex items-center justify-center gap-3 active:scale-95 transition-all shadow-[0_10px_20px_rgba(15,76,58,0.2)]">
                                         Soal Selanjutnya
                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M9 5l7 7-7 7" /></svg>
                                     </button>
@@ -818,15 +818,15 @@ export default function TakeExam() {
 
                 {/* 🌟 NAVIGASI NOMOR SOAL (KANAN - 25%) */}
                 <div className="w-full lg:w-[320px] bg-white border-l border-slate-200 flex flex-col shadow-[-20px_0_40px_rgba(0,0,0,0.02)] z-10">
-                    <div className="p-6 border-b border-slate-100 bg-slate-50/50">
+                    <div className="p-4 sm:p-6 border-b border-slate-100 bg-slate-50/50">
                         <h3 className="text-[12px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
                             <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
                             Peta Navigasi Soal
                         </h3>
                     </div>
                     
-                    <div className="flex-1 overflow-y-auto p-6">
-                        <div className="grid grid-cols-5 gap-3">
+                    <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+                        <div className="grid grid-cols-6 sm:grid-cols-5 gap-2 sm:gap-3">
                             {questions?.map((q, idx) => {
                                 const isAnswered = answers[q.id] && answers[q.id].trim() !== '';
                                 const isActive = currentIndex === idx;

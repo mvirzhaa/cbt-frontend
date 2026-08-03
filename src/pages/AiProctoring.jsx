@@ -159,14 +159,14 @@ export default function AiProctoring() {
                     <p className="text-slate-500 font-medium mt-1">Log rekaman aktivitas mencurigakan yang ditangkap otomatis oleh mesin Proctoring AI. Halaman ini menyegarkan diri otomatis tiap 10 detik.</p>
                 </div>
 
-                <div className="flex gap-3">
-                    <select value={filterExamId} onChange={handleFilterExamChange} className="px-4 py-2.5 rounded-xl border-2 border-slate-200 text-[13px] font-semibold text-slate-700 bg-white focus:outline-none focus:border-red-400">
+                <div className="flex flex-col sm:flex-row gap-3">
+                    <select value={filterExamId} onChange={handleFilterExamChange} className="w-full sm:w-auto px-4 py-2.5 rounded-xl border-2 border-slate-200 text-[13px] font-semibold text-slate-700 bg-white focus:outline-none focus:border-red-400">
                         <option value="">Semua Ujian</option>
                         {exams.map(ex => (
                             <option key={ex.id} value={ex.id}>{ex.nama_ujian}</option>
                         ))}
                     </select>
-                    <select value={filterStatus} onChange={handleFilterStatusChange} className="px-4 py-2.5 rounded-xl border-2 border-slate-200 text-[13px] font-semibold text-slate-700 bg-white focus:outline-none focus:border-red-400">
+                    <select value={filterStatus} onChange={handleFilterStatusChange} className="w-full sm:w-auto px-4 py-2.5 rounded-xl border-2 border-slate-200 text-[13px] font-semibold text-slate-700 bg-white focus:outline-none focus:border-red-400">
                         <option value="">Semua Status</option>
                         <option value="BARU">Baru</option>
                         <option value="DITINJAU">Ditinjau</option>
