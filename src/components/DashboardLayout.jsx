@@ -134,6 +134,21 @@ export default function DashboardLayout() {
         import.meta.env.VITE_LMS_URL ||
         null;
 
+    // Kalau tab ini dibuka dari LMS (window.opener ada, karena window.open di fe-ucl
+    // sudah tidak pakai noopener), fokuskan balik ke tab ASLI itu & tutup tab CBT ini —
+    // supaya modal/state yang tadi sempat terbuka di LMS tidak hilang. Kalau bukan (mis.
+    // akses langsung tanpa lewat SSO, atau opener sudah ditutup), baru fallback pindah
+    // halaman tab ini sendiri ke lmsReturnUrl.
+    const handleBackToLms = (e) => {
+        e.preventDefault();
+        if (window.opener && !window.opener.closed) {
+            window.opener.focus();
+            window.close();
+            return;
+        }
+        if (lmsReturnUrl) window.location.href = lmsReturnUrl;
+    };
+
     return (
         <div className="flex h-screen bg-[#f0f4f8] font-sans overflow-hidden text-slate-800">
             {/* BACKDROP (mobile only, muncul saat sidebar terbuka) */}
@@ -178,6 +193,7 @@ export default function DashboardLayout() {
                     {lmsReturnUrl && (
                         <a
                             href={lmsReturnUrl}
+                            onClick={handleBackToLms}
                             className="w-full flex items-center justify-center gap-2 py-2.5 text-[12px] font-bold text-[#d4af37] bg-[#d4af37]/10 hover:bg-[#d4af37]/20 rounded-lg transition-all border border-[#d4af37]/30"
                         >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
