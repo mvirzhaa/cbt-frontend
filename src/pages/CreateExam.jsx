@@ -58,6 +58,20 @@ export default function CreateExam() {
         }
     };
 
+    // Kalau halaman ini dibuka dari LMS (window.open TANPA noopener di fe-ucl), beri
+    // tahu tab itu ujian baru sudah jadi & fokuskan balik ke sana — dosen tak perlu
+    // menutup modal "Tambah Aktivitas" di LMS dan mengulang dari awal.
+    const notifyLmsExamCreated = (exam) => {
+        if (!window.opener || !exam) return;
+        let targetOrigin = '*';
+        try {
+            const stored = sessionStorage.getItem('lms_return_url');
+            if (stored) targetOrigin = new URL(stored).origin;
+        } catch (_) { /* fallback ke '*' */ }
+        window.opener.postMessage({ type: 'cbt:exam-created', exam }, targetOrigin);
+        window.opener.focus();
+    };
+
     const formatToDatetimeLocal = (dateString) => {
         if (!dateString) return '';
         const d = new Date(dateString);
@@ -93,8 +107,9 @@ export default function CreateExam() {
                 await examService.updateExam(editId, payload);
                 Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Perubahan Disimpan!', showConfirmButton: false, timer: 2000 });
             } else {
-                await examService.createExam(payload);
+                const created = await examService.createExam(payload);
                 Swal.fire({ icon: 'success', title: 'Sesi Ujian Diterbitkan!', text: `Sistem berhasil men-generate Token Ujian unik.`, confirmButtonColor: '#0f4c3a' });
+                notifyLmsExamCreated(created?.data);
             }
             resetForm();
             fetchExams();
