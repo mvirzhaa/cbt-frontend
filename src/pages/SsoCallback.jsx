@@ -23,9 +23,16 @@ export default function SsoCallback() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const token = params.get('token');
+    const returnTo = params.get('returnTo');
 
     // Buang query string dari address bar secepatnya, apa pun hasilnya.
     window.history.replaceState({}, '', window.location.pathname);
+
+    // Dipakai DashboardLayout utk tombol "Kembali ke LMS" — tanpa ini dosen/mahasiswa
+    // yang masuk lewat tab baru dari LMS tidak punya jalan balik sama sekali.
+    if (returnTo) {
+      try { sessionStorage.setItem('lms_return_url', returnTo); } catch (_) { /* noop */ }
+    }
 
     if (!token) {
       setError('Token SSO tidak ditemukan.');

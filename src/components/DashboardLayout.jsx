@@ -127,6 +127,13 @@ export default function DashboardLayout() {
     const formattedDate = currentTime.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
     const userInitial = userName?.split(' ')?.map(n => n[0]).join('').substring(0, 2).toUpperCase();
 
+    // Diisi SsoCallback dari param `returnTo` saat masuk lewat tab baru dari LMS (fe-ucl).
+    // Tanpa ini tidak ada jalan balik ke LMS sama sekali dari dalam CBT.
+    const lmsReturnUrl =
+        (typeof window !== 'undefined' && sessionStorage.getItem('lms_return_url')) ||
+        import.meta.env.VITE_LMS_URL ||
+        null;
+
     return (
         <div className="flex h-screen bg-[#f0f4f8] font-sans overflow-hidden text-slate-800">
             {/* BACKDROP (mobile only, muncul saat sidebar terbuka) */}
@@ -167,7 +174,16 @@ export default function DashboardLayout() {
                     })}
                 </div>
 
-                <div className="p-4 border-t border-[#16654e]/30 relative z-10">
+                <div className="p-4 border-t border-[#16654e]/30 relative z-10 space-y-2">
+                    {lmsReturnUrl && (
+                        <a
+                            href={lmsReturnUrl}
+                            className="w-full flex items-center justify-center gap-2 py-2.5 text-[12px] font-bold text-[#d4af37] bg-[#d4af37]/10 hover:bg-[#d4af37]/20 rounded-lg transition-all border border-[#d4af37]/30"
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+                            Kembali ke LMS
+                        </a>
+                    )}
                     <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 py-2.5 text-[12px] font-bold text-red-200 bg-red-900/20 hover:bg-red-900/40 hover:text-white rounded-lg transition-all border border-red-900/30">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
                         Keluar
