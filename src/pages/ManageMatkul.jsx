@@ -18,6 +18,7 @@ export default function ManageMatkul() {
     const [siakadSearch, setSiakadSearch] = useState('');
     const [siakadPickerOpen, setSiakadPickerOpen] = useState(false);
     const [siakadLoading, setSiakadLoading] = useState(false);
+    const [importingSiakad, setImportingSiakad] = useState(false);
 
     // State Data & Dropdown
     const [matkulList, setMatkulList] = useState([]);
@@ -105,6 +106,40 @@ export default function ManageMatkul() {
         }
     };
 
+    const handleBulkImportSiakad = async () => {
+        if (filteredSiakadCourses.length === 0) {
+            return Swal.fire({ icon: 'warning', title: 'Tidak Ada Data', text: 'Cari dulu mata kuliah SIAKAD yang mau diimpor.', confirmButtonColor: '#0f4c3a' });
+        }
+
+        const confirm = await Swal.fire({
+            icon: 'question',
+            title: `Impor ${filteredSiakadCourses.length} Mata Kuliah?`,
+            text: 'Mata kuliah yang belum ada di CBT akan dibuat baru, yang sudah ada tapi belum punya ID SIAKAD akan disambungkan. Yang sudah punya ID SIAKAD tidak akan ditimpa.',
+            showCancelButton: true,
+            confirmButtonText: 'Ya, Impor',
+            cancelButtonText: 'Batal',
+            confirmButtonColor: '#0f4c3a'
+        });
+        if (!confirm.isConfirmed) return;
+
+        setImportingSiakad(true);
+        try {
+            const items = filteredSiakadCourses.map(c => ({ kode_mk: c.kode, nama_mk: c.nama, siakad_id: c.id }));
+            const result = await matkulService.importSiakad(items);
+            Swal.fire({
+                icon: 'success',
+                title: 'Impor Selesai',
+                html: `${result.created?.length || 0} mata kuliah baru dibuat<br>${result.linked?.length || 0} disambungkan ke ID SIAKAD<br>${result.skipped?.length || 0} dilewati (sudah terpetakan)<br>${result.failed?.length || 0} gagal`,
+                confirmButtonColor: '#0f4c3a'
+            });
+            fetchMatkul();
+        } catch (error) {
+            Swal.fire('Gagal', error.response?.data?.message || 'Terjadi kesalahan saat impor dari SIAKAD.', 'error');
+        } finally {
+            setImportingSiakad(false);
+        }
+    };
+
     const handleTambahMatkul = async (e) => {
         e.preventDefault();
         setIsLoading(true);
@@ -188,6 +223,40 @@ export default function ManageMatkul() {
                         {isLoading ? 'Menyimpan...' : 'Tambahkan Mata Kuliah'}
                     </button>
                 </form>
+            </div>
+
+            {/* BAGIAN 1B: IMPORT MASSAL DARI SIAKAD */}
+            <div className="bg-white shadow-sm border border-slate-200 rounded-2xl overflow-hidden">
+                <div className="px-8 py-5 border-b border-slate-100 bg-slate-50/50 flex items-center gap-3">
+                    <div className="p-2 bg-blue-50 rounded-lg">
+                        <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1M7 10l5 5 5-5M12 15V3" /></svg>
+                    </div>
+                    <h3 className="text-[15px] font-black text-slate-800 uppercase tracking-widest">Import Massal dari SIAKAD</h3>
+                </div>
+
+                <div className="p-8 space-y-4">
+                    <p className="text-[12px] font-medium text-slate-500">Cari mata kuliah di SIAKAD (kosongkan buat tampilkan semua), lalu impor sekaligus ke CBT — kode, nama, dan ID SIAKAD-nya otomatis terisi. Mata kuliah yang sudah ada &amp; sudah punya ID SIAKAD tidak akan ditimpa.</p>
+                    <input
+                        type="text"
+                        value={siakadSearch}
+                        onChange={e => setSiakadSearch(e.target.value)}
+                        placeholder="Ketik nama/kode buat mempersempit, atau kosongkan utk semua..."
+                        className="w-full px-5 py-3.5 bg-slate-50 rounded-xl border border-slate-200 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none font-bold text-slate-800 text-[13px] transition-all"
+                    />
+                    <div className="flex items-center justify-between gap-4">
+                        <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">
+                            {siakadLoading ? 'Memuat dari SIAKAD...' : `${filteredSiakadCourses.length} mata kuliah siap diimpor`}
+                        </p>
+                        <button
+                            type="button"
+                            onClick={handleBulkImportSiakad}
+                            disabled={importingSiakad || siakadLoading || filteredSiakadCourses.length === 0}
+                            className="shrink-0 px-5 py-3 rounded-xl text-[12px] font-black uppercase tracking-wider text-white bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/20 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                            {importingSiakad ? 'Mengimpor...' : `Import ${filteredSiakadCourses.length || ''} dari SIAKAD`}
+                        </button>
+                    </div>
+                </div>
             </div>
 
             {/* BAGIAN 2: BUKU NILAI (GRADEBOOK) DENGAN DROPDOWN */}

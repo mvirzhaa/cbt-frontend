@@ -16,6 +16,11 @@ export const matkulService = {
     return response.data;
   },
 
+  async importSiakad(items) {
+    const response = await api.post('/api/matakuliah/import-siakad', { items });
+    return response.data;
+  },
+
   async updateMatkul(kodeMk, payload) {
     const response = await api.put(`/api/matakuliah/${kodeMk}`, payload);
     return response.data;
