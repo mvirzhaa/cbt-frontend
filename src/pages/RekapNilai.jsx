@@ -36,7 +36,6 @@ export default function RekapNilai() {
     const [pushingRowId, setPushingRowId] = useState(null);
     const [rencanaOptions, setRencanaOptions] = useState([]);
     const [loadingRencana, setLoadingRencana] = useState(false);
-    const [syncingCpmk, setSyncingCpmk] = useState(false);
 
     useEffect(() => {
         fetchInitialData();
@@ -253,29 +252,6 @@ export default function RekapNilai() {
         }
     };
 
-    // Auto-isi cpmk.external_id/sub_cpmk.external_id lokal dengan mencocokkan kode
-    // ke masterCpmk SIAKAD, supaya breakdown per soal bisa ke-push (lihat siakad_ready
-    // di menu Kelola Soal).
-    const syncCpmkFromSiakad = async () => {
-        if (!siakadTarget.periode.trim()) {
-            return Swal.fire('Data Kurang', 'Isi ID Periode Akademik SIAKAD dulu (di atas), baru sinkronkan CPMK.', 'warning');
-        }
-        setSyncingCpmk(true);
-        try {
-            const result = await siakadService.syncCpmkExternalIds(examInfo?.kode_mk, siakadTarget.periode.trim());
-            Swal.fire({
-                icon: 'success',
-                title: 'Sinkronisasi CPMK Selesai',
-                html: `<b>${result.matched?.length || 0}</b> CPMK/Sub-CPMK berhasil dicocokkan.<br><b>${result.unmatched?.length || 0}</b> tidak ditemukan di data lokal (cek kode CPMK di menu CPMK &amp; Sub-CPMK).`
-            });
-        } catch (error) {
-            console.error("Gagal sync CPMK dari SIAKAD:", error);
-            Swal.fire('Error', error.response?.data?.message || 'Gagal sinkronisasi CPMK dengan SIAKAD.', 'error');
-        } finally {
-            setSyncingCpmk(false);
-        }
-    };
-
     const pushOneToSiakad = async (attempt) => {
         setPushingRowId(attempt.attempt_id);
         try {
@@ -443,16 +419,13 @@ export default function RekapNilai() {
                             <button onClick={cariKomponenSiakad} disabled={loadingRencana} className="px-5 py-3 rounded-lg text-[11px] font-black uppercase tracking-wider bg-white text-indigo-600 border border-indigo-200 hover:bg-indigo-100 transition-all disabled:opacity-50">
                                 {loadingRencana ? 'Mencari...' : '🔍 Cari Komponen'}
                             </button>
-                            <button onClick={syncCpmkFromSiakad} disabled={syncingCpmk} className="px-5 py-3 rounded-lg text-[11px] font-black uppercase tracking-wider bg-white text-indigo-600 border border-indigo-200 hover:bg-indigo-100 transition-all disabled:opacity-50">
-                                {syncingCpmk ? 'Sinkron...' : '🔄 Sync CPMK'}
-                            </button>
                             <button onClick={saveSiakadTarget} disabled={savingTarget} className="px-6 py-3 rounded-lg text-[11px] font-black uppercase tracking-wider bg-indigo-600 text-white hover:bg-indigo-700 shadow-md shadow-indigo-500/20 transition-all disabled:opacity-50">
                                 {savingTarget ? 'Menyimpan...' : '💾 Simpan Target'}
                             </button>
                         </div>
                     </div>
                     <p className="text-[10px] font-medium text-indigo-400 leading-relaxed">
-                        Push ke SIAKAD (Jalur D) butuh ketiga ID di atas terisi. "Cari Komponen" &amp; "Sync CPMK" butuh ID Periode Akademik sudah diisi terlebih dahulu.
+                        Push ke SIAKAD (Jalur D) butuh ketiga ID di atas terisi. "Cari Komponen" butuh ID Periode Akademik sudah diisi terlebih dahulu. CPMK/Sub-CPMK dipetakan lewat menu CPMK &amp; Sub-CPMK (impor langsung dari SIAKAD, bukan sinkronisasi manual).
                     </p>
                 </div>
             )}
