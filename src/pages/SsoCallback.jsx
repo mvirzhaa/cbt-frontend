@@ -24,6 +24,8 @@ export default function SsoCallback() {
     const params = new URLSearchParams(window.location.search);
     const token = params.get('token');
     const returnTo = params.get('returnTo');
+    const targetParam = params.get('target');
+    const examId = params.get('exam_id');
 
     // Buang query string dari address bar secepatnya, apa pun hasilnya.
     window.history.replaceState({}, '', window.location.pathname);
@@ -54,14 +56,20 @@ export default function SsoCallback() {
     // — wajib dipakai karena ini navigasi absolut dari root domain, bukan lewat router.
     const base = import.meta.env.BASE_URL;
     const roleKind = getRoleKind(payload.role);
-    const target =
-      roleKind === 'lecturer' ? `${base}dashboard` :
-      roleKind === 'student' ? `${base}student-dashboard` :
-      base;
+
+    // `target` cuma boleh diambil dari allowlist tetap (bukan path bebas dari query) —
+    // menghindari open-redirect lewat link SSO yang dimanipulasi. Dosen di-deep-link ke
+    // Rekap Nilai (utk koreksi/verifikasi) dari tombol "Koreksi Nilai" di LMS (fe-ucl).
+    const destination =
+      targetParam === 'rekap-nilai' && roleKind === 'lecturer'
+        ? `${base}rekap-nilai${examId ? `?exam_id=${encodeURIComponent(examId)}` : ''}`
+        : roleKind === 'lecturer' ? `${base}dashboard` :
+          roleKind === 'student' ? `${base}student-dashboard` :
+          base;
 
     // Full navigation (bukan react-router navigate) supaya AuthProvider re-init dari
     // localStorage yang baru saja ditulis, sama seperti pola SSO receiver di fe-ucl.
-    window.location.href = target;
+    window.location.href = destination;
   }, []);
 
   return (

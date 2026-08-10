@@ -42,17 +42,40 @@ export default function RekapNilai() {
         fetchInitialData();
     }, []);
 
+    // Deep-link dari tombol "Koreksi Nilai" di LMS (fe-ucl, via SSO ?target=rekap-nilai&
+    // exam_id=...) — begitu daftar ujian termuat, auto-pilih matkul+sesi ujian yang dituju
+    // supaya dosen tak perlu cari manual dari dua dropdown. `exam_id` dibaca sekali lalu
+    // dibuang dari address bar (self-guarding: tidak akan trigger ulang meski allExams
+    // berubah lagi nanti).
+    useEffect(() => {
+        const list = allExams?.data;
+        if (!Array.isArray(list) || list.length === 0) return;
+
+        const params = new URLSearchParams(window.location.search);
+        const examIdParam = params.get('exam_id');
+        if (!examIdParam) return;
+        window.history.replaceState({}, '', window.location.pathname);
+
+        const ex = list.find(e => e.id.toString() === examIdParam);
+        if (!ex) return;
+
+        setSelectedMatkul(ex.kode_mk);
+        setFilteredExams(list.filter(e => e.kode_mk === ex.kode_mk));
+        setSelectedExam(examIdParam);
+        fetchAttemptsData(examIdParam);
+    }, [allExams]);
+
     const fetchInitialData = async () => {
         try {
             const [resMatkul, resExams] = await Promise.all([
                 matkulService.getMatkul(),
                 examService.getExams()
             ]);
-            
+
             setMatkulList(resMatkul || []);
             setAllExams(resExams || []);
-        } catch (error) { 
-            console.error("Gagal menarik data awal:", error); 
+        } catch (error) {
+            console.error("Gagal menarik data awal:", error);
         }
     };
 
