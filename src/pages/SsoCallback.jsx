@@ -60,9 +60,14 @@ export default function SsoCallback() {
     // `target` cuma boleh diambil dari allowlist tetap (bukan path bebas dari query) —
     // menghindari open-redirect lewat link SSO yang dimanipulasi. Dosen di-deep-link ke
     // Rekap Nilai (utk koreksi/verifikasi) dari tombol "Koreksi Nilai" di LMS (fe-ucl).
+    // Mahasiswa di-deep-link ke halaman input token (bukan student-dashboard) dari tombol
+    // "Ikuti Ujian di Sistem CBT" — mereka sudah lihat token di aktivitas LMS, jangan disuruh
+    // klik lagi "Masuk Ruang Ujian" di dashboard begitu sampai sini.
     const destination =
       targetParam === 'rekap-nilai' && roleKind === 'lecturer'
         ? `${base}rekap-nilai${examId ? `?exam_id=${encodeURIComponent(examId)}` : ''}`
+        : targetParam === 'take-exam' && roleKind === 'student'
+        ? `${base}take-exam`
         : roleKind === 'lecturer' ? `${base}dashboard` :
           roleKind === 'student' ? `${base}student-dashboard` :
           base;
