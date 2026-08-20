@@ -39,6 +39,11 @@ export default function ExamQuestions() {
     const [siakadCpmkLoading, setSiakadCpmkLoading] = useState(false);
     const [resolvingCpmk, setResolvingCpmk] = useState(false);
 
+    // State referensi semua komponen evaluasi (UTS/UAS/Tugas/dst) periode ini
+    const [semuaKomponen, setSemuaKomponen] = useState([]);
+    const [loadingSemuaKomponen, setLoadingSemuaKomponen] = useState(false);
+    const [komponenTerbuka, setKomponenTerbuka] = useState(null);
+
     // State Modal Impor Bank Soal
     const [showImportModal, setShowImportModal] = useState(false);
     const [bankList, setBankList] = useState([]);
@@ -86,6 +91,22 @@ export default function ExamQuestions() {
         }
     };
 
+    // FIX 2026-08-21: referensi SEMUA komponen evaluasi (UTS/UAS/Tugas/dst)
+    // periode ini, masing² bawa Sub-CPMK+bobot resminya sendiri -- sebelumnya
+    // dosen cuma lihat komponen yang lagi ditarget exam ini doang, jadi gak
+    // ada gambaran "Sub-CPMK X itu jatah komponen mana" sebelum coba-coba.
+    const fetchSemuaKomponen = async (kodeMk, periodeId) => {
+        setLoadingSemuaKomponen(true);
+        try {
+            const result = await siakadService.getRencanaEvaluasi(kodeMk, periodeId);
+            setSemuaKomponen(result?.data?.rencanaEvaluasi || []);
+        } catch (error) {
+            console.error("Gagal menarik referensi semua komponen evaluasi.", error);
+        } finally {
+            setLoadingSemuaKomponen(false);
+        }
+    };
+
     useEffect(() => {
         fetchExam();
         fetchQuestions();
@@ -95,20 +116,52 @@ export default function ExamQuestions() {
     useEffect(() => {
         if (exam?.kode_mk) fetchCpmk(exam.kode_mk);
         if (exam?.mata_kuliah?.siakad_id) fetchSiakadCpmk(exam.kode_mk);
+        if (exam?.kode_mk && exam?.siakad_periode_akademik_id) fetchSemuaKomponen(exam.kode_mk, exam.siakad_periode_akademik_id);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [exam?.kode_mk, exam?.mata_kuliah?.siakad_id]);
+    }, [exam?.kode_mk, exam?.mata_kuliah?.siakad_id, exam?.siakad_periode_akademik_id]);
 
-    const subCpmkOptions = cpmkList.flatMap(c => (c.sub_cpmk || []).map(sc => ({ ...sc, cpmkLabel: c.kode_cpmk })));
+    // FIX 2026-08-20: dulu SEMUA Sub-CPMK satu MK ditampilin di sini, gak
+    // peduli exam ini "UTS"/"UAS"/dst -- gampang salah pilih Sub-CPMK yang
+    // bobot resminya sebenarnya jatah komponen LAIN (sudah kejadian nyata:
+    // soal turunan ke-assign ke Sub-CPMK yg jatahnya UAS padahal exam-nya
+    // UTS). Begitu target SIAKAD exam ini sudah di-set (exam.siakad_bobot_cpmk
+    // ke-isi, lihat setExamSiakadTarget di BE), Sub-CPMK yang gak punya bobot
+    // resmi di komponen itu disembunyikan dari kedua picker di bawah.
+    const examBobotMap = exam?.siakad_bobot_cpmk || null;
+    const punyaBobotResmi = (externalId) => !examBobotMap || (externalId && externalId in examBobotMap);
+
+    const subCpmkOptionsSemua = cpmkList.flatMap(c => (c.sub_cpmk || []).map(sc => ({ ...sc, cpmkLabel: c.kode_cpmk })));
+    const subCpmkOptions = subCpmkOptionsSemua.filter(sc => punyaBobotResmi(sc.external_id));
+    const jumlahSubCpmkTersembunyi = subCpmkOptionsSemua.length - subCpmkOptions.length;
+
+    // FIX 2026-08-21: checklist cakupan Sub-CPMK resmi komponen ini -- sebelumnya
+    // gak ada cara dosen tau kalau 1 Sub-CPMK kelewat sama sekali gak dikasih
+    // soal (baru ketauan pas udah dipush & CPMK-nya nongol 0% di SIAKAD). Data
+    // Sub-CPMK resminya sendiri udah ada di exam.siakad_bobot_cpmk (dicache pas
+    // Set Target), tinggal dicocokin ke soal yang beneran ada di exam ini.
+    const cakupanSubCpmk = examBobotMap
+        ? Object.keys(examBobotMap)
+            .map(externalId => {
+                const localSub = subCpmkOptionsSemua.find(sc => sc.external_id === externalId);
+                if (!localSub) return null; // entri di level CPMK induk, bukan Sub-CPMK -- skip
+                const jumlahSoal = questionList.filter(q => q.sub_cpmk_id === localSub.id).length;
+                return { externalId, kode: localSub.kode_sub_cpmk, cpmkLabel: localSub.cpmkLabel, jumlahSoal };
+            })
+            .filter(Boolean)
+            .sort((a, b) => a.kode.localeCompare(b.kode))
+        : [];
+    const jumlahBelumKeCover = cakupanSubCpmk.filter(c => c.jumlahSoal === 0).length;
 
     // Leaf Sub-CPMK dari SIAKAD (cuma yang benar2 punya subCpmk — CPMK tanpa
     // Sub-CPMK di SIAKAD tidak dimunculkan, sama seperti dropdown lokal di
     // bawah yang juga cuma bisa pilih Sub-CPMK, bukan CPMK level induk).
-    const siakadSubCpmkItems = (siakadCpmkData?.cpmkData || []).flatMap(c =>
+    const siakadSubCpmkItemsSemua = (siakadCpmkData?.cpmkData || []).flatMap(c =>
         (c.subCpmk || c.sub_cpmk || []).map(sub => ({
             cpmkKode: c.kode, cpmkDeskripsi: c.deskripsi, cpmkExternalId: c.id,
             subKode: sub.kode, subDeskripsi: sub.deskripsi, subExternalId: sub.id
         }))
     );
+    const siakadSubCpmkItems = siakadSubCpmkItemsSemua.filter(i => punyaBobotResmi(i.subExternalId));
     const filteredSiakadSubCpmk = siakadCpmkSearch.trim()
         ? siakadSubCpmkItems.filter(i =>
             i.subKode?.toLowerCase().includes(siakadCpmkSearch.toLowerCase()) ||
@@ -346,6 +399,76 @@ export default function ExamQuestions() {
                 </button>
             </div>
 
+            {/* REFERENSI RENCANA EVALUASI — semua komponen (UTS/UAS/Tugas/dst) periode
+                ini, masing² dengan Sub-CPMK+bobot resminya, biar dosen lihat gambaran
+                utuh sebelum assign Sub-CPMK ke soal (bukan coba-coba). Komponen yang
+                lagi ditarget exam ini ditandai & default kebuka. */}
+            {semuaKomponen.length > 0 && (
+                <div className="bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.05)] border border-slate-100 overflow-hidden">
+                    <div className="px-8 py-5 border-b border-slate-100/50 bg-white/50 flex items-center justify-between">
+                        <div>
+                            <h4 className="text-[13px] font-black uppercase tracking-widest text-[#0f4c3a]">Referensi Rencana Evaluasi</h4>
+                            <p className="text-[11px] font-medium text-slate-400 mt-1">Semua komponen periode ini beserta Sub-CPMK resminya — biar gak salah pilih pas assign soal.</p>
+                        </div>
+                        {jumlahBelumKeCover > 0 && (
+                            <span className="shrink-0 text-[10px] font-black text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1.5 rounded-lg uppercase tracking-widest">
+                                {jumlahBelumKeCover} Sub-CPMK "{exam?.nama_ujian}" belum ada soal
+                            </span>
+                        )}
+                    </div>
+
+                    <div className="divide-y divide-slate-100">
+                        {semuaKomponen.map(komp => {
+                            const isTarget = komp.id === exam?.siakad_rencana_evaluasi_id;
+                            const isOpen = komponenTerbuka === null ? isTarget : komponenTerbuka === komp.id;
+                            const subCpmkList = Object.entries(komp.mappingBobotCpmk || {})
+                                .map(([externalId, bobot]) => {
+                                    const localSub = subCpmkOptionsSemua.find(sc => sc.external_id === externalId);
+                                    if (!localSub) return null;
+                                    return { externalId, kode: localSub.kode_sub_cpmk, bobot, jumlahSoal: questionList.filter(q => q.sub_cpmk_id === localSub.id).length };
+                                })
+                                .filter(Boolean)
+                                .sort((a, b) => a.kode.localeCompare(b.kode));
+
+                            return (
+                                <div key={komp.id}>
+                                    <button
+                                        onClick={() => setKomponenTerbuka(isOpen ? '__closed__' : komp.id)}
+                                        className={`w-full flex items-center justify-between gap-4 px-8 py-4 text-left transition-colors ${isTarget ? 'bg-[#0f4c3a]/[0.03]' : 'hover:bg-slate-50'}`}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <span className={`text-[10px] transition-transform ${isOpen ? 'rotate-90' : ''}`}>▶</span>
+                                            <span className="text-[13px] font-black text-slate-800">{komp.metodeEvaluasi}</span>
+                                            {komp.jenisEvaluasi && <span className="text-[11px] font-medium text-slate-400">{komp.jenisEvaluasi}</span>}
+                                            {isTarget && (
+                                                <span className="text-[9px] font-black text-[#0f4c3a] bg-[#d4af37]/20 border border-[#0f4c3a]/20 px-2 py-0.5 rounded-md uppercase tracking-widest">Target Ujian Ini</span>
+                                            )}
+                                        </div>
+                                        <span className="text-[12px] font-mono font-bold text-slate-500 shrink-0">{komp.bobotEvaluasi}%</span>
+                                    </button>
+                                    {isOpen && (
+                                        <div className="px-8 pb-5 grid grid-cols-2 md:grid-cols-4 gap-2">
+                                            {subCpmkList.length === 0 ? (
+                                                <p className="col-span-full text-[12px] text-slate-400 italic">Belum ada Sub-CPMK dipetakan buat komponen ini di SIAKAD.</p>
+                                            ) : subCpmkList.map(c => (
+                                                <div key={c.externalId} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[12px] font-bold border ${
+                                                    !isTarget ? 'bg-slate-50 border-slate-200 text-slate-600'
+                                                    : c.jumlahSoal > 0 ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-amber-50 border-amber-300 text-amber-700'
+                                                }`}>
+                                                    {isTarget && <span>{c.jumlahSoal > 0 ? '✓' : '⚠'}</span>}
+                                                    <span className="flex-1">{c.kode}</span>
+                                                    <span className="text-[10px] font-mono opacity-70">{isTarget ? (c.jumlahSoal > 0 ? `${c.jumlahSoal} soal` : 'kosong') : `${c.bobot}pt`}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+
             {/* FORM INPUT SOAL */}
             <div className={`bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.05)] border relative overflow-hidden transition-colors duration-500 ${editId ? 'border-amber-300' : 'border-slate-100'}`}>
                 {editId && <div className="absolute top-0 left-0 w-1.5 h-full bg-amber-500"></div>}
@@ -403,6 +526,12 @@ export default function ExamQuestions() {
                     <div>
                         <label className="block text-[11px] font-black text-slate-500 mb-2 uppercase tracking-widest">Sub-CPMK (opsional)</label>
 
+                        {exam?.mata_kuliah?.siakad_id && !examBobotMap && (
+                            <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3 font-semibold">
+                                ⚠ Target SIAKAD (kelas/periode/komponen) belum di-set untuk ujian ini — SEMUA Sub-CPMK mata kuliah ditampilkan tanpa filter, termasuk yang jatah komponen lain (mis. UAS). Set Target SIAKAD dulu di menu "Penerbitan Ujian" biar picker ini otomatis kefilter sesuai komponen "{exam?.nama_ujian}".
+                            </p>
+                        )}
+
                         {exam?.mata_kuliah?.siakad_id && (
                             <div className="max-w-md">
                                 <SiakadSearchPicker
@@ -434,8 +563,13 @@ export default function ExamQuestions() {
                             ))}
                         </select>
                         <p className="text-[10px] text-slate-400 mt-1.5">
-                            Dipakai buat hitung capaian CPMK &amp; push breakdown nilai ke SIAKAD (Jalur D) — soal tanpa Sub-CPMK yang punya ID SIAKAD (lihat menu CPMK &amp; Sub-CPMK) tidak akan ikut ter-push.
+                            Dipakai buat hitung capaian CPMK &amp; push breakdown nilai ke NL-SIAK — soal tanpa Sub-CPMK yang punya ID NL-SIAK (lihat menu CPMK &amp; Sub-CPMK) tidak akan ikut ter-push.
                         </p>
+                        {examBobotMap && jumlahSubCpmkTersembunyi > 0 && (
+                            <p className="text-[10px] text-amber-600 font-semibold mt-1">
+                                {jumlahSubCpmkTersembunyi} Sub-CPMK disembunyikan — bobotnya bukan bagian dari komponen "{exam?.nama_ujian}" yang di-set buat ujian ini (mis. jatah UAS, bukan UTS).
+                            </p>
+                        )}
                     </div>
 
                     {(tipeSoal === 'pg' || tipeSoal === 'pg_multiple') && (
@@ -521,11 +655,11 @@ export default function ExamQuestions() {
                                                 Bobot: {q.bobot_nilai ?? 10}
                                             </span>
                                             {q.sub_cpmk_id ? (
-                                                <span className={`px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-wider border ${q.siakad_ready ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`} title={q.siakad_ready ? 'Siap di-push ke SIAKAD (Jalur D)' : 'Sub-CPMK belum tersambung ke ID SIAKAD — sync dulu di menu CPMK & Sub-CPMK'}>
-                                                    {q.siakad_ready ? '✓ Siap SIAKAD' : '⚠ Sub-CPMK belum sync SIAKAD'}
+                                                <span className={`px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-wider border ${q.siakad_ready ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`} title={q.siakad_ready ? 'Siap di-push ke NL-SIAK' : 'Sub-CPMK belum tersambung ke ID NL-SIAK — sync dulu di menu CPMK & Sub-CPMK'}>
+                                                    {q.siakad_ready ? '✓ Siap NL-SIAK' : '⚠ Sub-CPMK belum sync NL-SIAK'}
                                                 </span>
                                             ) : (
-                                                <span className="px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-wider border bg-slate-50 text-slate-400 border-slate-200" title="Tanpa Sub-CPMK, tidak ikut push breakdown ke SIAKAD">
+                                                <span className="px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-wider border bg-slate-50 text-slate-400 border-slate-200" title="Tanpa Sub-CPMK, tidak ikut push breakdown ke NL-SIAK">
                                                     Tanpa Sub-CPMK
                                                 </span>
                                             )}
@@ -589,6 +723,12 @@ export default function ExamQuestions() {
                                     bankList.map(b => {
                                         const tipeInfo = formatTipeLabel(b.tipe_soal);
                                         const isChecked = selectedBankIds.includes(b.id);
+                                        // FIX 2026-08-20: soal di Bank Soal itu wajar gak terikat exam manapun
+                                        // (bisa dipakai ulang lintas UTS/UAS/Tugas) -- tapi begitu mau DI-IMPOR
+                                        // ke exam INI, tetap perlu ditandai kalau Sub-CPMK-nya bukan bagian dari
+                                        // komponen exam ini (sama kayak filter di form "Tulis Soal Manual" di
+                                        // atas), soalnya kalau diimpor tetap gak akan ke-push breakdown-nya.
+                                        const cocokKomponen = punyaBobotResmi(b.sub_cpmk?.external_id);
                                         return (
                                             <label key={b.id} className={`flex items-start gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all ${isChecked ? 'border-[#0f4c3a] bg-[#0f4c3a]/5' : 'border-slate-100 hover:border-slate-200'}`}>
                                                 <input type="checkbox" checked={isChecked} onChange={() => toggleBankSelection(b.id)} className="mt-1 w-4 h-4" />
@@ -599,8 +739,8 @@ export default function ExamQuestions() {
                                                             {b.sumber === 'AI_GENERATED' ? 'AI Generated' : 'Manual'}
                                                         </span>
                                                         {b.sub_cpmk && (
-                                                            <span className="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider border bg-amber-50 text-amber-700 border-amber-200">
-                                                                {b.sub_cpmk.kode_sub_cpmk}
+                                                            <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider border ${cocokKomponen ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-red-50 text-red-700 border-red-200'}`} title={cocokKomponen ? undefined : `Sub-CPMK ini bukan bagian dari komponen "${exam?.nama_ujian}" -- kalau diimpor, nilainya TIDAK akan ikut ter-push ke SIAKAD`}>
+                                                                {b.sub_cpmk.kode_sub_cpmk}{!cocokKomponen && ' ⚠'}
                                                             </span>
                                                         )}
                                                     </div>

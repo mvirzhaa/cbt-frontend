@@ -6,6 +6,7 @@ import matkulService from '../services/matkul.service';
 import examService from '../services/exam.service';
 import gradingService from '../services/grading.service';
 import siakadService from '../services/siakad.service';
+import SiakadSearchPicker from '../components/SiakadSearchPicker';
 
 export default function RekapNilai() {
     // State Master Data
@@ -36,6 +37,17 @@ export default function RekapNilai() {
     const [pushingRowId, setPushingRowId] = useState(null);
     const [rencanaOptions, setRencanaOptions] = useState([]);
     const [loadingRencana, setLoadingRencana] = useState(false);
+
+    // FIX 2026-08-20: picker Kelas Kuliah live dari SIAKAD -- ganti kotak teks
+    // kosong yang minta dosen ketik manual UUID kelas & periode (titik paling
+    // rawan salah, gak ada cara nemuin ID-nya dari dalam CBT sama sekali).
+    // 1 kelas hasil pencarian sudah bawa periodeAkademik-nya sendiri, jadi 1
+    // pilihan otomatis ngisi kelas+periode sekaligus, lalu auto cari komponen.
+    const [kelasKuliahOptions, setKelasKuliahOptions] = useState([]);
+    const [kelasKuliahSearch, setKelasKuliahSearch] = useState('');
+    const [kelasKuliahPickerOpen, setKelasKuliahPickerOpen] = useState(false);
+    const [loadingKelasKuliah, setLoadingKelasKuliah] = useState(false);
+    const [selectedKelasLabel, setSelectedKelasLabel] = useState('');
 
     useEffect(() => {
         fetchInitialData();
@@ -109,12 +121,58 @@ export default function RekapNilai() {
                 rencana: responseData.exam_info?.siakad_rencana_evaluasi_id || ''
             });
             setRencanaOptions([]);
+            setSelectedKelasLabel('');
+            setKelasKuliahOptions([]);
+            if (responseData.exam_info?.kode_mk) fetchKelasKuliahSiakad(responseData.exam_info.kode_mk);
         } catch (error) {
-            console.error("Gagal menarik rincian nilai:", error); 
+            console.error("Gagal menarik rincian nilai:", error);
             Swal.fire('Error', 'Gagal memuat data nilai ujian ini.', 'error');
-        } finally { 
-            setLoading(false); 
+        } finally {
+            setLoading(false);
         }
+    };
+
+    const fetchKelasKuliahSiakad = async (kodeMk) => {
+        setLoadingKelasKuliah(true);
+        try {
+            const result = await siakadService.searchKelasKuliah(kodeMk);
+            setKelasKuliahOptions(result?.data || []);
+        } catch (error) {
+            console.error("Gagal menarik daftar Kelas Kuliah SIAKAD.", error);
+        } finally {
+            setLoadingKelasKuliah(false);
+        }
+    };
+
+    const filteredKelasKuliah = kelasKuliahSearch.trim()
+        ? kelasKuliahOptions.filter(k => {
+            const q = kelasKuliahSearch.toLowerCase();
+            return k.nama?.toLowerCase().includes(q)
+                || k.mataKuliah?.kode?.toLowerCase().includes(q)
+                || k.mataKuliah?.nama?.toLowerCase().includes(q)
+                || k.periodeAkademik?.nama?.toLowerCase().includes(q);
+          })
+        : kelasKuliahOptions;
+
+    // FIX 2026-08-21: label ramah-baca buat komponen evaluasi yang lagi
+    // dipilih -- sebelumnya UUID rencanaEvaluasiId mentah selalu keliatan di
+    // kotak teks, sekarang cuma keliatan kalau memang lagi diisi manual
+    // (fallback). Cocokin siakadTarget.rencana ke rencanaOptions hasil
+    // pencarian buat nampilin nama komponennya (mis. "UTS (25%)").
+    const selectedRencanaOption = rencanaOptions.find(re => re.id === siakadTarget.rencana);
+    const selectedRencanaLabel = selectedRencanaOption
+        ? `${selectedRencanaOption.metodeEvaluasi} (${selectedRencanaOption.bobotEvaluasi}%)${selectedRencanaOption.jenisEvaluasi ? ` — ${selectedRencanaOption.jenisEvaluasi}` : ''}`
+        : '';
+
+    const handlePickKelasKuliah = async (item) => {
+        setSiakadTarget(prev => ({ ...prev, kelas: item.id, periode: item.siakPeriodeAkademikId, rencana: '' }));
+        setSelectedKelasLabel(`${item.nama} • ${item.mataKuliah?.kode} - ${item.mataKuliah?.nama} • ${item.periodeAkademik?.nama}`);
+        setKelasKuliahPickerOpen(false);
+        setKelasKuliahSearch('');
+        setRencanaOptions([]);
+        // Langsung cari komponen (UTS/UAS/dst) begitu kelas+periode kepilih,
+        // dosen gak perlu klik "Cari Komponen" manual lagi.
+        await cariKomponenSiakad(item.siakPeriodeAkademikId);
     };
 
     const handleExportExcel = () => {
@@ -232,13 +290,14 @@ export default function RekapNilai() {
 
     // Jalur D setup: cari daftar komponen (rencanaEvaluasiId) dari SIAKAD untuk
     // MK+periode ujian ini, supaya dosen tidak perlu tempel UUID manual.
-    const cariKomponenSiakad = async () => {
-        if (!siakadTarget.periode.trim()) {
-            return Swal.fire('Data Kurang', 'Isi ID Periode Akademik SIAKAD dulu (di atas), baru cari komponennya.', 'warning');
+    const cariKomponenSiakad = async (periodeOverride) => {
+        const periodeId = (periodeOverride || siakadTarget.periode).trim();
+        if (!periodeId) {
+            return Swal.fire('Data Kurang', 'Pilih Kelas Kuliah dulu (otomatis ngisi periode), baru cari komponennya.', 'warning');
         }
         setLoadingRencana(true);
         try {
-            const result = await siakadService.getRencanaEvaluasi(examInfo?.kode_mk, siakadTarget.periode.trim());
+            const result = await siakadService.getRencanaEvaluasi(examInfo?.kode_mk, periodeId);
             const list = result?.data?.rencanaEvaluasi || [];
             setRencanaOptions(list);
             if (list.length === 0) {
@@ -310,7 +369,7 @@ export default function RekapNilai() {
                     </button>
                     <button onClick={pushAllToSiakad} disabled={!selectedExam || pushingAll || scores.length === 0} className={`px-6 py-3.5 rounded-xl text-[12px] font-black uppercase tracking-widest flex items-center gap-2 transition-all shadow-lg active:scale-95 ${!selectedExam || pushingAll || scores.length === 0 ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none' : 'bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white shadow-indigo-500/30'}`}>
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
-                        {pushingAll ? 'Mengirim...' : 'Push Semua ke SIAKAD'}
+                        {pushingAll ? 'Mengirim...' : 'Push Semua ke NL-SIAK'}
                     </button>
                 </div>
             </div>
@@ -366,67 +425,97 @@ export default function RekapNilai() {
                 </div>
             ))}
 
-            {/* TARGET SIAKAD (Jalur D) */}
+            {/* NL-SIAK */}
             {selectedExam && (
-                <div className="bg-indigo-50 border border-indigo-100 p-5 rounded-xl space-y-4">
-                    <div className="flex flex-col md:flex-row gap-4 md:items-end">
-                        <div className="flex-1">
-                            <label className="block text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1.5">ID Kelas Kuliah SIAKAD</label>
-                            <input
-                                type="text"
-                                value={siakadTarget.kelas}
-                                onChange={(e) => setSiakadTarget(prev => ({ ...prev, kelas: e.target.value }))}
-                                placeholder="mis. siak_kelas_kuliah_id"
-                                className="w-full px-4 py-3 bg-white border border-indigo-200 rounded-lg text-[13px] font-bold text-slate-800 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all"
-                            />
-                        </div>
-                        <div className="flex-1">
-                            <label className="block text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1.5">ID Periode Akademik SIAKAD</label>
-                            <input
-                                type="text"
-                                value={siakadTarget.periode}
-                                onChange={(e) => setSiakadTarget(prev => ({ ...prev, periode: e.target.value }))}
-                                placeholder="mis. siak_periode_akademik_id"
-                                className="w-full px-4 py-3 bg-white border border-indigo-200 rounded-lg text-[13px] font-bold text-slate-800 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all"
-                            />
-                        </div>
+                <div className="bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.05)] border border-slate-100 overflow-hidden">
+                    <div className="px-8 py-6 border-b border-slate-100/50 bg-white/50">
+                        <h3 className="text-[15px] font-black uppercase tracking-widest text-[#0f4c3a]">NL-SIAK</h3>
+                        <p className="text-[12px] font-medium text-slate-400 mt-1">Sambungin ujian ini ke kelas &amp; komponen evaluasi resmi di NL-SIAK, supaya nilainya bisa dipush.</p>
                     </div>
 
-                    <div className="flex flex-col md:flex-row gap-4 md:items-end border-t border-indigo-100 pt-4">
-                        <div className="flex-1">
-                            <label className="block text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1.5">ID Komponen Evaluasi SIAKAD (rencanaEvaluasiId)</label>
-                            <input
-                                type="text"
-                                value={siakadTarget.rencana}
-                                onChange={(e) => setSiakadTarget(prev => ({ ...prev, rencana: e.target.value }))}
-                                placeholder="mis. siak_rencana_evaluasi_id (UTS/UAS/dst)"
-                                className="w-full px-4 py-3 bg-white border border-indigo-200 rounded-lg text-[13px] font-bold text-slate-800 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all"
+                    <div className="p-8 space-y-6">
+                        <div>
+                            <label className="block text-[11px] font-black text-slate-500 mb-2 uppercase tracking-widest">Kelas Kuliah</label>
+                            <SiakadSearchPicker
+                                label={null}
+                                searchValue={kelasKuliahSearch}
+                                onSearchChange={setKelasKuliahSearch}
+                                isOpen={kelasKuliahPickerOpen}
+                                onOpenChange={setKelasKuliahPickerOpen}
+                                items={filteredKelasKuliah}
+                                getKey={item => item.id}
+                                renderItem={item => (
+                                    <>
+                                        <p className="text-[12px] font-black text-slate-800">{item.nama} — {item.mataKuliah?.kode} {item.mataKuliah?.nama}</p>
+                                        <p className="text-[10px] font-bold text-slate-400">Periode: {item.periodeAkademik?.nama} • {item.status_kelas}</p>
+                                    </>
+                                )}
+                                onSelect={handlePickKelasKuliah}
+                                loading={loadingKelasKuliah}
+                                placeholder="Cari kelas kuliah (nama kelas, kode/nama MK, atau periode)..."
                             />
-                            {rencanaOptions.length > 0 && (
-                                <select
-                                    onChange={(e) => e.target.value && setSiakadTarget(prev => ({ ...prev, rencana: e.target.value }))}
-                                    defaultValue=""
-                                    className="mt-2 w-full px-4 py-2.5 bg-white border border-indigo-200 rounded-lg text-[12px] font-bold text-slate-700 outline-none focus:border-indigo-500"
-                                >
-                                    <option value="" disabled>-- Pilih dari hasil pencarian SIAKAD --</option>
-                                    {rencanaOptions.map(re => (
-                                        <option key={re.id} value={re.id}>{re.metodeEvaluasi} ({re.bobotEvaluasi}%){re.jenisEvaluasi ? ` — ${re.jenisEvaluasi}` : ''}</option>
-                                    ))}
-                                </select>
+                            {selectedKelasLabel ? (
+                                <p className="text-[12px] font-bold text-emerald-700 mt-2.5 flex items-center gap-1.5">
+                                    <span className="w-4 h-4 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-[10px]">✓</span>
+                                    {selectedKelasLabel}
+                                </p>
+                            ) : siakadTarget.kelas ? (
+                                <p className="text-[12px] font-bold text-amber-700 mt-2.5 flex items-center gap-1.5">
+                                    <span className="w-4 h-4 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-[10px]">!</span>
+                                    Ada target tersimpan — cari &amp; pilih lagi di atas buat lihat namanya atau ganti.
+                                </p>
+                            ) : (
+                                <p className="text-[12px] text-slate-400 mt-2.5">Belum ada target tersimpan untuk ujian ini.</p>
                             )}
                         </div>
-                        <div className="flex gap-2 shrink-0">
-                            <button onClick={cariKomponenSiakad} disabled={loadingRencana} className="px-5 py-3 rounded-lg text-[11px] font-black uppercase tracking-wider bg-white text-indigo-600 border border-indigo-200 hover:bg-indigo-100 transition-all disabled:opacity-50">
-                                {loadingRencana ? 'Mencari...' : '🔍 Cari Komponen'}
-                            </button>
-                            <button onClick={saveSiakadTarget} disabled={savingTarget} className="px-6 py-3 rounded-lg text-[11px] font-black uppercase tracking-wider bg-indigo-600 text-white hover:bg-indigo-700 shadow-md shadow-indigo-500/20 transition-all disabled:opacity-50">
-                                {savingTarget ? 'Menyimpan...' : '💾 Simpan Target'}
+
+                        <div className="border-t border-slate-100 pt-6">
+                            <label className="block text-[11px] font-black text-slate-500 mb-2 uppercase tracking-widest">Komponen Evaluasi (UTS/UAS/dst)</label>
+                            <div className="flex flex-col md:flex-row gap-3 md:items-center">
+                                <div className="flex-1">
+                                    {rencanaOptions.length > 0 ? (
+                                        <select
+                                            value={siakadTarget.rencana}
+                                            onChange={(e) => e.target.value && setSiakadTarget(prev => ({ ...prev, rencana: e.target.value }))}
+                                            className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-[13px] font-bold text-slate-800 outline-none focus:bg-white focus:border-[#0f4c3a] focus:ring-4 focus:ring-[#0f4c3a]/10 transition-all"
+                                        >
+                                            <option value="" disabled>-- Pilih komponen --</option>
+                                            {rencanaOptions.map(re => (
+                                                <option key={re.id} value={re.id}>{re.metodeEvaluasi} ({re.bobotEvaluasi}%){re.jenisEvaluasi ? ` — ${re.jenisEvaluasi}` : ''}</option>
+                                            ))}
+                                        </select>
+                                    ) : (
+                                        <p className="text-[12px] text-slate-400 py-3">Pilih Kelas Kuliah dulu di atas, komponennya otomatis dicari.</p>
+                                    )}
+                                </div>
+                                <button onClick={cariKomponenSiakad} disabled={loadingRencana || !siakadTarget.periode} className="shrink-0 px-5 py-3.5 rounded-xl text-[11px] font-black uppercase tracking-widest bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition-all disabled:opacity-40">
+                                    {loadingRencana ? 'Mencari...' : 'Cari Ulang'}
+                                </button>
+                            </div>
+                            {selectedRencanaLabel ? (
+                                <p className="text-[12px] font-bold text-emerald-700 mt-2.5 flex items-center gap-1.5">
+                                    <span className="w-4 h-4 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-[10px]">✓</span>
+                                    {selectedRencanaLabel}
+                                </p>
+                            ) : siakadTarget.rencana ? (
+                                <p className="text-[12px] font-bold text-amber-700 mt-2.5 flex items-center gap-1.5">
+                                    <span className="w-4 h-4 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-[10px]">!</span>
+                                    Ada komponen tersimpan — klik "Cari Ulang" buat lihat namanya.
+                                </p>
+                            ) : (
+                                <p className="text-[12px] text-slate-400 mt-2.5">Belum ada komponen dipilih.</p>
+                            )}
+                        </div>
+
+                        <div className="flex items-center justify-between gap-4 border-t border-slate-100 pt-6">
+                            <p className="text-[11px] font-medium text-slate-400 leading-relaxed max-w-lg">
+                                CPMK/Sub-CPMK dipetakan lewat menu "CPMK &amp; Sub-CPMK" (impor langsung dari SIAKAD, bukan sinkronisasi manual).
+                            </p>
+                            <button onClick={saveSiakadTarget} disabled={savingTarget} className="shrink-0 px-8 py-3.5 rounded-xl text-[12px] font-black uppercase tracking-widest bg-[#0f4c3a] hover:bg-[#092e23] text-[#d4af37] shadow-lg shadow-[#0f4c3a]/30 transition-all active:scale-95 disabled:opacity-50">
+                                {savingTarget ? 'Menyimpan...' : 'Simpan Target'}
                             </button>
                         </div>
                     </div>
-                    <p className="text-[10px] font-medium text-indigo-400 leading-relaxed">
-                        Push ke SIAKAD (Jalur D) butuh ketiga ID di atas terisi. "Cari Komponen" butuh ID Periode Akademik sudah diisi terlebih dahulu. CPMK/Sub-CPMK dipetakan lewat menu CPMK &amp; Sub-CPMK (impor langsung dari SIAKAD, bukan sinkronisasi manual).
-                    </p>
                 </div>
             )}
 

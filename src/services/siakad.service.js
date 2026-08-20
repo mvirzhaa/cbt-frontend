@@ -31,6 +31,13 @@ export const siakadService = {
     return response.data;
   },
 
+  // FIX 2026-08-20: sumber picker "Set Target SIAKAD" (RekapNilai.jsx) --
+  // ganti kotak teks kosong yang minta dosen ketik manual UUID kelas/periode.
+  async searchKelasKuliah(kodeMk) {
+    const response = await api.get('/api/siakad/kelas-kuliah', { params: { kode_mk: kodeMk } });
+    return response.data;
+  },
+
   async getPemetaanCpmk(kodeMk) {
     const response = await api.get(`/api/siakad/mata-kuliah/${kodeMk}/pemetaan-cpmk`);
     return response.data;
