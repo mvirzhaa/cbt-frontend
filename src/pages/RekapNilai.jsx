@@ -375,8 +375,10 @@ export default function RekapNilai() {
             </div>
 
             {/* FILTER 2 TINGKAT */}
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row gap-6 relative overflow-hidden">
-                <div className="absolute right-0 top-0 w-40 h-40 bg-blue-50/50 rounded-full blur-3xl -z-10 translate-x-1/3 -translate-y-1/3"></div>
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row gap-6 relative">
+                <div className="absolute inset-0 overflow-hidden rounded-2xl pointer-events-none -z-10">
+                    <div className="absolute right-0 top-0 w-40 h-40 bg-blue-50/50 rounded-full blur-3xl translate-x-1/3 -translate-y-1/3"></div>
+                </div>
                 
                 <div className="flex-1 md:flex-[1.4] relative z-10">
                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">

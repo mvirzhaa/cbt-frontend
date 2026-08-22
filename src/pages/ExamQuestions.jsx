@@ -470,8 +470,10 @@ export default function ExamQuestions() {
             )}
 
             {/* FORM INPUT SOAL */}
-            <div className={`bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.05)] border relative overflow-hidden transition-colors duration-500 ${editId ? 'border-amber-300' : 'border-slate-100'}`}>
-                {editId && <div className="absolute top-0 left-0 w-1.5 h-full bg-amber-500"></div>}
+            <div className={`bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.05)] border relative transition-colors duration-500 ${editId ? 'border-amber-300' : 'border-slate-100'}`}>
+                <div className="absolute inset-0 overflow-hidden rounded-3xl pointer-events-none">
+                    {editId && <div className="absolute top-0 left-0 w-1.5 h-full bg-amber-500"></div>}
+                </div>
 
                 <div className="px-8 md:px-10 py-6 border-b border-slate-100/50 flex justify-between items-center bg-white/50 backdrop-blur-sm">
                     <h3 className={`text-[15px] font-black uppercase tracking-widest ${editId ? 'text-amber-800' : 'text-[#0f4c3a]'}`}>

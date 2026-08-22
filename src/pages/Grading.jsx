@@ -260,8 +260,10 @@ export default function Grading() {
             </div>
 
             {/* 🌟 FILTER 3 TINGKAT */}
-            <div className="bg-white p-6 md:p-8 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 space-y-6 relative overflow-hidden">
-                <div className="absolute right-0 top-0 w-64 h-64 bg-amber-50/50 rounded-full blur-3xl -z-10 translate-x-1/3 -translate-y-1/3"></div>
+            <div className="bg-white p-6 md:p-8 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 space-y-6 relative">
+                <div className="absolute inset-0 overflow-hidden rounded-3xl pointer-events-none -z-10">
+                    <div className="absolute right-0 top-0 w-64 h-64 bg-amber-50/50 rounded-full blur-3xl translate-x-1/3 -translate-y-1/3"></div>
+                </div>
 
                 <div className="flex flex-col md:flex-row gap-6">
                     {/* Kotak 1: Pilih Matkul */}
