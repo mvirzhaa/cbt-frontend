@@ -29,7 +29,8 @@ export default function SiakadSearchPicker({
                 onFocus={() => onOpenChange(true)}
                 onBlur={() => setTimeout(() => onOpenChange(false), 150)}
                 placeholder={loading ? 'Memuat data dari SIAKAD...' : placeholder}
-                className="w-full px-5 py-4 bg-slate-50 rounded-xl border border-slate-200 outline-none text-[13px] font-bold text-slate-700 shadow-sm transition-all focus:bg-white focus:border-[#0f4c3a] focus:ring-4 focus:ring-[#0f4c3a]/10"
+                title={searchValue}
+                className="w-full px-5 py-4 bg-slate-50 rounded-xl border border-slate-200 outline-none text-[13px] font-bold text-slate-700 shadow-sm transition-all truncate focus:bg-white focus:border-[#0f4c3a] focus:ring-4 focus:ring-[#0f4c3a]/10"
             />
             {connected && (
                 <span className="inline-flex items-center gap-1.5 mt-2 bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-wider">

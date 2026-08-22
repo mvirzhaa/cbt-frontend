@@ -378,7 +378,7 @@ export default function RekapNilai() {
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row gap-6 relative overflow-hidden">
                 <div className="absolute right-0 top-0 w-40 h-40 bg-blue-50/50 rounded-full blur-3xl -z-10 translate-x-1/3 -translate-y-1/3"></div>
                 
-                <div className="flex-1 relative z-10">
+                <div className="flex-1 md:flex-[1.4] relative z-10">
                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
                         <span className="w-5 h-5 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-[10px]">1</span>
                         Saring Mata Kuliah

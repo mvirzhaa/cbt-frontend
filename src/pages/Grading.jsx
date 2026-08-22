@@ -265,7 +265,7 @@ export default function Grading() {
 
                 <div className="flex flex-col md:flex-row gap-6">
                     {/* Kotak 1: Pilih Matkul */}
-                    <div className="flex-1 relative z-10">
+                    <div className="flex-1 md:flex-[1.4] relative z-10">
                         <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
                             <span className="w-5 h-5 bg-amber-100 text-amber-700 rounded-full flex items-center justify-center text-[10px]">1</span>
                             Filter Mata Kuliah
