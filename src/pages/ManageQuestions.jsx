@@ -52,6 +52,7 @@ export default function ManageQuestions() {
     // State Panel Generate AI
     const [aiTipeSoal, setAiTipeSoal] = useState('pg');
     const [aiSubCpmkId, setAiSubCpmkId] = useState('');
+    const [aiJenisEvaluasi, setAiJenisEvaluasi] = useState('');
     const [aiJumlah, setAiJumlah] = useState(3);
     const [aiTingkatKesulitan, setAiTingkatKesulitan] = useState('sedang');
     const [isGenerating, setIsGenerating] = useState(false);
@@ -237,6 +238,7 @@ export default function ManageQuestions() {
                 tingkat_kesulitan: aiTingkatKesulitan
             };
             if (aiSubCpmkId) payload.sub_cpmk_id = parseInt(aiSubCpmkId);
+            if (aiJenisEvaluasi) payload.jenis_evaluasi = aiJenisEvaluasi;
 
             const result = await questionBankService.generateAI(payload);
             Swal.fire({ icon: 'success', title: 'Soal AI Digenerate!', text: result.message || 'Silakan review sebelum digunakan.', confirmButtonColor: '#0f4c3a' });
@@ -278,18 +280,30 @@ export default function ManageQuestions() {
                             </div>
                             <div>
                                 <h4 className="text-[13px] font-black text-violet-800 uppercase tracking-widest">Generate Soal dengan AI</h4>
-                                <p className="text-[11px] font-medium text-slate-500 mt-1">Berpatokan pada CPMK/Sub-CPMK yang dipilih. Hasil AI wajib direview sebelum dipakai.</p>
+                                <p className="text-[11px] font-medium text-slate-500 mt-1">Berpatokan pada CPMK/Sub-CPMK yang dipilih. Kalau Sub-CPMK dikosongin, soal otomatis dibagi rata berurutan ke semua Sub-CPMK matkul ini. Hasil AI wajib direview sebelum dipakai.</p>
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div>
                                 <label className="block text-[10px] font-black text-slate-500 mb-2 uppercase tracking-widest">Sub-CPMK Acuan</label>
                                 <select value={aiSubCpmkId} onChange={e => setAiSubCpmkId(e.target.value)} className="w-full px-4 py-3 bg-white rounded-xl border border-slate-200 focus:border-violet-500 outline-none font-semibold text-slate-800 text-[13px]">
-                                    <option value="">-- Umum (tanpa Sub-CPMK) --</option>
+                                    <option value="">-- Otomatis, bagi rata ke semua Sub-CPMK --</option>
                                     {subCpmkOptions.map(sc => (
                                         <option key={sc.id} value={sc.id}>{sc.cpmkLabel} • {sc.kode_sub_cpmk}</option>
                                     ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-[10px] font-black text-slate-500 mb-2 uppercase tracking-widest">Komponen Evaluasi</label>
+                                <select value={aiJenisEvaluasi} onChange={e => setAiJenisEvaluasi(e.target.value)} className="w-full px-4 py-3 bg-white rounded-xl border border-slate-200 focus:border-violet-500 outline-none font-semibold text-slate-800 text-[13px]">
+                                    <option value="">-- Umum (tanpa konteks) --</option>
+                                    <option value="Kuis">Kuis</option>
+                                    <option value="Tugas">Tugas</option>
+                                    <option value="UTS">UTS</option>
+                                    <option value="UAS">UAS</option>
+                                    <option value="Proyek Akhir">Proyek Akhir</option>
+                                    <option value="Partisipasi">Partisipasi</option>
                                 </select>
                             </div>
                             <div>
