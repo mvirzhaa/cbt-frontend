@@ -682,7 +682,7 @@ export default function Grading() {
                                                                                 </h5>
                                                                                 {ans.questions?.kunci_jawaban ? (
                                                                                     <div className="p-4 bg-emerald-50/60 border border-emerald-200 rounded-xl text-[14px] font-medium text-emerald-900 leading-relaxed whitespace-pre-wrap">
-                                                                                        {ans.questions.kunci_jawaban}
+                                                                                        <MathText text={ans.questions.kunci_jawaban} />
                                                                                     </div>
                                                                                 ) : (
                                                                                     <div className="p-4 bg-slate-50 border border-dashed border-slate-300 rounded-xl text-[13px] font-medium text-slate-400 italic">

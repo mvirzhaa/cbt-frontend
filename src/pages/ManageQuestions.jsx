@@ -473,7 +473,7 @@ export default function ManageQuestions() {
 
                                                 {(b.tipe_soal === 'TIPE_3' || b.tipe_soal === 'TIPE_4') && b.kunci_jawaban && (
                                                     <div className={`pl-4 border-l-2 text-xs italic font-medium ${b.tipe_soal === 'TIPE_3' ? 'border-purple-300 text-purple-700' : 'border-amber-300 text-amber-700'}`}>
-                                                        {b.tipe_soal === 'TIPE_3' ? 'Rubrik Kunci' : 'Model Jawaban'}: {b.kunci_jawaban}
+                                                        {b.tipe_soal === 'TIPE_3' ? 'Rubrik Kunci' : 'Model Jawaban'}: <MathText text={b.kunci_jawaban} />
                                                     </div>
                                                 )}
                                             </div>

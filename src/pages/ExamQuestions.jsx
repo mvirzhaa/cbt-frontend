@@ -683,7 +683,7 @@ export default function ExamQuestions() {
 
                                         {(q.tipe_soal === 'TIPE_3' || q.tipe_soal === 'TIPE_4') && q.kunci_jawaban && (
                                             <div className={`pl-4 border-l-2 text-xs italic font-medium ${q.tipe_soal === 'TIPE_3' ? 'border-purple-300 text-purple-700' : 'border-amber-300 text-amber-700'}`}>
-                                                {q.tipe_soal === 'TIPE_3' ? 'Rubrik Kunci' : 'Model Jawaban'}: {q.kunci_jawaban}
+                                                {q.tipe_soal === 'TIPE_3' ? 'Rubrik Kunci' : 'Model Jawaban'}: <MathText text={q.kunci_jawaban} />
                                             </div>
                                         )}
                                     </div>
