@@ -7,6 +7,7 @@ import examService from '../services/exam.service';
 import gradingService from '../services/grading.service';
 import siakadService from '../services/siakad.service';
 import SiakadSearchPicker from '../components/SiakadSearchPicker';
+import MatkulSelect from '../components/MatkulSelect';
 
 export default function RekapNilai() {
     // State Master Data
@@ -90,8 +91,7 @@ export default function RekapNilai() {
         }
     };
 
-    const handleMatkulChange = (e) => {
-        const mkId = e.target.value;
+    const handleMatkulChange = (mkId) => {
         setSelectedMatkul(mkId);
         
         const examsForThisMatkul = allExams?.data?.filter(ex => ex.kode_mk === mkId) || [];
@@ -383,12 +383,7 @@ export default function RekapNilai() {
                         <span className="w-5 h-5 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-[10px]">1</span>
                         Saring Mata Kuliah
                     </label>
-                    <select value={selectedMatkul} onChange={handleMatkulChange} className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-xl text-[13px] font-bold text-slate-800 outline-none focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all cursor-pointer appearance-none">
-                        <option value="" disabled>-- Pilih Mata Kuliah Terlebih Dahulu --</option>
-                        {matkulList?.data?.map(mk => (
-                            <option key={mk.kode_mk} value={mk.kode_mk}>{mk.kode_mk} - {mk.nama_mk}</option>
-                        ))}
-                    </select>
+                    <MatkulSelect matkulList={matkulList} value={selectedMatkul} onChange={handleMatkulChange} placeholder="-- Pilih Mata Kuliah Terlebih Dahulu --" />
                 </div>
 
                 <div className="flex-1 relative z-10">

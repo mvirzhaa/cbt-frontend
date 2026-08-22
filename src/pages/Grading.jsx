@@ -6,6 +6,7 @@ import matkulService from '../services/matkul.service';
 import examService from '../services/exam.service';
 import gradingService from '../services/grading.service';
 import MathText from '../components/MathText';
+import MatkulSelect from '../components/MatkulSelect';
 
 export default function Grading() {
     const backendFileBaseUrl = API_BASE_URL.replace(/\/+$/, '');
@@ -49,8 +50,7 @@ export default function Grading() {
     };
 
     // 2. Jika Matkul dipilih, saring Ujiannya
-    const handleMatkulChange = (e) => {
-        const mkId = e.target.value;
+    const handleMatkulChange = (mkId) => {
         setSelectedMatkul(mkId);
         
         const examsForThisMatkul = allExams?.data?.filter(ex => ex.kode_mk === mkId) || [];
@@ -270,12 +270,7 @@ export default function Grading() {
                             <span className="w-5 h-5 bg-amber-100 text-amber-700 rounded-full flex items-center justify-center text-[10px]">1</span>
                             Filter Mata Kuliah
                         </label>
-                        <select value={selectedMatkul} onChange={handleMatkulChange} className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-xl text-[14px] font-bold text-slate-800 outline-none focus:bg-white focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 transition-all cursor-pointer appearance-none shadow-sm">
-                            <option value="" disabled>-- Pilih Mata Kuliah Terlebih Dahulu --</option>
-                            {matkulList?.data?.map(mk => (
-                                <option key={mk.kode_mk} value={mk.kode_mk}>{mk.kode_mk} - {mk.nama_mk}</option>
-                            ))}
-                        </select>
+                        <MatkulSelect matkulList={matkulList} value={selectedMatkul} onChange={handleMatkulChange} placeholder="-- Pilih Mata Kuliah Terlebih Dahulu --" />
                     </div>
 
                     {/* Kotak 2: Pilih Ujian */}

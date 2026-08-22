@@ -4,6 +4,7 @@ import Swal from 'sweetalert2';
 import matkulService from '../services/matkul.service';
 import cpmkService from '../services/cpmk.service';
 import siakadService from '../services/siakad.service';
+import MatkulSelect from '../components/MatkulSelect';
 
 export default function CpmkManagement() {
     const [matkulList, setMatkulList] = useState([]);
@@ -189,12 +190,9 @@ export default function CpmkManagement() {
 
             <div className="bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.05)] border border-slate-100 p-6 md:p-8">
                 <label className="block text-[11px] font-black text-slate-500 mb-3 uppercase tracking-widest">Mata Kuliah Aktif</label>
-                <select value={selectedKodeMk} onChange={e => setSelectedKodeMk(e.target.value)} className="w-full md:w-1/2 px-5 py-4 bg-slate-50 rounded-xl border-2 border-slate-200 focus:bg-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none font-bold text-slate-800 text-[14px] transition-all cursor-pointer appearance-none shadow-sm">
-                    <option value="">-- Pilih Mata Kuliah --</option>
-                    {matkulList?.data?.map((mk) => (
-                        <option key={mk.kode_mk} value={mk.kode_mk}>{mk.kode_mk} - {mk.nama_mk}{mk.siakad_id ? ' ✓' : ''}</option>
-                    ))}
-                </select>
+                <div className="w-full md:w-1/2">
+                    <MatkulSelect matkulList={matkulList} value={selectedKodeMk} onChange={setSelectedKodeMk} />
+                </div>
             </div>
 
             {selectedKodeMk && !selectedMk?.siakad_id && (

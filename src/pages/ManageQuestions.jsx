@@ -4,6 +4,7 @@ import Swal from 'sweetalert2';
 import matkulService from '../services/matkul.service';
 import cpmkService from '../services/cpmk.service';
 import questionBankService from '../services/questionBank.service';
+import MatkulSelect from '../components/MatkulSelect';
 import { useAuth } from '../hooks/useAuth';
 import { getUserIdFromToken } from '../utils/auth.utils';
 import MathText from '../components/MathText';
@@ -262,12 +263,9 @@ export default function ManageQuestions() {
             {/* PEMILIH MATA KULIAH */}
             <div className="bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.05)] border border-slate-100 p-6 md:p-8">
                 <label className="block text-[11px] font-black text-slate-500 mb-3 uppercase tracking-widest">Mata Kuliah Aktif</label>
-                <select value={selectedKodeMk} onChange={e => { setSelectedKodeMk(e.target.value); batalEdit(); }} className="w-full md:w-1/2 px-5 py-4 bg-slate-50 rounded-xl border-2 border-slate-200 focus:bg-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none font-bold text-slate-800 text-[14px] transition-all cursor-pointer appearance-none shadow-sm">
-                    <option value="">-- Pilih Mata Kuliah --</option>
-                    {matkulList?.data?.map((mk) => (
-                        <option key={mk.kode_mk} value={mk.kode_mk}>{mk.kode_mk} - {mk.nama_mk}</option>
-                    ))}
-                </select>
+                <div className="w-full md:w-1/2">
+                    <MatkulSelect matkulList={matkulList} value={selectedKodeMk} onChange={kode => { setSelectedKodeMk(kode); batalEdit(); }} />
+                </div>
             </div>
 
             {selectedKodeMk && (
