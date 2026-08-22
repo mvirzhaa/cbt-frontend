@@ -403,7 +403,11 @@ export default function Grading() {
                                     </thead>
                                     <tbody className="divide-y divide-slate-100">
                                         {filteredAnswers.map((ans, idx) => {
-                                            const maxScore = 100;
+                                            // FIX 2026-08-22: sebelumnya hardcode 100, gak peduli bobot
+                                            // soal ini beneran berapa -- bikin dosen input skor 0-100
+                                            // padahal soalnya cuma bobot 20, dan tampilan hasil PG benar
+                                            // juga salah nunjukin "100" padahal poin aslinya cuma sebesar bobot.
+                                            const maxScore = parseFloat(ans.questions?.bobot_nilai) || 10;
                                             const tipe = ans.questions?.tipe_soal;
                                             const isAutoGraded = ['TIPE_1', 'TIPE_2'].includes(tipe);
                                             const isCorrect = isAutoGraded && isAnswerCorrect(ans);
