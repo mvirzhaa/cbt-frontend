@@ -308,8 +308,10 @@ export default function AdminDashboard({ activeMenu = 'overview' }) {
                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
                     
                     {/* 🌟 FORM INPUT PREMIUM */}
-                    <div className={`p-8 rounded-3xl shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07)] border transition-all duration-300 relative overflow-hidden ${isEditing ? 'bg-gradient-to-r from-amber-50 to-orange-50/30 border-amber-200' : 'bg-white border-slate-100'}`}>
-                        {isEditing && <div className="absolute top-0 left-0 w-1 h-full bg-amber-500"></div>}
+                    <div className={`p-8 rounded-3xl shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07)] border transition-all duration-300 relative ${isEditing ? 'bg-gradient-to-r from-amber-50 to-orange-50/30 border-amber-200' : 'bg-white border-slate-100'}`}>
+                        <div className="absolute inset-0 overflow-hidden rounded-3xl pointer-events-none">
+                            {isEditing && <div className="absolute top-0 left-0 w-1 h-full bg-amber-500"></div>}
+                        </div>
                         
                         <div className="flex items-center gap-3 mb-6">
                             <div className={`p-2.5 rounded-xl ${isEditing ? 'bg-amber-100 text-amber-600' : 'bg-emerald-50 text-[#0f4c3a]'}`}>

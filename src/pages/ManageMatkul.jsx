@@ -176,8 +176,8 @@ export default function ManageMatkul() {
             </div>
 
             {/* BAGIAN 1: FORM TAMBAH MATA KULIAH */}
-            <div className="bg-white shadow-sm border border-slate-200 rounded-2xl overflow-hidden">
-                <div className="px-8 py-5 border-b border-slate-100 bg-slate-50/50 flex items-center gap-3">
+            <div className="bg-white shadow-sm border border-slate-200 rounded-2xl">
+                <div className="px-8 py-5 border-b border-slate-100 bg-slate-50/50 rounded-t-2xl flex items-center gap-3">
                     <div className="p-2 bg-[#0f4c3a]/10 rounded-lg">
                         <svg className="w-5 h-5 text-[#0f4c3a]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
                     </div>
