@@ -36,8 +36,8 @@ export const gradingService = {
     return response.data;
   },
 
-  async resetAttempt(attemptId, force = false) {
-    const response = await api.post(`/api/dosen/reset-attempt/${attemptId}`, { force });
+  async resetAttempt(attemptId, force = false, reason = '') {
+    const response = await api.post(`/api/dosen/reset-attempt/${attemptId}`, { force, reason });
     return response.data;
   }
 };

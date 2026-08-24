@@ -144,7 +144,7 @@ export default function Grading() {
     };
 
     // Reset attempt mahasiswa yang lagi dipilih, supaya dia bisa ujian ulang dari awal
-    const handleResetAttempt = async (force = false) => {
+    const handleResetAttempt = async (force = false, reason = '') => {
         const attempt = attemptsByUser[selectedStudent];
         if (!attempt) return;
 
@@ -164,7 +164,7 @@ export default function Grading() {
 
         setResettingAttempt(true);
         try {
-            const res = await gradingService.resetAttempt(attempt.attempt_id, force);
+            const res = await gradingService.resetAttempt(attempt.attempt_id, force, reason);
             Swal.fire({ icon: 'success', title: 'Attempt Direset', text: res.message, timer: 2000, showConfirmButton: false });
             setSelectedStudent('');
             setAnswers([]);
@@ -172,18 +172,21 @@ export default function Grading() {
         } catch (error) {
             console.error("Gagal reset attempt:", error);
             const errData = error.response?.data;
-            if (errData?.canForce) {
+            if (errData?.canForce || errData?.needsReason) {
                 const forceResult = await Swal.fire({
                     title: 'Sudah Terkirim ke SIAKAD',
-                    html: `${errData.message}<br/><br/>Kalau Anda <strong>yakin</strong> sudah membereskan nilainya langsung di SIAKAD (sistem ini tidak mengecek ulang ke sana), Anda bisa paksa reset attempt CBT-nya.`,
+                    html: `${errData.message}<br/><br/>Kalau Anda <strong>yakin</strong> sudah membereskan nilainya langsung di SIAKAD (sistem ini tidak mengecek ulang ke sana), isi alasannya untuk paksa reset attempt CBT-nya.`,
                     icon: 'warning',
+                    input: 'textarea',
+                    inputPlaceholder: 'Alasan reset paksa (wajib diisi, tercatat di log)...',
+                    inputValidator: (value) => !value?.trim() ? 'Alasan wajib diisi.' : undefined,
                     showCancelButton: true,
                     confirmButtonColor: '#dc2626',
                     confirmButtonText: 'Ya, Paksa Reset',
                     cancelButtonText: 'Batal'
                 });
                 if (forceResult.isConfirmed) {
-                    return handleResetAttempt(true);
+                    return handleResetAttempt(true, forceResult.value.trim());
                 }
             } else {
                 Swal.fire('Error', errData?.message || 'Gagal mereset attempt ujian.', 'error');
