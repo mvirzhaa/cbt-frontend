@@ -20,6 +20,8 @@ export default function Grading() {
     const [selectedExam, setSelectedExam] = useState('');
     const [studentList, setStudentList] = useState([]);
     const [selectedStudent, setSelectedStudent] = useState('');
+    const [attemptsByUser, setAttemptsByUser] = useState({}); // user_id -> attempt (buat tombol Reset)
+    const [resettingAttempt, setResettingAttempt] = useState(false);
 
     // State Eksekusi
     const [answers, setAnswers] = useState([]);
@@ -71,8 +73,11 @@ export default function Grading() {
             setStudentList([]);
             setSelectedStudent('');
             setAnswers([]);
+            setAttemptsByUser({});
             return;
         }
+
+        fetchAttemptsMap(examId);
 
         setLoading(true);
         try {
@@ -122,6 +127,56 @@ export default function Grading() {
             }
         } finally {
             setLoading(false);
+        }
+    };
+
+    // 3b. Peta user_id -> attempt (buat tau attempt_id & status sinkron SIAKAD, dipakai tombol Reset)
+    const fetchAttemptsMap = async (examId) => {
+        try {
+            const resData = await gradingService.getAttempts(examId);
+            const list = resData?.data || resData || [];
+            const map = {};
+            list.forEach(a => { map[a.user_id] = a; });
+            setAttemptsByUser(map);
+        } catch (error) {
+            console.error("Gagal menarik data attempt", error);
+        }
+    };
+
+    // Reset attempt mahasiswa yang lagi dipilih, supaya dia bisa ujian ulang dari awal
+    const handleResetAttempt = async () => {
+        const attempt = attemptsByUser[selectedStudent];
+        if (!attempt) return;
+
+        if (attempt.siakad_sync_status === 'TERKIRIM') {
+            Swal.fire('Tidak Bisa Direset', 'Nilai mahasiswa ini sudah terkirim ke SIAKAD. Batalkan/perbaiki dulu nilainya di SIAKAD sebelum mereset attempt CBT ini.', 'warning');
+            return;
+        }
+
+        const namaMhs = (studentList?.data || studentList || []).find(s => s.id === parseInt(selectedStudent))?.nama;
+        const result = await Swal.fire({
+            title: 'Reset Attempt Ujian?',
+            html: `Jawaban dan nilai <strong>${namaMhs}</strong> untuk ujian ini akan <strong>dihapus permanen</strong>, supaya dia bisa mengerjakan lagi dari awal. Tindakan ini tidak bisa dibatalkan.`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#dc2626',
+            confirmButtonText: 'Ya, Reset',
+            cancelButtonText: 'Batal'
+        });
+        if (!result.isConfirmed) return;
+
+        setResettingAttempt(true);
+        try {
+            const res = await gradingService.resetAttempt(attempt.attempt_id);
+            Swal.fire({ icon: 'success', title: 'Attempt Direset', text: res.message, timer: 2000, showConfirmButton: false });
+            setSelectedStudent('');
+            setAnswers([]);
+            handleExamChange({ target: { value: selectedExam } }); // refresh daftar mahasiswa & attempt
+        } catch (error) {
+            console.error("Gagal reset attempt:", error);
+            Swal.fire('Error', error.response?.data?.message || 'Gagal mereset attempt ujian.', 'error');
+        } finally {
+            setResettingAttempt(false);
         }
     };
 
@@ -368,8 +423,20 @@ export default function Grading() {
                                 Total Jawaban: <span className="text-blue-600 ml-1">{filteredAnswers.length} Soal</span>
                             </h4>
                         </div>
-                        <div className="text-[11px] text-slate-500 font-semibold uppercase tracking-wider bg-slate-100 px-3 py-1 rounded-full">
-                            Mahasiswa: {(studentList?.data || studentList || []).find(s => s.id === parseInt(selectedStudent))?.nama}
+                        <div className="flex items-center gap-2">
+                            <div className="text-[11px] text-slate-500 font-semibold uppercase tracking-wider bg-slate-100 px-3 py-1 rounded-full">
+                                Mahasiswa: {(studentList?.data || studentList || []).find(s => s.id === parseInt(selectedStudent))?.nama}
+                            </div>
+                            {attemptsByUser[selectedStudent] && (
+                                <button
+                                    onClick={handleResetAttempt}
+                                    disabled={resettingAttempt}
+                                    title={attemptsByUser[selectedStudent]?.siakad_sync_status === 'TERKIRIM' ? 'Sudah terkirim ke SIAKAD, batalkan dulu di sana' : 'Hapus attempt supaya mahasiswa bisa ujian ulang'}
+                                    className="text-[11px] font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200 disabled:opacity-50 transition-colors"
+                                >
+                                    {resettingAttempt ? 'Mereset...' : 'Reset Attempt'}
+                                </button>
+                            )}
                         </div>
                     </div>
 

@@ -34,6 +34,11 @@ export const gradingService = {
   async verifyExamAttempt(attemptId, payload) {
     const response = await api.post(`/api/dosen/verify-exam/${attemptId}`, payload);
     return response.data;
+  },
+
+  async resetAttempt(attemptId) {
+    const response = await api.post(`/api/dosen/reset-attempt/${attemptId}`);
+    return response.data;
   }
 };
 

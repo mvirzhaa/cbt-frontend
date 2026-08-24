@@ -311,6 +311,36 @@ export default function RekapNilai() {
         }
     };
 
+    const handleResetAttempt = async (attempt) => {
+        if (attempt.siakad_sync_status === 'TERKIRIM') {
+            Swal.fire('Tidak Bisa Direset', `Nilai ${attempt.nama_mahasiswa} sudah terkirim ke SIAKAD. Batalkan/perbaiki dulu nilainya di SIAKAD sebelum mereset attempt CBT ini.`, 'warning');
+            return;
+        }
+
+        const result = await Swal.fire({
+            title: 'Reset Attempt Ujian?',
+            html: `Jawaban dan nilai <strong>${attempt.nama_mahasiswa}</strong> (${attempt.nim}) untuk ujian ini akan <strong>dihapus permanen</strong>, supaya dia bisa mengerjakan lagi dari awal. Tindakan ini tidak bisa dibatalkan.`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#dc2626',
+            confirmButtonText: 'Ya, Reset',
+            cancelButtonText: 'Batal'
+        });
+        if (!result.isConfirmed) return;
+
+        setPushingRowId(attempt.attempt_id);
+        try {
+            const res = await gradingService.resetAttempt(attempt.attempt_id);
+            Swal.fire({ icon: 'success', title: 'Attempt Direset', text: res.message, timer: 2000, showConfirmButton: false });
+            fetchAttemptsData(selectedExam);
+        } catch (error) {
+            console.error("Gagal reset attempt:", error);
+            Swal.fire('Error', error.response?.data?.message || 'Gagal mereset attempt ujian.', 'error');
+        } finally {
+            setPushingRowId(null);
+        }
+    };
+
     const pushOneToSiakad = async (attempt) => {
         setPushingRowId(attempt.attempt_id);
         try {
@@ -609,6 +639,14 @@ export default function RekapNilai() {
                                                         {pushingRowId === score.attempt_id ? 'Mengirim...' : score.siakad_sync_status === 'GAGAL' ? 'Retry' : 'Push'}
                                                     </button>
                                                 )}
+                                                <button
+                                                    onClick={() => handleResetAttempt(score)}
+                                                    disabled={pushingRowId === score.attempt_id}
+                                                    title={score.siakad_sync_status === 'TERKIRIM' ? 'Sudah terkirim ke SIAKAD, batalkan dulu di sana' : 'Hapus attempt supaya mahasiswa bisa ujian ulang'}
+                                                    className="px-4 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all disabled:opacity-50 bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200"
+                                                >
+                                                    Reset
+                                                </button>
                                             </div>
                                         </td>
                                     </tr>
