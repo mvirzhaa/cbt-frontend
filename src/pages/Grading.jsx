@@ -144,37 +144,50 @@ export default function Grading() {
     };
 
     // Reset attempt mahasiswa yang lagi dipilih, supaya dia bisa ujian ulang dari awal
-    const handleResetAttempt = async () => {
+    const handleResetAttempt = async (force = false) => {
         const attempt = attemptsByUser[selectedStudent];
         if (!attempt) return;
 
-        if (attempt.siakad_sync_status === 'TERKIRIM') {
-            Swal.fire('Tidak Bisa Direset', 'Nilai mahasiswa ini sudah terkirim ke SIAKAD. Batalkan/perbaiki dulu nilainya di SIAKAD sebelum mereset attempt CBT ini.', 'warning');
-            return;
+        if (!force) {
+            const namaMhs = (studentList?.data || studentList || []).find(s => s.id === parseInt(selectedStudent))?.nama;
+            const result = await Swal.fire({
+                title: 'Reset Attempt Ujian?',
+                html: `Jawaban dan nilai <strong>${namaMhs}</strong> untuk ujian ini akan <strong>dihapus permanen</strong>, supaya dia bisa mengerjakan lagi dari awal. Tindakan ini tidak bisa dibatalkan.`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc2626',
+                confirmButtonText: 'Ya, Reset',
+                cancelButtonText: 'Batal'
+            });
+            if (!result.isConfirmed) return;
         }
-
-        const namaMhs = (studentList?.data || studentList || []).find(s => s.id === parseInt(selectedStudent))?.nama;
-        const result = await Swal.fire({
-            title: 'Reset Attempt Ujian?',
-            html: `Jawaban dan nilai <strong>${namaMhs}</strong> untuk ujian ini akan <strong>dihapus permanen</strong>, supaya dia bisa mengerjakan lagi dari awal. Tindakan ini tidak bisa dibatalkan.`,
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#dc2626',
-            confirmButtonText: 'Ya, Reset',
-            cancelButtonText: 'Batal'
-        });
-        if (!result.isConfirmed) return;
 
         setResettingAttempt(true);
         try {
-            const res = await gradingService.resetAttempt(attempt.attempt_id);
+            const res = await gradingService.resetAttempt(attempt.attempt_id, force);
             Swal.fire({ icon: 'success', title: 'Attempt Direset', text: res.message, timer: 2000, showConfirmButton: false });
             setSelectedStudent('');
             setAnswers([]);
             handleExamChange({ target: { value: selectedExam } }); // refresh daftar mahasiswa & attempt
         } catch (error) {
             console.error("Gagal reset attempt:", error);
-            Swal.fire('Error', error.response?.data?.message || 'Gagal mereset attempt ujian.', 'error');
+            const errData = error.response?.data;
+            if (errData?.canForce) {
+                const forceResult = await Swal.fire({
+                    title: 'Sudah Terkirim ke SIAKAD',
+                    html: `${errData.message}<br/><br/>Kalau Anda <strong>yakin</strong> sudah membereskan nilainya langsung di SIAKAD (sistem ini tidak mengecek ulang ke sana), Anda bisa paksa reset attempt CBT-nya.`,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#dc2626',
+                    confirmButtonText: 'Ya, Paksa Reset',
+                    cancelButtonText: 'Batal'
+                });
+                if (forceResult.isConfirmed) {
+                    return handleResetAttempt(true);
+                }
+            } else {
+                Swal.fire('Error', errData?.message || 'Gagal mereset attempt ujian.', 'error');
+            }
         } finally {
             setResettingAttempt(false);
         }
@@ -429,7 +442,7 @@ export default function Grading() {
                             </div>
                             {attemptsByUser[selectedStudent] && (
                                 <button
-                                    onClick={handleResetAttempt}
+                                    onClick={() => handleResetAttempt()}
                                     disabled={resettingAttempt}
                                     title={attemptsByUser[selectedStudent]?.siakad_sync_status === 'TERKIRIM' ? 'Sudah terkirim ke SIAKAD, batalkan dulu di sana' : 'Hapus attempt supaya mahasiswa bisa ujian ulang'}
                                     className="text-[11px] font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200 disabled:opacity-50 transition-colors"

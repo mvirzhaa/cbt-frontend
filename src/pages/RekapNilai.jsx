@@ -311,31 +311,44 @@ export default function RekapNilai() {
         }
     };
 
-    const handleResetAttempt = async (attempt) => {
-        if (attempt.siakad_sync_status === 'TERKIRIM') {
-            Swal.fire('Tidak Bisa Direset', `Nilai ${attempt.nama_mahasiswa} sudah terkirim ke SIAKAD. Batalkan/perbaiki dulu nilainya di SIAKAD sebelum mereset attempt CBT ini.`, 'warning');
-            return;
+    const handleResetAttempt = async (attempt, force = false) => {
+        if (!force) {
+            const result = await Swal.fire({
+                title: 'Reset Attempt Ujian?',
+                html: `Jawaban dan nilai <strong>${attempt.nama_mahasiswa}</strong> (${attempt.nim}) untuk ujian ini akan <strong>dihapus permanen</strong>, supaya dia bisa mengerjakan lagi dari awal. Tindakan ini tidak bisa dibatalkan.`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc2626',
+                confirmButtonText: 'Ya, Reset',
+                cancelButtonText: 'Batal'
+            });
+            if (!result.isConfirmed) return;
         }
-
-        const result = await Swal.fire({
-            title: 'Reset Attempt Ujian?',
-            html: `Jawaban dan nilai <strong>${attempt.nama_mahasiswa}</strong> (${attempt.nim}) untuk ujian ini akan <strong>dihapus permanen</strong>, supaya dia bisa mengerjakan lagi dari awal. Tindakan ini tidak bisa dibatalkan.`,
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#dc2626',
-            confirmButtonText: 'Ya, Reset',
-            cancelButtonText: 'Batal'
-        });
-        if (!result.isConfirmed) return;
 
         setPushingRowId(attempt.attempt_id);
         try {
-            const res = await gradingService.resetAttempt(attempt.attempt_id);
+            const res = await gradingService.resetAttempt(attempt.attempt_id, force);
             Swal.fire({ icon: 'success', title: 'Attempt Direset', text: res.message, timer: 2000, showConfirmButton: false });
             fetchAttemptsData(selectedExam);
         } catch (error) {
             console.error("Gagal reset attempt:", error);
-            Swal.fire('Error', error.response?.data?.message || 'Gagal mereset attempt ujian.', 'error');
+            const errData = error.response?.data;
+            if (errData?.canForce) {
+                const forceResult = await Swal.fire({
+                    title: 'Sudah Terkirim ke SIAKAD',
+                    html: `${errData.message}<br/><br/>Kalau Anda <strong>yakin</strong> sudah membereskan nilainya langsung di SIAKAD (sistem ini tidak mengecek ulang ke sana), Anda bisa paksa reset attempt CBT-nya.`,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#dc2626',
+                    confirmButtonText: 'Ya, Paksa Reset',
+                    cancelButtonText: 'Batal'
+                });
+                if (forceResult.isConfirmed) {
+                    return handleResetAttempt(attempt, true);
+                }
+            } else {
+                Swal.fire('Error', errData?.message || 'Gagal mereset attempt ujian.', 'error');
+            }
         } finally {
             setPushingRowId(null);
         }
