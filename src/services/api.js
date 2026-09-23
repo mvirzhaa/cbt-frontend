@@ -32,7 +32,7 @@ api.interceptors.response.use(
         localStorage.removeItem('role');
         localStorage.removeItem('nama');
         localStorage.removeItem('email');
-        window.location.replace('http://103.158.196.79/eportal/login');
+        window.location.replace('https://eportal.uika-bogor.ac.id/eportal/login');
       }
     }
     return Promise.reject(error);

@@ -74,7 +74,7 @@ export default function DashboardLayout() {
 
     if (result.isConfirmed) {
       logout();
-      window.location.replace("http://103.158.196.79/eportal/login");
+      window.location.replace("https://eportal.uika-bogor.ac.id/eportal/login");
 
       // Alert kecil di pojok kanan atas setelah berhasil logout
       const Toast = Swal.mixin({

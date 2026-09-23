@@ -5,7 +5,7 @@ import { getRoleKind } from "../utils/auth.utils";
 export function RequireAuth({ children }) {
   const { token } = useAuth();
   if (!token) {
-    window.location.replace("http://103.158.196.79/eportal/login");
+    window.location.replace("https://eportal.uika-bogor.ac.id/eportal/login");
     return null;
   }
   return children;
@@ -14,7 +14,7 @@ export function RequireAuth({ children }) {
 export function RequireRole({ allow = [], children }) {
   const { token, role } = useAuth();
   if (!token) {
-    window.location.replace("http://103.158.196.79/eportal/login");
+    window.location.replace("https://eportal.uika-bogor.ac.id/eportal/login");
     return null;
   }
 
