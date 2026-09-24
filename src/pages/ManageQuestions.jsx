@@ -55,6 +55,7 @@ export default function ManageQuestions() {
     const [aiJenisEvaluasi, setAiJenisEvaluasi] = useState('');
     const [aiJumlah, setAiJumlah] = useState(3);
     const [aiTingkatKesulitan, setAiTingkatKesulitan] = useState('sedang');
+    const [aiInstruksiTambahan, setAiInstruksiTambahan] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
 
     const fetchMatkul = async () => {
@@ -239,6 +240,7 @@ export default function ManageQuestions() {
             };
             if (aiSubCpmkId) payload.sub_cpmk_id = parseInt(aiSubCpmkId);
             if (aiJenisEvaluasi) payload.jenis_evaluasi = aiJenisEvaluasi;
+            if (aiInstruksiTambahan.trim()) payload.instruksi_tambahan = aiInstruksiTambahan.trim();
 
             const result = await questionBankService.generateAI(payload);
             Swal.fire({ icon: 'success', title: 'Soal AI Digenerate!', text: result.message || 'Silakan review sebelum digunakan.', confirmButtonColor: '#0f4c3a' });
@@ -326,7 +328,20 @@ export default function ManageQuestions() {
                             </div>
                         </div>
 
-                        <div className="mt-6 flex justify-end">
+                        <div className="mt-4">
+                            <label className="block text-[10px] font-black text-slate-500 mb-2 uppercase tracking-widest">Instruksi Tambahan (opsional)</label>
+                            <textarea
+                                value={aiInstruksiTambahan}
+                                onChange={e => setAiInstruksiTambahan(e.target.value)}
+                                maxLength={500}
+                                rows={2}
+                                placeholder="Mis. fokus ke studi kasus dunia nyata, hindari soal hitungan, gunakan konteks perusahaan retail, dst."
+                                className="w-full px-4 py-3 bg-white rounded-xl border border-slate-200 focus:border-violet-500 outline-none font-semibold text-slate-800 text-[13px] resize-none"
+                            />
+                            <p className="text-[10px] text-slate-400 mt-1 text-right">{aiInstruksiTambahan.length}/500</p>
+                        </div>
+
+                        <div className="mt-2 flex justify-end">
                             <button onClick={handleGenerateAI} disabled={isGenerating} className="px-8 py-3.5 rounded-xl text-[12px] font-black uppercase tracking-widest bg-violet-600 hover:bg-violet-700 text-white shadow-lg shadow-violet-500/30 transition-all active:scale-95 disabled:opacity-50">
                                 {isGenerating ? 'Menggenerate... (bisa beberapa detik)' : '✨ Generate Soal'}
                             </button>
