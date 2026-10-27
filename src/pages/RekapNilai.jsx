@@ -301,6 +301,12 @@ export default function RekapNilai() {
     };
 
     const saveSebSettings = async () => {
+        // Password keluar wajib diisi saat PERTAMA kali mengaktifkan -- tanpa itu SEB
+        // tidak bisa dikeluarkan sama sekali (bukan "boleh keluar tanpa password").
+        // Backend tetap jadi otoritas sebenarnya; ini cuma cegah bolak-balik ke server.
+        if (sebRequire && !sebQuitPassword.trim() && !examInfo?.seb_require) {
+            return Swal.fire('Password Keluar Wajib Diisi', 'Isi password keluar SEB dulu sebelum mengaktifkan Wajib-SEB untuk pertama kali.', 'warning');
+        }
         setSavingSeb(true);
         try {
             await sebService.setExamSettings(selectedExam, {
@@ -639,7 +645,7 @@ export default function RekapNilai() {
 
                         {sebRequire && (
                             <div className="border-t border-slate-100 pt-6">
-                                <label className="block text-[11px] font-black text-slate-500 mb-2 uppercase tracking-widest">Password Keluar SEB (opsional)</label>
+                                <label className="block text-[11px] font-black text-slate-500 mb-2 uppercase tracking-widest">Password Keluar SEB{!examInfo?.seb_require ? ' (wajib)' : ' (kosongkan = pertahankan yang lama)'}</label>
                                 <input
                                     type="text"
                                     value={sebQuitPassword}
