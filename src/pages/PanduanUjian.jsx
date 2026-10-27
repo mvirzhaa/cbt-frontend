@@ -55,6 +55,26 @@ export default function PanduanUjian() {
                     </ul>
                 </div>
 
+                {/* KARTU 2B: Safe Exam Browser (hanya relevan untuk ujian yang mewajibkannya) */}
+                <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm relative overflow-hidden group hover:border-emerald-300 transition-colors md:col-span-2">
+                    <div className="flex items-center gap-4 mb-6">
+                        <div className="p-3.5 bg-emerald-50 text-emerald-700 rounded-xl group-hover:scale-110 transition-transform">
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+                        </div>
+                        <h3 className="text-[16px] font-black text-slate-800 uppercase tracking-widest">Khusus Ujian Berkunci (Safe Exam Browser)</h3>
+                    </div>
+                    <p className="text-slate-500 text-[13px] font-medium leading-relaxed mb-5">
+                        Sebagian ujian mewajibkan <b>Safe Exam Browser (SEB)</b> — aplikasi resmi pihak ketiga yang mengunci laptop/PC Anda selama ujian berlangsung (tidak bisa buka tab/aplikasi lain, tidak bisa keluar sebelum selesai). Kalau dosen Anda mengaktifkan ini, ikuti langkah berikut:
+                    </p>
+                    <ol className="space-y-3 text-slate-600 text-[13px] font-medium leading-relaxed list-decimal list-inside">
+                        <li><b>Install SEB sekali saja</b> dari situs resmi <span className="font-mono font-bold text-slate-700">safeexambrowser.org</span> (pilih versi Windows atau Mac sesuai perangkat Anda).</li>
+                        <li><b>Dapatkan file konfigurasi <span className="font-mono">.seb</span></b> untuk ujian yang akan dikerjakan — bisa dari dosen pengampu, atau unduh sendiri lewat tombol yang muncul kalau Anda mencoba masuk ujian ini tanpa SEB.</li>
+                        <li><b>Buka file <span className="font-mono">.seb</span> itu</b> (bukan buka Chrome/Firefox biasa) — SEB akan terbuka dalam mode layar penuh dan langsung ke halaman ujian dengan token sudah otomatis terisi.</li>
+                        <li>Izinkan akses kamera saat diminta (untuk pengawas AI), baca Syarat & Ketentuan, lalu klik mulai.</li>
+                        <li>SEB hanya bisa ditutup dengan password yang diberikan dosen — gunakan itu setelah ujian benar-benar selesai/terkirim.</li>
+                    </ol>
+                </div>
+
                 {/* KARTU 3: Integritas & Pelanggaran */}
                 <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm relative overflow-hidden group hover:border-red-300 transition-colors md:col-span-2">
                     <div className="flex items-center gap-4 mb-6">

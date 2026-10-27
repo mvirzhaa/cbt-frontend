@@ -6,6 +6,7 @@ import matkulService from '../services/matkul.service';
 import examService from '../services/exam.service';
 import gradingService from '../services/grading.service';
 import siakadService from '../services/siakad.service';
+import sebService from '../services/seb.service';
 import SiakadSearchPicker from '../components/SiakadSearchPicker';
 import MatkulSelect from '../components/MatkulSelect';
 
@@ -49,6 +50,14 @@ export default function RekapNilai() {
     const [kelasKuliahPickerOpen, setKelasKuliahPickerOpen] = useState(false);
     const [loadingKelasKuliah, setLoadingKelasKuliah] = useState(false);
     const [selectedKelasLabel, setSelectedKelasLabel] = useState('');
+
+    // State Lockdown Safe Exam Browser (SEB) -- lihat CLAUDE.md bagian
+    // "Safe Exam Browser (SEB) Lockdown". Password quit kosong = tetap boleh
+    // aktifkan SEB tapi tanpa password (dosen yang pilih risikonya sendiri).
+    const [sebRequire, setSebRequire] = useState(false);
+    const [sebQuitPassword, setSebQuitPassword] = useState('');
+    const [savingSeb, setSavingSeb] = useState(false);
+    const [downloadingSeb, setDownloadingSeb] = useState(false);
 
     useEffect(() => {
         fetchInitialData();
@@ -120,6 +129,8 @@ export default function RekapNilai() {
                 periode: responseData.exam_info?.siakad_periode_akademik_id || '',
                 rencana: responseData.exam_info?.siakad_rencana_evaluasi_id || ''
             });
+            setSebRequire(!!responseData.exam_info?.seb_require);
+            setSebQuitPassword('');
             setRencanaOptions([]);
             setSelectedKelasLabel('');
             setKelasKuliahOptions([]);
@@ -285,6 +296,43 @@ export default function RekapNilai() {
             Swal.fire('Error', error.response?.data?.message || 'Gagal menyimpan target SIAKAD.', 'error');
         } finally {
             setSavingTarget(false);
+        }
+    };
+
+    const saveSebSettings = async () => {
+        setSavingSeb(true);
+        try {
+            await sebService.setExamSettings(selectedExam, {
+                seb_require: sebRequire,
+                quit_password: sebQuitPassword.trim() || undefined
+            });
+            setSebQuitPassword('');
+            Swal.fire({ icon: 'success', title: sebRequire ? 'Wajib-SEB Diaktifkan' : 'Wajib-SEB Dimatikan', timer: 1200, showConfirmButton: false });
+        } catch (error) {
+            console.error("Gagal menyimpan pengaturan SEB:", error);
+            Swal.fire('Error', error.response?.data?.message || 'Gagal menyimpan pengaturan SEB.', 'error');
+        } finally {
+            setSavingSeb(false);
+        }
+    };
+
+    const downloadSebConfig = async () => {
+        setDownloadingSeb(true);
+        try {
+            const blob = await sebService.downloadConfig(selectedExam);
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `${examInfo?.nama_ujian || 'ujian'}.seb`;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error("Gagal mengunduh file .seb:", error);
+            Swal.fire('Error', error.response?.data?.message || 'Gagal mengunduh file .seb. Pastikan Wajib-SEB sudah diaktifkan & disimpan.', 'error');
+        } finally {
+            setDownloadingSeb(false);
         }
     };
 
@@ -557,6 +605,59 @@ export default function RekapNilai() {
                             <button onClick={saveSiakadTarget} disabled={savingTarget} className="shrink-0 px-8 py-3.5 rounded-xl text-[12px] font-black uppercase tracking-widest bg-[#0f4c3a] hover:bg-[#092e23] text-[#d4af37] shadow-lg shadow-[#0f4c3a]/30 transition-all active:scale-95 disabled:opacity-50">
                                 {savingTarget ? 'Menyimpan...' : 'Simpan Target'}
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* SAFE EXAM BROWSER (SEB) LOCKDOWN */}
+            {selectedExam && (
+                <div className="bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.05)] border border-slate-100 overflow-hidden">
+                    <div className="px-8 py-6 border-b border-slate-100/50 bg-white/50">
+                        <h3 className="text-[15px] font-black uppercase tracking-widest text-[#0f4c3a]">Safe Exam Browser</h3>
+                        <p className="text-[12px] font-medium text-slate-400 mt-1">Wajibkan ujian ini diakses lewat aplikasi Safe Exam Browser (SEB) resmi — tidak bisa buka tab lain, tidak bisa pindah aplikasi, tidak bisa keluar tanpa password.</p>
+                    </div>
+
+                    <div className="p-8 space-y-6">
+                        <label className="flex items-center justify-between gap-4 cursor-pointer">
+                            <div>
+                                <p className="text-[13px] font-black text-slate-800">Wajib Safe Exam Browser</p>
+                                <p className="text-[11px] font-medium text-slate-400 mt-0.5">Mahasiswa hanya bisa masuk lewat SEB — browser biasa akan ditolak saat memasukkan token.</p>
+                            </div>
+                            <input
+                                type="checkbox"
+                                checked={sebRequire}
+                                onChange={(e) => setSebRequire(e.target.checked)}
+                                className="w-6 h-6 rounded-lg border-2 border-slate-300 text-[#0f4c3a] focus:ring-4 focus:ring-[#0f4c3a]/10 shrink-0"
+                            />
+                        </label>
+
+                        {sebRequire && (
+                            <div className="border-t border-slate-100 pt-6">
+                                <label className="block text-[11px] font-black text-slate-500 mb-2 uppercase tracking-widest">Password Keluar SEB (opsional)</label>
+                                <input
+                                    type="text"
+                                    value={sebQuitPassword}
+                                    onChange={(e) => setSebQuitPassword(e.target.value)}
+                                    placeholder="Kosongkan = jangan ganti password yang sudah tersimpan"
+                                    className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-[13px] font-bold text-slate-800 outline-none focus:bg-white focus:border-[#0f4c3a] focus:ring-4 focus:ring-[#0f4c3a]/10 transition-all"
+                                />
+                                <p className="text-[11px] text-slate-400 mt-2">Diminta SEB kalau mahasiswa coba keluar sebelum ujian selesai. Isi ulang di sini kalau mau mengganti password yang sudah ada.</p>
+                            </div>
+                        )}
+
+                        <div className="flex items-center justify-between gap-4 border-t border-slate-100 pt-6">
+                            <p className="text-[11px] font-medium text-slate-400 leading-relaxed max-w-lg">
+                                Setelah disimpan, unduh file <span className="font-mono font-bold">.seb</span>-nya dan sebarkan ke mahasiswa (lewat LMS/grup kelas) bersama token ujian.
+                            </p>
+                            <div className="flex gap-3 shrink-0">
+                                <button onClick={downloadSebConfig} disabled={downloadingSeb || !sebRequire} title={!sebRequire ? 'Aktifkan & simpan Wajib-SEB dulu' : undefined} className="px-6 py-3.5 rounded-xl text-[12px] font-black uppercase tracking-widest bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition-all disabled:opacity-40">
+                                    {downloadingSeb ? 'Mengunduh...' : 'Unduh .seb'}
+                                </button>
+                                <button onClick={saveSebSettings} disabled={savingSeb} className="px-8 py-3.5 rounded-xl text-[12px] font-black uppercase tracking-widest bg-[#0f4c3a] hover:bg-[#092e23] text-[#d4af37] shadow-lg shadow-[#0f4c3a]/30 transition-all active:scale-95 disabled:opacity-50">
+                                    {savingSeb ? 'Menyimpan...' : 'Simpan'}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

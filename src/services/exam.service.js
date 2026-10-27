@@ -38,6 +38,11 @@ export const examService = {
   async getStudentHistory() {
     const response = await api.get('/api/student/history');
     return response.data;
+  },
+
+  async downloadSebConfig(token) {
+    const response = await api.post('/api/student/seb-config', { token }, { responseType: 'blob' });
+    return response.data;
   }
 };
 

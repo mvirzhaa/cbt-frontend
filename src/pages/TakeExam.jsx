@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'; // 🤖 Tambahan useRef untuk Kamera
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import examService from '../services/exam.service';
 import proctoringService from '../services/proctoring.service';
@@ -10,14 +10,48 @@ import MathText from '../components/MathText';
 
 export default function TakeExam() {
     const navigate = useNavigate();
-    
+    const [searchParams] = useSearchParams();
+
     // State Lobi
     const [token, setToken] = useState('');
     const [isExamStarted, setIsExamStarted] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
-    
+
     const [examData, setExamData] = useState(null);
     const [questions, setQuestions] = useState([]);
+    // Backend menolak verify-token dengan seb_required:true kalau ujian ini wajib SEB
+    // tapi request tidak datang dari SEB asli (lihat services/sebService.js di cbt-api).
+    const [sebBlocked, setSebBlocked] = useState(false);
+    const [downloadingSeb, setDownloadingSeb] = useState(false);
+
+    // File .seb yang dosen generate menaruh token di Start URL (?token=...) supaya
+    // mahasiswa tidak perlu ngetik ulang -- tinggal izinkan kamera & baca S&K.
+    // Cuma PREFILL (bisa ditimpa manual), bukan auto-submit, kalau-kalau token
+    // sudah berubah sejak file .seb itu dibuat.
+    useEffect(() => {
+        const prefillToken = searchParams.get('token');
+        if (prefillToken) setToken(prefillToken.toUpperCase());
+    }, [searchParams]);
+
+    const handleDownloadSebConfig = async () => {
+        if (!token) return Swal.fire('Perhatian', 'Isi token ujian dulu, baru unduh file .seb-nya.', 'warning');
+        setDownloadingSeb(true);
+        try {
+            const blob = await examService.downloadSebConfig(token);
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'ujian.seb';
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            Swal.fire('Gagal', error.response?.data?.message || 'Gagal mengunduh file .seb.', 'error');
+        } finally {
+            setDownloadingSeb(false);
+        }
+    };
     
     // State Syarat & Ketentuan
     const [showTerms, setShowTerms] = useState(false);
@@ -248,7 +282,8 @@ export default function TakeExam() {
     const handleMasukUjian = async (e) => {
         e.preventDefault();
         if (!token) return Swal.fire('Perhatian', 'Token ujian wajib diisi!', 'warning');
-        
+        setSebBlocked(false);
+
         // 🤖 CEK SYARAT MUTLAK: IZINKAN KAMERA SEBELUM MULAI!
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
@@ -285,7 +320,13 @@ export default function TakeExam() {
                 streamRef.current.getTracks().forEach(track => track.stop());
                 streamRef.current = null;
             }
-            Swal.fire({ icon: 'error', title: 'Akses Ditolak', text: error.response?.data?.message || 'Token tidak valid.' });
+            const errData = error.response?.data;
+            if (errData?.seb_required) {
+                setSebBlocked(true);
+                Swal.fire({ icon: 'warning', title: 'Wajib Pakai Safe Exam Browser', text: errData.message });
+            } else {
+                Swal.fire({ icon: 'error', title: 'Akses Ditolak', text: errData?.message || 'Token tidak valid.' });
+            }
         } finally {
             setIsLoading(false);
         }
@@ -490,13 +531,41 @@ export default function TakeExam() {
                     </div>
 
                     <div className="bg-white py-10 px-8 shadow-[0_20px_60px_rgba(0,0,0,0.05)] border border-slate-100 rounded-[2rem]">
+                        {sebBlocked ? (
+                            <div className="space-y-6 text-center">
+                                <div className="mx-auto h-16 w-16 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-600">
+                                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01M4.93 19h14.14c1.1 0 1.73-1.26 1.1-2.17l-7.07-10.3a1.25 1.25 0 00-2.06 0l-7.07 10.3c-.63.91 0 2.17 1.1 2.17z" /></svg>
+                                </div>
+                                <h3 className="text-lg font-black text-slate-800">Wajib Pakai Safe Exam Browser</h3>
+                                <p className="text-[13px] text-slate-500 font-medium leading-relaxed">
+                                    Ujian ini hanya bisa dikerjakan lewat aplikasi <span className="font-bold text-slate-700">Safe Exam Browser (SEB)</span>, bukan browser biasa.
+                                    Belum punya SEB? Install dulu dari <span className="font-bold text-slate-700">safeexambrowser.org</span> (sekali saja).
+                                    Sudah punya SEB tapi belum punya file konfigurasi ujian ini? Unduh lewat tombol di bawah, lalu buka file-nya — token sudah otomatis terisi di dalamnya.
+                                </p>
+                                <button
+                                    type="button"
+                                    onClick={handleDownloadSebConfig}
+                                    disabled={downloadingSeb}
+                                    className="w-full py-3.5 px-4 rounded-2xl text-[13px] font-black tracking-widest text-[#d4af37] bg-gradient-to-r from-[#0f4c3a] to-[#16654e] hover:from-[#092e23] hover:to-[#0f4c3a] transition-all uppercase disabled:opacity-50"
+                                >
+                                    {downloadingSeb ? 'Mengunduh...' : 'Unduh File .seb Ujian Ini'}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setSebBlocked(false)}
+                                    className="w-full py-3.5 px-4 rounded-2xl text-[13px] font-black tracking-widest text-slate-500 bg-slate-100 hover:bg-slate-200 transition-all uppercase"
+                                >
+                                    Coba Lagi
+                                </button>
+                            </div>
+                        ) : (
                         <form onSubmit={handleMasukUjian} className="space-y-6">
                             <div>
                                 <label className="block text-[11px] font-black text-slate-400 mb-3 text-center uppercase tracking-widest">Token Keamanan CBT</label>
-                                <input 
+                                <input
                                     type="text" required maxLength="6" value={token} onChange={e => setToken(e.target.value.toUpperCase())}
                                     className="block w-full px-4 py-5 bg-slate-50/50 border-2 border-slate-200 rounded-2xl text-center text-4xl font-black text-[#0f4c3a] tracking-[0.4em] uppercase placeholder-slate-200 focus:bg-white focus:outline-none focus:ring-4 focus:ring-[#0f4c3a]/10 focus:border-[#0f4c3a] transition-all shadow-inner"
-                                    placeholder="XXXXXX" 
+                                    placeholder="XXXXXX"
                                 />
                             </div>
 
@@ -509,6 +578,7 @@ export default function TakeExam() {
                                 ) : 'Buka Segel Naskah ➔'}
                             </button>
                         </form>
+                        )}
                     </div>
                 </motion.div>
 
