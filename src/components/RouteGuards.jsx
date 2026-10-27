@@ -1,10 +1,11 @@
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
-import { getRoleKind } from "../utils/auth.utils";
+import { getRoleKind, savePendingDestination } from "../utils/auth.utils";
 
 export function RequireAuth({ children }) {
   const { token } = useAuth();
   if (!token) {
+    savePendingDestination();
     window.location.replace("https://eportal.uika-bogor.ac.id/eportal/login");
     return null;
   }
@@ -14,6 +15,7 @@ export function RequireAuth({ children }) {
 export function RequireRole({ allow = [], children }) {
   const { token, role } = useAuth();
   if (!token) {
+    savePendingDestination();
     window.location.replace("https://eportal.uika-bogor.ac.id/eportal/login");
     return null;
   }

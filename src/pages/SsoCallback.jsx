@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getRoleKind } from '../utils/auth.utils';
+import { getRoleKind, consumePendingDestination } from '../utils/auth.utils';
 
 /**
  * Penerima SSO dari LMS (fe-ucl). LMS sudah menukar token via tias-backend -> cbt-api
@@ -57,6 +57,12 @@ export default function SsoCallback() {
     const base = import.meta.env.BASE_URL;
     const roleKind = getRoleKind(payload.role);
 
+    // Kalau tadi dilempar ke sini oleh RouteGuards (sesi kosong -- khas dibuka lewat
+    // Safe Exam Browser, lihat savePendingDestination()), itu lebih spesifik daripada
+    // allowlist target= di bawah (bawa ?token=... exam tertentu, bukan cuma "ke halaman
+    // take-exam secara umum") -- menang duluan kalau ada.
+    const pendingDestination = consumePendingDestination(base);
+
     // `target` cuma boleh diambil dari allowlist tetap (bukan path bebas dari query) —
     // menghindari open-redirect lewat link SSO yang dimanipulasi. Dosen di-deep-link ke
     // Rekap Nilai (utk koreksi/verifikasi) dari tombol "Koreksi Nilai" di LMS (fe-ucl).
@@ -64,13 +70,14 @@ export default function SsoCallback() {
     // "Ikuti Ujian di Sistem CBT" — mereka sudah lihat token di aktivitas LMS, jangan disuruh
     // klik lagi "Masuk Ruang Ujian" di dashboard begitu sampai sini.
     const destination =
-      targetParam === 'rekap-nilai' && roleKind === 'lecturer'
+      pendingDestination ||
+      (targetParam === 'rekap-nilai' && roleKind === 'lecturer'
         ? `${base}rekap-nilai${examId ? `?exam_id=${encodeURIComponent(examId)}` : ''}`
         : targetParam === 'take-exam' && roleKind === 'student'
         ? `${base}take-exam`
         : roleKind === 'lecturer' ? `${base}dashboard` :
           roleKind === 'student' ? `${base}student-dashboard` :
-          base;
+          base);
 
     // Full navigation (bukan react-router navigate) supaya AuthProvider re-init dari
     // localStorage yang baru saja ditulis, sama seperti pola SSO receiver di fe-ucl.
