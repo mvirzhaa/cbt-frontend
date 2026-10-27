@@ -4,7 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import examService from '../services/exam.service';
 import proctoringService from '../services/proctoring.service';
-import { formatWaktu } from '../utils/format.utils';
+import { formatWaktu, extractBlobErrorMessage } from '../utils/format.utils';
 import MathText from '../components/MathText';
 // 🤖 face-api.js di-load secara dinamis (lazy) untuk mengurangi ukuran bundle
 
@@ -47,7 +47,8 @@ export default function TakeExam() {
             link.remove();
             window.URL.revokeObjectURL(url);
         } catch (error) {
-            Swal.fire('Gagal', error.response?.data?.message || 'Gagal mengunduh file .seb.', 'error');
+            const message = await extractBlobErrorMessage(error, 'Gagal mengunduh file .seb.');
+            Swal.fire('Gagal', message, 'error');
         } finally {
             setDownloadingSeb(false);
         }

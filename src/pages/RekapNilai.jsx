@@ -9,6 +9,7 @@ import siakadService from '../services/siakad.service';
 import sebService from '../services/seb.service';
 import SiakadSearchPicker from '../components/SiakadSearchPicker';
 import MatkulSelect from '../components/MatkulSelect';
+import { extractBlobErrorMessage } from '../utils/format.utils';
 
 export default function RekapNilai() {
     // State Master Data
@@ -307,6 +308,9 @@ export default function RekapNilai() {
                 quit_password: sebQuitPassword.trim() || undefined
             });
             setSebQuitPassword('');
+            // Update lokal supaya tombol "Unduh .seb" (yang digerbang status TERSIMPAN,
+            // bukan cuma checkbox) langsung aktif tanpa perlu re-fetch dari server.
+            setExamInfo(prev => prev ? { ...prev, seb_require: sebRequire } : prev);
             Swal.fire({ icon: 'success', title: sebRequire ? 'Wajib-SEB Diaktifkan' : 'Wajib-SEB Dimatikan', timer: 1200, showConfirmButton: false });
         } catch (error) {
             console.error("Gagal menyimpan pengaturan SEB:", error);
@@ -330,7 +334,8 @@ export default function RekapNilai() {
             window.URL.revokeObjectURL(url);
         } catch (error) {
             console.error("Gagal mengunduh file .seb:", error);
-            Swal.fire('Error', error.response?.data?.message || 'Gagal mengunduh file .seb. Pastikan Wajib-SEB sudah diaktifkan & disimpan.', 'error');
+            const message = await extractBlobErrorMessage(error, 'Gagal mengunduh file .seb. Pastikan Wajib-SEB sudah diaktifkan & disimpan.');
+            Swal.fire('Error', message, 'error');
         } finally {
             setDownloadingSeb(false);
         }
@@ -651,7 +656,7 @@ export default function RekapNilai() {
                                 Setelah disimpan, unduh file <span className="font-mono font-bold">.seb</span>-nya dan sebarkan ke mahasiswa (lewat LMS/grup kelas) bersama token ujian.
                             </p>
                             <div className="flex gap-3 shrink-0">
-                                <button onClick={downloadSebConfig} disabled={downloadingSeb || !sebRequire} title={!sebRequire ? 'Aktifkan & simpan Wajib-SEB dulu' : undefined} className="px-6 py-3.5 rounded-xl text-[12px] font-black uppercase tracking-widest bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition-all disabled:opacity-40">
+                                <button onClick={downloadSebConfig} disabled={downloadingSeb || !examInfo?.seb_require} title={!examInfo?.seb_require ? 'Klik Simpan dulu sebelum bisa unduh .seb' : undefined} className="px-6 py-3.5 rounded-xl text-[12px] font-black uppercase tracking-widest bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition-all disabled:opacity-40">
                                     {downloadingSeb ? 'Mengunduh...' : 'Unduh .seb'}
                                 </button>
                                 <button onClick={saveSebSettings} disabled={savingSeb} className="px-8 py-3.5 rounded-xl text-[12px] font-black uppercase tracking-widest bg-[#0f4c3a] hover:bg-[#092e23] text-[#d4af37] shadow-lg shadow-[#0f4c3a]/30 transition-all active:scale-95 disabled:opacity-50">
