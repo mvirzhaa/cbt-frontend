@@ -347,6 +347,16 @@ export default function Grading() {
         }
     };
 
+    // 4b. Dipanggil dari ikon "Lihat Jawaban" di tabel Daftar Mahasiswa --
+    // menggantikan dropdown "Pilih Mahasiswa" yang sebelumnya ada di filter.
+    const viewStudentAnswers = (studentId) => handleStudentChange({ target: { value: studentId.toString() } });
+
+    const backToStudentList = () => {
+        setSelectedStudent('');
+        setAnswers([]);
+        setExpandedAnswers({});
+    };
+
     // 5. Simpan Nilai Manual (hanya untuk tipe 4)
     const handleSaveScore = async (ans, bobotMaksimal) => {
         const responseId = ans.id;
@@ -490,21 +500,6 @@ export default function Grading() {
                         </select>
                     </div>
 
-                    {/* Kotak 3: Pilih Mahasiswa */}
-                    <div className="flex-1 relative z-10">
-                        <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-                            <span className="w-5 h-5 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center text-[10px]">3</span>
-                            Pilih Mahasiswa
-                        </label>
-                        <select value={selectedStudent} onChange={handleStudentChange} disabled={!selectedExam || studentList.length === 0} className={`w-full px-5 py-4 border rounded-xl text-[14px] font-bold outline-none transition-all appearance-none shadow-sm ${!selectedExam || studentList.length === 0 ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed' : 'bg-slate-50 border-slate-200 text-slate-800 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 cursor-pointer'}`}>
-                            <option value="" disabled>
-                                {!selectedExam ? "Pilih Ujian dulu ➔" : studentList.length === 0 ? "Belum ada mahasiswa" : "-- Pilih Mahasiswa --"}
-                            </option>
-                            {studentList.map(student => (
-                                <option key={student.id} value={student.id}>{student.nama} ({student.nim})</option>
-                            ))}
-                        </select>
-                    </div>
                 </div>
 
                 {/* Filter Tipe Soal + Recalculate Button */}
@@ -553,6 +548,83 @@ export default function Grading() {
                     </div>
                 )}
             </div>
+
+            {/* 🌟 DAFTAR MAHASISWA MENGERJAKAN -- menggantikan dropdown "Pilih
+                Mahasiswa": tiap baris punya ikon "Lihat Jawaban" buat masuk ke
+                detail jawaban + verifikasi mahasiswa itu. */}
+            {selectedExam && !selectedStudent && (
+                <div className="bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-200 overflow-hidden">
+                    <div className="px-8 py-5 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+                        <h3 className="text-[14px] font-black text-slate-800 uppercase tracking-widest">Daftar Mahasiswa Mengerjakan</h3>
+                        <span className="bg-[#0f4c3a]/10 text-[#0f4c3a] text-[10px] px-3 py-1.5 rounded-lg font-black uppercase tracking-widest border border-[#0f4c3a]/20">Peserta: {studentList.length}</span>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="border-b border-slate-200 bg-white">
+                                    <th className="py-5 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest w-[60px] text-center">No.</th>
+                                    <th className="py-5 px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Mahasiswa</th>
+                                    <th className="py-5 px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Status</th>
+                                    <th className="py-5 px-6 text-[10px] font-black text-[#0f4c3a] uppercase tracking-widest text-center bg-[#0f4c3a]/5">Nilai Akhir</th>
+                                    <th className="py-5 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {loading ? (
+                                    <tr><td colSpan="5" className="py-16 text-center text-slate-400 font-bold animate-pulse">Memuat data...</td></tr>
+                                ) : studentList.length === 0 ? (
+                                    <tr><td colSpan="5" className="py-20 text-center text-slate-400 font-bold text-sm">Belum ada mahasiswa yang mengumpulkan ujian ini.</td></tr>
+                                ) : (
+                                    studentList.map((student, idx) => {
+                                        const attempt = attemptsByUser[student.id];
+                                        const isVerified = attempt?.status === 'SELESAI';
+                                        const estimate = attempt ? estimateFinalScore(attempt) : null;
+                                        return (
+                                            <tr key={student.id} className="hover:bg-slate-50/80 transition-colors group">
+                                                <td className="py-4 px-6 text-center">
+                                                    <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-slate-100 text-slate-500 font-bold text-[12px]">{idx + 1}</span>
+                                                </td>
+                                                <td className="py-4 px-4">
+                                                    <p className="font-black text-slate-800 text-[13px]">{student.nama}</p>
+                                                    <p className="text-xs text-slate-500 font-medium">{student.nim}</p>
+                                                </td>
+                                                <td className="py-4 px-4 text-center">
+                                                    {isVerified ? (
+                                                        <span className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-wider"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Final</span>
+                                                    ) : attempt ? (
+                                                        <span className="inline-flex items-center gap-1.5 bg-amber-50 text-amber-700 border border-amber-200 px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-wider"><span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> Pending</span>
+                                                    ) : (
+                                                        <span className="inline-flex items-center gap-1.5 bg-slate-100 text-slate-500 border border-slate-200 px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-wider">-</span>
+                                                    )}
+                                                </td>
+                                                <td className="py-4 px-6 text-center bg-[#0f4c3a]/[0.02]">
+                                                    {isVerified ? (
+                                                        <span className="text-lg font-black tracking-tight text-[#0f4c3a]">{parseFloat(Number(attempt.final_score).toFixed(2))}</span>
+                                                    ) : estimate !== null ? (
+                                                        <span className="text-lg font-black tracking-tight italic text-slate-400">≈{parseFloat(Number(estimate).toFixed(2))}</span>
+                                                    ) : (
+                                                        <span className="text-lg font-black tracking-tight text-slate-300">-</span>
+                                                    )}
+                                                </td>
+                                                <td className="py-4 px-6 text-right">
+                                                    <button
+                                                        onClick={() => viewStudentAnswers(student.id)}
+                                                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200"
+                                                    >
+                                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                                                        Lihat Jawaban
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
 
             {/* 🌟 VERIFIKASI & PUBLISH NILAI (dipindah dari Rekap Nilai -- lihat
                 CLAUDE.md: selama belum diverifikasi di sini, nilai tidak akan bisa
@@ -618,6 +690,13 @@ export default function Grading() {
                             </h4>
                         </div>
                         <div className="flex items-center gap-2">
+                            <button
+                                onClick={backToStudentList}
+                                className="text-[11px] font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200 transition-colors flex items-center gap-1.5"
+                            >
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+                                Daftar Mahasiswa
+                            </button>
                             <div className="text-[11px] text-slate-500 font-semibold uppercase tracking-wider bg-slate-100 px-3 py-1 rounded-full">
                                 Mahasiswa: {(studentList?.data || studentList || []).find(s => s.id === parseInt(selectedStudent))?.nama}
                             </div>

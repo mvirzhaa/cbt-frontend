@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import * as XLSX from 'xlsx';
 import Swal from 'sweetalert2';
@@ -77,8 +76,6 @@ function ExamMultiSelect({ exams, selectedIds, onChange, disabled, placeholder }
 }
 
 export default function RekapNilai() {
-    const navigate = useNavigate();
-
     // State Master Data
     const [matkulList, setMatkulList] = useState([]);
     const [allExams, setAllExams] = useState([]);
@@ -326,10 +323,6 @@ export default function RekapNilai() {
         );
     };
 
-    const goToVerifikasi = (score) => {
-        navigate(`/grading?exam_id=${score.exam_id}&student_id=${score.user_id}`);
-    };
-
     const saveSiakadTarget = async () => {
         if (!singleExamId) return;
         if (!siakadTarget.kelas.trim() || !siakadTarget.periode.trim()) {
@@ -425,52 +418,6 @@ export default function RekapNilai() {
             Swal.fire('Error', error.response?.data?.message || 'Gagal menarik daftar komponen dari SIAKAD.', 'error');
         } finally {
             setLoadingRencana(false);
-        }
-    };
-
-    const handleResetAttempt = async (attempt, force = false, reason = '') => {
-        if (!force) {
-            const result = await Swal.fire({
-                title: 'Reset Attempt Ujian?',
-                html: `Jawaban dan nilai <strong>${attempt.nama_mahasiswa}</strong> (${attempt.nim}) untuk ujian ini akan <strong>dihapus permanen</strong>, supaya dia bisa mengerjakan lagi dari awal. Tindakan ini tidak bisa dibatalkan.`,
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#dc2626',
-                confirmButtonText: 'Ya, Reset',
-                cancelButtonText: 'Batal'
-            });
-            if (!result.isConfirmed) return;
-        }
-
-        setPushingRowId(attempt.attempt_id);
-        try {
-            const res = await gradingService.resetAttempt(attempt.attempt_id, force, reason);
-            Swal.fire({ icon: 'success', title: 'Attempt Direset', text: res.message, timer: 2000, showConfirmButton: false });
-            fetchAttemptsData(selectedExamIds);
-        } catch (error) {
-            console.error("Gagal reset attempt:", error);
-            const errData = error.response?.data;
-            if (errData?.canForce || errData?.needsReason) {
-                const forceResult = await Swal.fire({
-                    title: 'Sudah Terkirim ke SIAKAD',
-                    html: `${errData.message}<br/><br/>Kalau Anda <strong>yakin</strong> sudah membereskan nilainya langsung di SIAKAD (sistem ini tidak mengecek ulang ke sana), isi alasannya untuk paksa reset attempt CBT-nya.`,
-                    icon: 'warning',
-                    input: 'textarea',
-                    inputPlaceholder: 'Alasan reset paksa (wajib diisi, tercatat di log)...',
-                    inputValidator: (value) => !value?.trim() ? 'Alasan wajib diisi.' : undefined,
-                    showCancelButton: true,
-                    confirmButtonColor: '#dc2626',
-                    confirmButtonText: 'Ya, Paksa Reset',
-                    cancelButtonText: 'Batal'
-                });
-                if (forceResult.isConfirmed) {
-                    return handleResetAttempt(attempt, true, forceResult.value.trim());
-                }
-            } else {
-                Swal.fire('Error', errData?.message || 'Gagal mereset attempt ujian.', 'error');
-            }
-        } finally {
-            setPushingRowId(null);
         }
     };
 
@@ -835,32 +782,14 @@ export default function RekapNilai() {
                                             })()}
                                         </td>
                                         <td className="py-4 px-6 text-right">
-                                            <div className="flex items-center justify-end gap-2">
-                                                <button
-                                                    onClick={() => goToVerifikasi(score)}
-                                                    title="Nilai & verifikasi di menu Penilaian & Evaluasi"
-                                                    className="px-4 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200"
-                                                >
-                                                    {score.status === 'SELESAI' ? 'Lihat Nilai' : 'Nilai & Verifikasi'}
-                                                </button>
-                                                {score.status === 'SELESAI' && (
-                                                    <button
-                                                        onClick={() => pushOneToSiakad(score)}
-                                                        disabled={pushingRowId === score.attempt_id}
-                                                        className={`px-4 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all disabled:opacity-50 ${score.siakad_sync_status === 'GAGAL' ? 'bg-red-50 text-red-600 hover:bg-red-100 border border-red-200' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100 border border-indigo-200'}`}
-                                                    >
-                                                        {pushingRowId === score.attempt_id ? 'Mengirim...' : score.siakad_sync_status === 'GAGAL' ? 'Retry' : 'Push'}
-                                                    </button>
-                                                )}
-                                                <button
-                                                    onClick={() => handleResetAttempt(score)}
-                                                    disabled={pushingRowId === score.attempt_id}
-                                                    title={score.siakad_sync_status === 'TERKIRIM' ? 'Sudah terkirim ke SIAKAD, batalkan dulu di sana' : 'Hapus attempt supaya mahasiswa bisa ujian ulang'}
-                                                    className="px-4 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all disabled:opacity-50 bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200"
-                                                >
-                                                    Reset
-                                                </button>
-                                            </div>
+                                            <button
+                                                onClick={() => pushOneToSiakad(score)}
+                                                disabled={score.status !== 'SELESAI' || pushingRowId === score.attempt_id}
+                                                title={score.status !== 'SELESAI' ? 'Belum diverifikasi di menu Penilaian & Evaluasi -- belum bisa dipush.' : undefined}
+                                                className={`px-4 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all disabled:opacity-40 disabled:cursor-not-allowed ${score.status !== 'SELESAI' ? 'bg-slate-100 text-slate-400 border border-slate-200' : score.siakad_sync_status === 'GAGAL' ? 'bg-red-50 text-red-600 hover:bg-red-100 border border-red-200' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100 border border-indigo-200'}`}
+                                            >
+                                                {pushingRowId === score.attempt_id ? 'Mengirim...' : score.siakad_sync_status === 'GAGAL' ? 'Retry' : 'Push'}
+                                            </button>
                                         </td>
                                     </tr>
                                 ))
