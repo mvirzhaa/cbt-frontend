@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import * as XLSX from 'xlsx';
 import Swal from 'sweetalert2';
 import matkulService from '../services/matkul.service';
@@ -11,27 +12,90 @@ import SiakadSearchPicker from '../components/SiakadSearchPicker';
 import MatkulSelect from '../components/MatkulSelect';
 import { extractBlobErrorMessage } from '../utils/format.utils';
 
+// Dropdown "pilih banyak sesi ujian sekaligus" -- menu ini sekarang lebih
+// dipakai buat export/push nilai ke NL-SIAK secara massal (lihat CLAUDE.md),
+// jadi beda sama MatkulSelect/SiakadSearchPicker yang cuma pilih 1 item.
+function ExamMultiSelect({ exams, selectedIds, onChange, disabled, placeholder }) {
+    const [open, setOpen] = useState(false);
+    const containerRef = useRef(null);
+
+    useEffect(() => {
+        if (!open) return;
+        const handleClickOutside = (e) => {
+            if (containerRef.current && !containerRef.current.contains(e.target)) setOpen(false);
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [open]);
+
+    const toggle = (id) => {
+        const idStr = id.toString();
+        if (selectedIds.includes(idStr)) onChange(selectedIds.filter(x => x !== idStr));
+        else onChange([...selectedIds, idStr]);
+    };
+
+    const label = selectedIds.length === 0
+        ? placeholder
+        : selectedIds.length === 1
+            ? (exams.find(e => e.id.toString() === selectedIds[0])?.nama_ujian || '1 sesi dipilih')
+            : `${selectedIds.length} sesi ujian dipilih`;
+
+    return (
+        <div className="relative" ref={containerRef}>
+            <button
+                type="button"
+                onClick={() => !disabled && setOpen(o => !o)}
+                disabled={disabled}
+                className={`w-full px-5 py-4 border rounded-xl text-[13px] font-bold text-left outline-none transition-all flex items-center justify-between gap-2 ${disabled ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed' : 'bg-slate-50 border-slate-200 text-slate-800 focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 cursor-pointer'}`}
+            >
+                <span className="truncate">{label}</span>
+                <svg className={`w-4 h-4 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+            </button>
+            {open && !disabled && (
+                <div className="absolute z-20 mt-1 w-full max-h-64 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-xl divide-y divide-slate-100">
+                    {exams.length === 0 ? (
+                        <div className="px-4 py-3 text-[12px] font-medium text-slate-400">Belum ada sesi ujian di matkul ini.</div>
+                    ) : exams.map(ex => {
+                        const idStr = ex.id.toString();
+                        const checked = selectedIds.includes(idStr);
+                        return (
+                            <label key={ex.id} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 cursor-pointer transition-colors">
+                                <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    onChange={() => toggle(ex.id)}
+                                    className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 shrink-0"
+                                />
+                                <span className="text-[12px] font-bold text-slate-700">{ex.nama_ujian} <span className="text-slate-400 font-medium">(Durasi: {ex.durasi} Menit)</span></span>
+                            </label>
+                        );
+                    })}
+                </div>
+            )}
+        </div>
+    );
+}
+
 export default function RekapNilai() {
+    const navigate = useNavigate();
+
     // State Master Data
     const [matkulList, setMatkulList] = useState([]);
     const [allExams, setAllExams] = useState([]);
-    
-    // State Filter (2 Tingkat)
+
+    // State Filter (2 Tingkat) -- Sesi Ujian sekarang multi-select (lihat
+    // CLAUDE.md: menu ini jadi lebih fokus buat export & push massal ke
+    // NL-SIAK, verifikasi nilainya sendiri pindah ke menu Penilaian & Evaluasi).
     const [selectedMatkul, setSelectedMatkul] = useState('');
     const [filteredExams, setFilteredExams] = useState([]);
-    const [selectedExam, setSelectedExam] = useState('');
-    
-    // State Data Tabel & Ujian
-    const [scores, setScores] = useState([]);
-    const [examInfo, setExamInfo] = useState(null);
-    const [loading, setLoading] = useState(false);
+    const [selectedExamIds, setSelectedExamIds] = useState([]);
+    const singleExamId = selectedExamIds.length === 1 ? selectedExamIds[0] : null;
 
-    // State Modal Verifikasi
-    const [verifyModal, setVerifyModal] = useState({
-        isOpen: false,
-        attempt: null,
-        scores: { pilgan: 0, esai: 0, file: 0 }
-    });
+    // State Data Tabel & Ujian -- scores gabungan dari semua sesi ujian yang
+    // dipilih (tiap baris ditandai exam_id/nama_ujian), examInfoMap per sesi.
+    const [scores, setScores] = useState([]);
+    const [examInfoMap, setExamInfoMap] = useState({});
+    const [loading, setLoading] = useState(false);
 
     // State Target & Sync SIAKAD
     const [siakadTarget, setSiakadTarget] = useState({ kelas: '', periode: '', rencana: '' });
@@ -83,8 +147,8 @@ export default function RekapNilai() {
 
         setSelectedMatkul(ex.kode_mk);
         setFilteredExams(list.filter(e => e.kode_mk === ex.kode_mk));
-        setSelectedExam(examIdParam);
-        fetchAttemptsData(examIdParam);
+        setSelectedExamIds([examIdParam]);
+        fetchAttemptsData([examIdParam]);
     }, [allExams]);
 
     const fetchInitialData = async () => {
@@ -103,39 +167,72 @@ export default function RekapNilai() {
 
     const handleMatkulChange = (mkId) => {
         setSelectedMatkul(mkId);
-        
+
         const examsForThisMatkul = allExams?.data?.filter(ex => ex.kode_mk === mkId) || [];
         setFilteredExams(examsForThisMatkul);
-        
-        setSelectedExam('');
+
+        setSelectedExamIds([]);
         setScores([]);
-        setExamInfo(null);
+        setExamInfoMap({});
     };
 
-    const handleExamChange = async (e) => {
-        const examId = e.target.value;
-        setSelectedExam(examId);
-        if (!examId) return;
-        fetchAttemptsData(examId);
+    const handleExamSelectionChange = (newIds) => {
+        setSelectedExamIds(newIds);
+        fetchAttemptsData(newIds);
     };
 
-    const fetchAttemptsData = async (examId) => {
+    const resetSiakadSebSections = () => {
+        setSiakadTarget({ kelas: '', periode: '', rencana: '' });
+        setSebRequire(false);
+        setSebQuitPassword('');
+        setRencanaOptions([]);
+        setSelectedKelasLabel('');
+        setKelasKuliahOptions([]);
+    };
+
+    const fetchAttemptsData = async (examIds) => {
+        if (!examIds || examIds.length === 0) {
+            setScores([]);
+            setExamInfoMap({});
+            resetSiakadSebSections();
+            return;
+        }
+
         setLoading(true);
         try {
-            const responseData = await gradingService.getAttempts(examId);
-            setScores(responseData.data || responseData || []);
-            setExamInfo(responseData.exam_info || null);
-            setSiakadTarget({
-                kelas: responseData.exam_info?.siakad_kelas_kuliah_id || '',
-                periode: responseData.exam_info?.siakad_periode_akademik_id || '',
-                rencana: responseData.exam_info?.siakad_rencana_evaluasi_id || ''
+            const results = await Promise.all(examIds.map(id => gradingService.getAttempts(id)));
+
+            const infoMap = {};
+            const mergedScores = [];
+            results.forEach((responseData, idx) => {
+                const examId = examIds[idx];
+                const info = responseData?.exam_info || null;
+                infoMap[examId] = info;
+                const rows = responseData?.data || responseData || [];
+                rows.forEach(row => mergedScores.push({ ...row, exam_id: examId, nama_ujian: info?.nama_ujian || '' }));
             });
-            setSebRequire(!!responseData.exam_info?.seb_require);
-            setSebQuitPassword('');
-            setRencanaOptions([]);
-            setSelectedKelasLabel('');
-            setKelasKuliahOptions([]);
-            if (responseData.exam_info?.kode_mk) fetchKelasKuliahSiakad(responseData.exam_info.kode_mk);
+
+            setExamInfoMap(infoMap);
+            setScores(mergedScores);
+
+            // Target SIAKAD & Wajib-SEB adalah pengaturan per-ujian -- cuma masuk akal
+            // kalau persis 1 sesi ujian yang dipilih.
+            if (examIds.length === 1) {
+                const info = infoMap[examIds[0]];
+                setSiakadTarget({
+                    kelas: info?.siakad_kelas_kuliah_id || '',
+                    periode: info?.siakad_periode_akademik_id || '',
+                    rencana: info?.siakad_rencana_evaluasi_id || ''
+                });
+                setSebRequire(!!info?.seb_require);
+                setSebQuitPassword('');
+                setRencanaOptions([]);
+                setSelectedKelasLabel('');
+                setKelasKuliahOptions([]);
+                if (info?.kode_mk) fetchKelasKuliahSiakad(info.kode_mk);
+            } else {
+                resetSiakadSebSections();
+            }
         } catch (error) {
             console.error("Gagal menarik rincian nilai:", error);
             Swal.fire('Error', 'Gagal memuat data nilai ujian ini.', 'error');
@@ -192,6 +289,7 @@ export default function RekapNilai() {
 
         const dataToExport = scores.map((s, index) => ({
             "No": index + 1,
+            "Sesi Ujian": s.nama_ujian,
             "NIM": s.nim,
             "Nama Mahasiswa": s.nama_mahasiswa,
             "Skor Pilihan Ganda (100)": parseFloat(Number(s.skor_pilgan_100).toFixed(2)),
@@ -206,87 +304,40 @@ export default function RekapNilai() {
         XLSX.utils.book_append_sheet(workbook, worksheet, "Rincian_Nilai_CBT");
 
         const mkName = matkulList?.data?.find(m => m.kode_mk === selectedMatkul)?.nama_mk || 'Matkul';
-        const examName = allExams?.data?.find(e => e.id.toString() === selectedExam)?.nama_ujian || 'Ujian';
-        XLSX.writeFile(workbook, `Rekap_${mkName}_${examName}.xlsx`);
+        const examLabel = selectedExamIds.length === 1
+            ? (allExams?.data?.find(e => e.id.toString() === selectedExamIds[0])?.nama_ujian || 'Ujian')
+            : `${selectedExamIds.length}Sesi`;
+        XLSX.writeFile(workbook, `Rekap_${mkName}_${examLabel}.xlsx`);
     };
 
-    // Estimasi nilai akhir SEBELUM diverifikasi/dipublikasikan, biar dosen tidak perlu buka
-    // modal verifikasi dulu baru bisa lihat angkanya.
+    // Estimasi nilai akhir SEBELUM diverifikasi/dipublikasikan -- pakai examInfo
+    // milik sesi ujian baris ini masing-masing (bisa beda bobot antar sesi).
     const estimateFinalScore = (score) => {
-        if (examInfo?.grading_type === 'PER_SOAL') {
+        const info = examInfoMap[score.exam_id];
+        if (info?.grading_type === 'PER_SOAL') {
             return score.preview_final_score !== null && score.preview_final_score !== undefined
                 ? score.preview_final_score
                 : null;
         }
         return (
-            (score.skor_pilgan_100 * ((examInfo?.bobot_pilgan || 0) / 100)) +
-            (score.skor_esai_100 * ((examInfo?.bobot_esai || 0) / 100)) +
-            (score.skor_file_100 * ((examInfo?.bobot_upload || 0) / 100))
+            (score.skor_pilgan_100 * ((info?.bobot_pilgan || 0) / 100)) +
+            (score.skor_esai_100 * ((info?.bobot_esai || 0) / 100)) +
+            (score.skor_file_100 * ((info?.bobot_upload || 0) / 100))
         );
     };
 
-    const openVerifyModal = (attempt) => {
-        setVerifyModal({
-            isOpen: true,
-            attempt: attempt,
-            scores: {
-                pilgan: attempt.skor_pilgan_100,
-                esai: attempt.skor_esai_100,
-                file: attempt.skor_file_100
-            }
-        });
-    };
-
-    const closeVerifyModal = () => {
-        setVerifyModal({ isOpen: false, attempt: null, scores: { pilgan: 0, esai: 0, file: 0 } });
-    };
-
-    const handleScoreChange = (type, value) => {
-        let num = parseFloat(value);
-        if (isNaN(num)) num = 0;
-        if (num > 100) num = 100;
-        if (num < 0) num = 0;
-        setVerifyModal(prev => ({
-            ...prev,
-            scores: { ...prev.scores, [type]: num }
-        }));
-    };
-
-    const submitVerification = async () => {
-        try {
-            // Mode Per Soal: nilai akhir dihitung server-side dari bobot tiap soal,
-            // tidak ada override kategori pilgan/esai/upload untuk dikirim.
-            const payload = examInfo?.grading_type === 'PER_SOAL' ? {} : {
-                skor_pilgan_100: verifyModal.scores.pilgan,
-                skor_esai_100: verifyModal.scores.esai,
-                skor_file_100: verifyModal.scores.file
-            };
-
-            await gradingService.verifyExamAttempt(verifyModal.attempt.attempt_id, payload);
-
-            Swal.fire({
-                icon: 'success',
-                title: 'Verifikasi Berhasil!',
-                text: 'Nilai telah dipublikasikan ke mahasiswa.',
-                timer: 1500,
-                showConfirmButton: false
-            });
-
-            closeVerifyModal();
-            fetchAttemptsData(selectedExam);
-        } catch (error) {
-            console.error("Gagal verifikasi:", error);
-            Swal.fire('Gagal Verifikasi', error.response?.data?.message || 'Terjadi kesalahan saat memverifikasi nilai.', 'error');
-        }
+    const goToVerifikasi = (score) => {
+        navigate(`/grading?exam_id=${score.exam_id}&student_id=${score.user_id}`);
     };
 
     const saveSiakadTarget = async () => {
+        if (!singleExamId) return;
         if (!siakadTarget.kelas.trim() || !siakadTarget.periode.trim()) {
             return Swal.fire('Data Kurang', 'ID Kelas dan Periode Akademik SIAKAD wajib diisi.', 'warning');
         }
         setSavingTarget(true);
         try {
-            await siakadService.setExamTarget(selectedExam, {
+            await siakadService.setExamTarget(singleExamId, {
                 siakad_kelas_kuliah_id: siakadTarget.kelas.trim(),
                 siakad_periode_akademik_id: siakadTarget.periode.trim(),
                 siakad_rencana_evaluasi_id: siakadTarget.rencana.trim() || null
@@ -301,6 +352,8 @@ export default function RekapNilai() {
     };
 
     const saveSebSettings = async () => {
+        if (!singleExamId) return;
+        const examInfo = examInfoMap[singleExamId];
         // Password keluar wajib diisi saat PERTAMA kali mengaktifkan -- tanpa itu SEB
         // tidak bisa dikeluarkan sama sekali (bukan "boleh keluar tanpa password").
         // Backend tetap jadi otoritas sebenarnya; ini cuma cegah bolak-balik ke server.
@@ -309,14 +362,17 @@ export default function RekapNilai() {
         }
         setSavingSeb(true);
         try {
-            await sebService.setExamSettings(selectedExam, {
+            await sebService.setExamSettings(singleExamId, {
                 seb_require: sebRequire,
                 quit_password: sebQuitPassword.trim() || undefined
             });
             setSebQuitPassword('');
             // Update lokal supaya tombol "Unduh .seb" (yang digerbang status TERSIMPAN,
             // bukan cuma checkbox) langsung aktif tanpa perlu re-fetch dari server.
-            setExamInfo(prev => prev ? { ...prev, seb_require: sebRequire } : prev);
+            setExamInfoMap(prev => ({
+                ...prev,
+                [singleExamId]: prev[singleExamId] ? { ...prev[singleExamId], seb_require: sebRequire } : prev[singleExamId]
+            }));
             Swal.fire({ icon: 'success', title: sebRequire ? 'Wajib-SEB Diaktifkan' : 'Wajib-SEB Dimatikan', timer: 1200, showConfirmButton: false });
         } catch (error) {
             console.error("Gagal menyimpan pengaturan SEB:", error);
@@ -327,13 +383,14 @@ export default function RekapNilai() {
     };
 
     const downloadSebConfig = async () => {
+        if (!singleExamId) return;
         setDownloadingSeb(true);
         try {
-            const blob = await sebService.downloadConfig(selectedExam);
+            const blob = await sebService.downloadConfig(singleExamId);
             const url = window.URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
-            link.download = `${examInfo?.nama_ujian || 'ujian'}.seb`;
+            link.download = `${examInfoMap[singleExamId]?.nama_ujian || 'ujian'}.seb`;
             document.body.appendChild(link);
             link.click();
             link.remove();
@@ -350,13 +407,14 @@ export default function RekapNilai() {
     // Jalur D setup: cari daftar komponen (rencanaEvaluasiId) dari SIAKAD untuk
     // MK+periode ujian ini, supaya dosen tidak perlu tempel UUID manual.
     const cariKomponenSiakad = async (periodeOverride) => {
+        if (!singleExamId) return;
         const periodeId = (periodeOverride || siakadTarget.periode).trim();
         if (!periodeId) {
             return Swal.fire('Data Kurang', 'Pilih Kelas Kuliah dulu (otomatis ngisi periode), baru cari komponennya.', 'warning');
         }
         setLoadingRencana(true);
         try {
-            const result = await siakadService.getRencanaEvaluasi(examInfo?.kode_mk, periodeId);
+            const result = await siakadService.getRencanaEvaluasi(examInfoMap[singleExamId]?.kode_mk, periodeId);
             const list = result?.data?.rencanaEvaluasi || [];
             setRencanaOptions(list);
             if (list.length === 0) {
@@ -388,7 +446,7 @@ export default function RekapNilai() {
         try {
             const res = await gradingService.resetAttempt(attempt.attempt_id, force, reason);
             Swal.fire({ icon: 'success', title: 'Attempt Direset', text: res.message, timer: 2000, showConfirmButton: false });
-            fetchAttemptsData(selectedExam);
+            fetchAttemptsData(selectedExamIds);
         } catch (error) {
             console.error("Gagal reset attempt:", error);
             const errData = error.response?.data;
@@ -421,7 +479,7 @@ export default function RekapNilai() {
         try {
             await siakadService.pushAttempt(attempt.attempt_id);
             Swal.fire({ icon: 'success', title: 'Masuk Antrian SIAKAD', timer: 1200, showConfirmButton: false });
-            fetchAttemptsData(selectedExam);
+            fetchAttemptsData(selectedExamIds);
         } catch (error) {
             console.error("Gagal push ke SIAKAD:", error);
             Swal.fire('Error', error.response?.data?.message || 'Gagal push nilai ke SIAKAD.', 'error');
@@ -431,14 +489,20 @@ export default function RekapNilai() {
     };
 
     const pushAllToSiakad = async () => {
+        if (selectedExamIds.length === 0) return;
         setPushingAll(true);
         try {
-            const result = await siakadService.pushExam(selectedExam);
-            Swal.fire({ icon: 'success', title: 'Push ke SIAKAD Dimulai', text: result.message, timer: 2000, showConfirmButton: false });
-            fetchAttemptsData(selectedExam);
+            const results = await Promise.allSettled(selectedExamIds.map(id => siakadService.pushExam(id)));
+            const failed = results.filter(r => r.status === 'rejected').length;
+            if (failed === 0) {
+                Swal.fire({ icon: 'success', title: 'Push ke SIAKAD Dimulai', text: `Antrian push dibuat untuk ${selectedExamIds.length} sesi ujian.`, timer: 2000, showConfirmButton: false });
+            } else {
+                Swal.fire('Sebagian Gagal', `${selectedExamIds.length - failed} dari ${selectedExamIds.length} sesi berhasil masuk antrian, ${failed} gagal.`, 'warning');
+            }
+            fetchAttemptsData(selectedExamIds);
         } catch (error) {
             console.error("Gagal push semua ke SIAKAD:", error);
-            Swal.fire('Error', error.response?.data?.message || 'Gagal push nilai ujian ke SIAKAD.', 'error');
+            Swal.fire('Error', 'Gagal push nilai ujian ke SIAKAD.', 'error');
         } finally {
             setPushingAll(false);
         }
@@ -459,22 +523,22 @@ export default function RekapNilai() {
 
     return (
         <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} className="max-w-7xl mx-auto space-y-8 pb-10">
-            
+
             {/* HEADER */}
             <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-4">
                 <div>
-                    <h3 className="text-2xl font-black text-slate-900 tracking-tight">Rekap Rincian Nilai & Verifikasi</h3>
-                    <p className="text-sm font-medium text-slate-500 mt-1">Verifikasi hasil ujian mahasiswa, override skor AI jika diperlukan, dan unduh laporan.</p>
+                    <h3 className="text-2xl font-black text-slate-900 tracking-tight">Rekap Rincian Nilai &amp; Push NL-SIAK</h3>
+                    <p className="text-sm font-medium text-slate-500 mt-1">Pilih satu atau beberapa sesi ujian untuk melihat rekap, unduh laporan, dan push nilai ke SIAKAD. Untuk menilai &amp; memverifikasi nilai, gunakan menu <strong>Penilaian &amp; Evaluasi</strong> — nilai yang belum diverifikasi di sana tidak bisa dipush.</p>
                 </div>
-                
+
                 <div className="flex gap-3">
                     <button onClick={handleExportExcel} disabled={scores.length === 0} className={`px-6 py-3.5 rounded-xl text-[12px] font-black uppercase tracking-widest flex items-center gap-2 transition-all shadow-lg active:scale-95 ${scores.length === 0 ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none' : 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-emerald-500/30'}`}>
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" /></svg>
                         Export ke Excel
                     </button>
-                    <button onClick={pushAllToSiakad} disabled={!selectedExam || pushingAll || scores.length === 0} className={`px-6 py-3.5 rounded-xl text-[12px] font-black uppercase tracking-widest flex items-center gap-2 transition-all shadow-lg active:scale-95 ${!selectedExam || pushingAll || scores.length === 0 ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none' : 'bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white shadow-indigo-500/30'}`}>
+                    <button onClick={pushAllToSiakad} disabled={selectedExamIds.length === 0 || pushingAll || scores.length === 0} className={`px-6 py-3.5 rounded-xl text-[12px] font-black uppercase tracking-widest flex items-center gap-2 transition-all shadow-lg active:scale-95 ${selectedExamIds.length === 0 || pushingAll || scores.length === 0 ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none' : 'bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white shadow-indigo-500/30'}`}>
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
-                        {pushingAll ? 'Mengirim...' : 'Push Semua ke NL-SIAK'}
+                        {pushingAll ? 'Mengirim...' : `Push ${selectedExamIds.length > 1 ? `${selectedExamIds.length} Sesi` : 'Semua'} ke NL-SIAK`}
                     </button>
                 </div>
             </div>
@@ -484,7 +548,7 @@ export default function RekapNilai() {
                 <div className="absolute inset-0 overflow-hidden rounded-2xl pointer-events-none -z-10">
                     <div className="absolute right-0 top-0 w-40 h-40 bg-blue-50/50 rounded-full blur-3xl translate-x-1/3 -translate-y-1/3"></div>
                 </div>
-                
+
                 <div className="flex-1 md:flex-[1.4] relative z-10">
                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
                         <span className="w-5 h-5 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-[10px]">1</span>
@@ -496,39 +560,52 @@ export default function RekapNilai() {
                 <div className="flex-1 relative z-10">
                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
                         <span className="w-5 h-5 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-[10px]">2</span>
-                        Pilih Sesi Ujian
+                        Pilih Sesi Ujian (bisa lebih dari satu)
                     </label>
-                    <select value={selectedExam} onChange={handleExamChange} disabled={!selectedMatkul || (filteredExams.length === 0)} className={`w-full px-5 py-4 border rounded-xl text-[13px] font-bold outline-none transition-all appearance-none ${!selectedMatkul ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed' : 'bg-slate-50 border-slate-200 text-slate-800 focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 cursor-pointer'}`}>
-                        <option value="" disabled>
-                            {!selectedMatkul ? "Pilih Matkul di samping dulu ➔" : (filteredExams.length === 0) ? "Belum ada sesi ujian di matkul ini" : "-- Pilih Sesi Ujian --"}
-                        </option>
-                        {filteredExams.map(ex => (
-                            <option key={ex.id} value={ex.id}>{ex.nama_ujian} (Durasi: {ex.durasi} Menit)</option>
-                        ))}
-                    </select>
+                    <ExamMultiSelect
+                        exams={filteredExams}
+                        selectedIds={selectedExamIds}
+                        onChange={handleExamSelectionChange}
+                        disabled={!selectedMatkul || filteredExams.length === 0}
+                        placeholder={!selectedMatkul ? "Pilih Matkul di samping dulu ➔" : (filteredExams.length === 0 ? "Belum ada sesi ujian di matkul ini" : "-- Pilih Sesi Ujian --")}
+                    />
                 </div>
             </div>
 
             {/* INFORMASI BOBOT */}
-            {examInfo && (examInfo.grading_type === 'PER_SOAL' ? (
-                <div className={`p-4 rounded-xl flex gap-4 text-sm font-medium items-center border ${examInfo.total_bobot_soal === 100 ? 'bg-blue-50 border-blue-100 text-blue-800' : 'bg-red-50 border-red-200 text-red-700'}`}>
-                    <span className="text-xl">⚖️</span>
-                    <p>
-                        <strong>Mode Per Soal:</strong> Total bobot semua soal saat ini <b>{examInfo.total_bobot_soal}</b>/100.
-                        {examInfo.total_bobot_soal !== 100 && ' Verifikasi akan ditolak sampai totalnya tepat 100 — perbaiki bobot tiap soal di menu Kelola Soal.'}
-                    </p>
-                </div>
-            ) : (
-                <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl flex gap-4 text-sm font-medium text-blue-800 items-center">
-                    <span className="text-xl">⚖️</span>
-                    <p>
-                        <strong>Bobot Ujian:</strong> Pilihan Ganda ({examInfo.bobot_pilgan}%) | Esai ({examInfo.bobot_esai}%) | Upload ({examInfo.bobot_upload}%)
-                    </p>
-                </div>
-            ))}
+            {selectedExamIds.map(id => {
+                const info = examInfoMap[id];
+                if (!info) return null;
+                return (
+                    <div key={id}>
+                        {info.grading_type === 'PER_SOAL' ? (
+                            <div className={`p-4 rounded-xl flex gap-4 text-sm font-medium items-center border ${info.total_bobot_soal === 100 ? 'bg-blue-50 border-blue-100 text-blue-800' : 'bg-red-50 border-red-200 text-red-700'}`}>
+                                <span className="text-xl">⚖️</span>
+                                <p>
+                                    <strong>{info.nama_ujian} — Mode Per Soal:</strong> Total bobot semua soal saat ini <b>{info.total_bobot_soal}</b>/100.
+                                    {info.total_bobot_soal !== 100 && ' Verifikasi akan ditolak di menu Penilaian & Evaluasi sampai totalnya tepat 100 — perbaiki bobot tiap soal di menu Kelola Soal.'}
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl flex gap-4 text-sm font-medium text-blue-800 items-center">
+                                <span className="text-xl">⚖️</span>
+                                <p>
+                                    <strong>{info.nama_ujian} — Bobot Ujian:</strong> Pilihan Ganda ({info.bobot_pilgan}%) | Esai ({info.bobot_esai}%) | Upload ({info.bobot_upload}%)
+                                </p>
+                            </div>
+                        )}
+                    </div>
+                );
+            })}
 
-            {/* NL-SIAK */}
-            {selectedExam && (
+            {/* NL-SIAK -- pengaturan per-ujian, cuma masuk akal kalau 1 sesi dipilih */}
+            {selectedExamIds.length > 1 && (
+                <div className="bg-amber-50 border border-amber-200 p-5 rounded-2xl flex gap-3 text-sm font-medium text-amber-800">
+                    <span className="text-xl">ℹ️</span>
+                    <p>Pengaturan Target SIAKAD &amp; Safe Exam Browser cuma bisa diatur per satu sesi ujian. Pilih tepat 1 sesi ujian untuk mengatur keduanya.</p>
+                </div>
+            )}
+            {singleExamId && (
                 <div className="bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.05)] border border-slate-100 overflow-hidden">
                     <div className="px-8 py-6 border-b border-slate-100/50 bg-white/50">
                         <h3 className="text-[15px] font-black uppercase tracking-widest text-[#0f4c3a]">NL-SIAK</h3>
@@ -590,7 +667,7 @@ export default function RekapNilai() {
                                         <p className="text-[12px] text-slate-400 py-3">Pilih Kelas Kuliah dulu di atas, komponennya otomatis dicari.</p>
                                     )}
                                 </div>
-                                <button onClick={cariKomponenSiakad} disabled={loadingRencana || !siakadTarget.periode} className="shrink-0 px-5 py-3.5 rounded-xl text-[11px] font-black uppercase tracking-widest bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition-all disabled:opacity-40">
+                                <button onClick={() => cariKomponenSiakad()} disabled={loadingRencana || !siakadTarget.periode} className="shrink-0 px-5 py-3.5 rounded-xl text-[11px] font-black uppercase tracking-widest bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition-all disabled:opacity-40">
                                     {loadingRencana ? 'Mencari...' : 'Cari Ulang'}
                                 </button>
                             </div>
@@ -621,8 +698,8 @@ export default function RekapNilai() {
                 </div>
             )}
 
-            {/* SAFE EXAM BROWSER (SEB) LOCKDOWN */}
-            {selectedExam && (
+            {/* SAFE EXAM BROWSER (SEB) LOCKDOWN -- pengaturan per-ujian, 1 sesi dipilih */}
+            {singleExamId && (
                 <div className="bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.05)] border border-slate-100 overflow-hidden">
                     <div className="px-8 py-6 border-b border-slate-100/50 bg-white/50">
                         <h3 className="text-[15px] font-black uppercase tracking-widest text-[#0f4c3a]">Safe Exam Browser</h3>
@@ -645,7 +722,7 @@ export default function RekapNilai() {
 
                         {sebRequire && (
                             <div className="border-t border-slate-100 pt-6">
-                                <label className="block text-[11px] font-black text-slate-500 mb-2 uppercase tracking-widest">Password Keluar SEB{!examInfo?.seb_require ? ' (wajib)' : ' (kosongkan = pertahankan yang lama)'}</label>
+                                <label className="block text-[11px] font-black text-slate-500 mb-2 uppercase tracking-widest">Password Keluar SEB{!examInfoMap[singleExamId]?.seb_require ? ' (wajib)' : ' (kosongkan = pertahankan yang lama)'}</label>
                                 <input
                                     type="text"
                                     value={sebQuitPassword}
@@ -662,7 +739,7 @@ export default function RekapNilai() {
                                 Setelah disimpan, unduh file <span className="font-mono font-bold">.seb</span>-nya dan sebarkan ke mahasiswa (lewat LMS/grup kelas) bersama token ujian.
                             </p>
                             <div className="flex gap-3 shrink-0">
-                                <button onClick={downloadSebConfig} disabled={downloadingSeb || !examInfo?.seb_require} title={!examInfo?.seb_require ? 'Klik Simpan dulu sebelum bisa unduh .seb' : undefined} className="px-6 py-3.5 rounded-xl text-[12px] font-black uppercase tracking-widest bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition-all disabled:opacity-40">
+                                <button onClick={downloadSebConfig} disabled={downloadingSeb || !examInfoMap[singleExamId]?.seb_require} title={!examInfoMap[singleExamId]?.seb_require ? 'Klik Simpan dulu sebelum bisa unduh .seb' : undefined} className="px-6 py-3.5 rounded-xl text-[12px] font-black uppercase tracking-widest bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition-all disabled:opacity-40">
                                     {downloadingSeb ? 'Mengunduh...' : 'Unduh .seb'}
                                 </button>
                                 <button onClick={saveSebSettings} disabled={savingSeb} className="px-8 py-3.5 rounded-xl text-[12px] font-black uppercase tracking-widest bg-[#0f4c3a] hover:bg-[#092e23] text-[#d4af37] shadow-lg shadow-[#0f4c3a]/30 transition-all active:scale-95 disabled:opacity-50">
@@ -680,12 +757,15 @@ export default function RekapNilai() {
                     <h3 className="text-[14px] font-black text-slate-800 uppercase tracking-widest">Detail Buku Nilai</h3>
                     <span className="bg-[#0f4c3a]/10 text-[#0f4c3a] text-[10px] px-3 py-1.5 rounded-lg font-black uppercase tracking-widest border border-[#0f4c3a]/20">Peserta: {scores.length}</span>
                 </div>
-                
+
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="border-b border-slate-200 bg-white">
                                 <th className="py-5 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Mahasiswa</th>
+                                {selectedExamIds.length > 1 && (
+                                    <th className="py-5 px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Sesi Ujian</th>
+                                )}
                                 <th className="py-5 px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Pilgan<br/>(0-100)</th>
                                 <th className="py-5 px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Esai AI<br/>(0-100)</th>
                                 <th className="py-5 px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Upload<br/>(0-100)</th>
@@ -697,18 +777,21 @@ export default function RekapNilai() {
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                             {loading ? (
-                                <tr><td colSpan="8" className="py-16 text-center text-slate-400 font-bold animate-pulse">Memuat data...</td></tr>
-                            ) : !selectedExam ? (
-                                <tr><td colSpan="8" className="py-20 text-center text-slate-400 font-bold text-sm">Silakan pilih Sesi Ujian pada filter di atas untuk melihat rincian.</td></tr>
+                                <tr><td colSpan={selectedExamIds.length > 1 ? 9 : 8} className="py-16 text-center text-slate-400 font-bold animate-pulse">Memuat data...</td></tr>
+                            ) : selectedExamIds.length === 0 ? (
+                                <tr><td colSpan={selectedExamIds.length > 1 ? 9 : 8} className="py-20 text-center text-slate-400 font-bold text-sm">Silakan pilih Sesi Ujian pada filter di atas untuk melihat rincian.</td></tr>
                             ) : scores.length === 0 ? (
-                                <tr><td colSpan="8" className="py-20 text-center text-slate-400 font-bold text-sm">Belum ada mahasiswa yang mengumpulkan ujian ini.</td></tr>
+                                <tr><td colSpan={selectedExamIds.length > 1 ? 9 : 8} className="py-20 text-center text-slate-400 font-bold text-sm">Belum ada mahasiswa yang mengumpulkan ujian ini.</td></tr>
                             ) : (
                                 scores.map((score, index) => (
-                                    <tr key={index} className="hover:bg-slate-50/80 transition-colors group">
+                                    <tr key={`${score.exam_id}-${score.attempt_id}-${index}`} className="hover:bg-slate-50/80 transition-colors group">
                                         <td className="py-4 px-6">
                                             <p className="font-black text-slate-800 text-[13px]">{score.nama_mahasiswa}</p>
                                             <p className="text-xs text-slate-500 font-medium">{score.nim}</p>
                                         </td>
+                                        {selectedExamIds.length > 1 && (
+                                            <td className="py-4 px-4 text-[12px] font-bold text-slate-600">{score.nama_ujian}</td>
+                                        )}
                                         <td className="py-4 px-4 text-center font-bold text-slate-600 text-[13px]">
                                             {parseFloat(Number(score.skor_pilgan_100).toFixed(2))}
                                         </td>
@@ -735,7 +818,8 @@ export default function RekapNilai() {
                                                 </span>
                                             ) : (() => {
                                                 const estimate = estimateFinalScore(score);
-                                                const bobotSoalBelumPas = examInfo?.grading_type === 'PER_SOAL' && examInfo?.total_bobot_soal !== 100;
+                                                const info = examInfoMap[score.exam_id];
+                                                const bobotSoalBelumPas = info?.grading_type === 'PER_SOAL' && info?.total_bobot_soal !== 100;
                                                 return estimate !== null ? (
                                                     <div>
                                                         <span className={`text-xl font-black tracking-tight italic ${bobotSoalBelumPas ? 'text-red-400' : 'text-slate-400'}`}>
@@ -753,10 +837,11 @@ export default function RekapNilai() {
                                         <td className="py-4 px-6 text-right">
                                             <div className="flex items-center justify-end gap-2">
                                                 <button
-                                                    onClick={() => openVerifyModal(score)}
-                                                    className={`px-4 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all ${score.status === 'SELESAI' ? 'bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200' : 'bg-blue-600 text-white hover:bg-blue-700 shadow-md shadow-blue-500/20'}`}
+                                                    onClick={() => goToVerifikasi(score)}
+                                                    title="Nilai & verifikasi di menu Penilaian & Evaluasi"
+                                                    className="px-4 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200"
                                                 >
-                                                    {score.status === 'SELESAI' ? 'Edit Nilai' : 'Verifikasi'}
+                                                    {score.status === 'SELESAI' ? 'Lihat Nilai' : 'Nilai & Verifikasi'}
                                                 </button>
                                                 {score.status === 'SELESAI' && (
                                                     <button
@@ -784,133 +869,6 @@ export default function RekapNilai() {
                     </table>
                 </div>
             </div>
-
-            {/* MODAL VERIFIKASI */}
-            <AnimatePresence>
-                {verifyModal.isOpen && (
-                    <motion.div 
-                        initial={{ opacity: 0 }} 
-                        animate={{ opacity: 1 }} 
-                        exit={{ opacity: 0 }} 
-                        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm"
-                    >
-                        <motion.div 
-                            initial={{ scale: 0.95, y: 20 }} 
-                            animate={{ scale: 1, y: 0 }} 
-                            exit={{ scale: 0.95, y: 20 }}
-                            className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-100"
-                        >
-                            <div className="bg-slate-50 px-6 py-4 border-b border-slate-100 flex justify-between items-center">
-                                <h4 className="font-black text-slate-800">Verifikasi Nilai Mahasiswa</h4>
-                                <button onClick={closeVerifyModal} className="text-slate-400 hover:text-slate-600 p-1">
-                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                                </button>
-                            </div>
-                            
-                            <div className="p-6 space-y-5">
-                                <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 flex items-center gap-4">
-                                    <div className="w-10 h-10 bg-blue-200 text-blue-700 rounded-full flex items-center justify-center font-black">
-                                        {verifyModal.attempt?.nama_mahasiswa?.charAt(0)}
-                                    </div>
-                                    <div>
-                                        <p className="font-bold text-slate-800">{verifyModal.attempt?.nama_mahasiswa}</p>
-                                        <p className="text-xs font-medium text-slate-500">{verifyModal.attempt?.nim}</p>
-                                    </div>
-                                </div>
-
-                                {examInfo?.grading_type === 'PER_SOAL' ? (
-                                    <>
-                                        <p className="text-sm text-slate-600 font-medium leading-relaxed">
-                                            Ujian ini bermode <b>Per Soal</b> — nilai akhir dihitung otomatis dari bobot tiap soal (bukan persentase kategori), langsung dari jawaban yang sudah dinilai. Tidak ada skor kategori untuk disesuaikan manual di sini; koreksi skor per soal dilakukan di halaman Penilaian & Evaluasi.
-                                        </p>
-                                        <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex justify-between items-center mt-2">
-                                            <span className="text-xs font-black uppercase tracking-widest text-slate-500">
-                                                {verifyModal.attempt?.final_score !== null && verifyModal.attempt?.final_score !== undefined ? 'Nilai Akhir Terpublikasi:' : 'Estimasi Nilai Akhir:'}
-                                            </span>
-                                            <span className="text-xl font-black text-[#0f4c3a]">
-                                                {verifyModal.attempt?.final_score !== null && verifyModal.attempt?.final_score !== undefined
-                                                    ? parseFloat(Number(verifyModal.attempt.final_score).toFixed(2))
-                                                    : (verifyModal.attempt?.preview_final_score !== null && verifyModal.attempt?.preview_final_score !== undefined
-                                                        ? `≈${parseFloat(Number(verifyModal.attempt.preview_final_score).toFixed(2))}`
-                                                        : 'Belum ada jawaban dinilai')}
-                                            </span>
-                                        </div>
-                                        {verifyModal.attempt && !verifyModal.attempt.is_all_graded && verifyModal.attempt.final_score === null && (
-                                            <p className="text-xs text-amber-600 font-medium">⚠ Belum semua soal dinilai — estimasi ini masih bisa berubah.</p>
-                                        )}
-                                        {examInfo?.total_bobot_soal !== 100 && (
-                                            <p className="text-xs text-red-600 font-medium">⚠ Total bobot semua soal saat ini {examInfo?.total_bobot_soal}, bukan 100 — verifikasi akan ditolak sampai diperbaiki di menu Kelola Soal.</p>
-                                        )}
-                                    </>
-                                ) : (
-                                    <>
-                                        <p className="text-sm text-slate-600 font-medium leading-relaxed">
-                                            Anda dapat menyesuaikan skor di bawah ini sebelum mempublikasikan nilai akhir. Skor dihitung dalam skala 0 - 100.
-                                        </p>
-
-                                        <div className="grid grid-cols-3 gap-4">
-                                            <div>
-                                                <label className="block text-xs font-bold text-slate-500 mb-1">Pilgan ({examInfo?.bobot_pilgan}%)</label>
-                                                <input
-                                                    type="number"
-                                                    min="0" max="100"
-                                                    value={verifyModal.scores.pilgan}
-                                                    onChange={(e) => handleScoreChange('pilgan', e.target.value)}
-                                                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm font-bold text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-xs font-bold text-slate-500 mb-1">Esai AI ({examInfo?.bobot_esai}%)</label>
-                                                <input
-                                                    type="number"
-                                                    min="0" max="100"
-                                                    value={verifyModal.scores.esai}
-                                                    onChange={(e) => handleScoreChange('esai', e.target.value)}
-                                                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm font-bold text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-xs font-bold text-slate-500 mb-1">Upload ({examInfo?.bobot_upload}%)</label>
-                                                <input
-                                                    type="number"
-                                                    min="0" max="100"
-                                                    value={verifyModal.scores.file}
-                                                    onChange={(e) => handleScoreChange('file', e.target.value)}
-                                                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm font-bold text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                                                />
-                                            </div>
-                                        </div>
-
-                                        {/* Live Preview Total Score */}
-                                        <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex justify-between items-center mt-2">
-                                            <span className="text-xs font-black uppercase tracking-widest text-slate-500">Estimasi Total Akhir:</span>
-                                            <span className="text-xl font-black text-[#0f4c3a]">
-                                                {parseFloat(Number(
-                                                    (verifyModal.scores.pilgan * ((examInfo?.bobot_pilgan || 0) / 100)) +
-                                                    (verifyModal.scores.esai * ((examInfo?.bobot_esai || 0) / 100)) +
-                                                    (verifyModal.scores.file * ((examInfo?.bobot_upload || 0) / 100))
-                                                ).toFixed(2))}
-                                            </span>
-                                        </div>
-                                        {verifyModal.attempt && !verifyModal.attempt.is_all_graded && (
-                                            <p className="text-xs text-amber-600 font-medium">⚠ Belum semua soal dinilai — estimasi ini masih bisa berubah.</p>
-                                        )}
-                                    </>
-                                )}
-                            </div>
-                            
-                            <div className="bg-slate-50 px-6 py-4 border-t border-slate-100 flex justify-end gap-3">
-                                <button onClick={closeVerifyModal} className="px-5 py-2.5 rounded-lg text-sm font-bold text-slate-600 hover:bg-slate-200 transition-colors">
-                                    Batal
-                                </button>
-                                <button onClick={submitVerification} className="px-5 py-2.5 rounded-lg text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-all">
-                                    Verifikasi & Publish
-                                </button>
-                            </div>
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
 
         </motion.div>
     );

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import Swal from 'sweetalert2';
 import { API_BASE_URL } from '../config/api';
 import matkulService from '../services/matkul.service';
@@ -20,8 +20,22 @@ export default function Grading() {
     const [selectedExam, setSelectedExam] = useState('');
     const [studentList, setStudentList] = useState([]);
     const [selectedStudent, setSelectedStudent] = useState('');
-    const [attemptsByUser, setAttemptsByUser] = useState({}); // user_id -> attempt (buat tombol Reset)
+    const [attemptsByUser, setAttemptsByUser] = useState({}); // user_id -> attempt (buat tombol Reset & Verifikasi)
     const [resettingAttempt, setResettingAttempt] = useState(false);
+
+    // Info bobot/grading_type ujian yang lagi dipilih -- dipakai modal verifikasi
+    // & estimasi nilai akhir (dipindah ke sini dari RekapNilai.jsx: verifikasi +
+    // publish nilai sekarang jadi satu tempat sama penilaian manual).
+    const [examInfo, setExamInfo] = useState(null);
+
+    // State Modal Verifikasi (dipindah dari RekapNilai.jsx -- lihat CLAUDE.md:
+    // nilai yang belum diverifikasi di sini tidak bisa dipush ke SIAKAD, gating-nya
+    // sudah ditegakkan backend lewat syarat exam_attempts.status === 'SELESAI').
+    const [verifyModal, setVerifyModal] = useState({
+        isOpen: false,
+        attempt: null,
+        scores: { pilgan: 0, esai: 0, file: 0 }
+    });
 
     // State Eksekusi
     const [answers, setAnswers] = useState([]);
@@ -37,6 +51,44 @@ export default function Grading() {
     useEffect(() => {
         fetchInitialData();
     }, []);
+
+    // Deep-link dari tombol "Verifikasi" di Rekap Nilai (RekapNilai.jsx mengirim
+    // ?exam_id=&student_id= begitu tabel verifikasi dipindah ke sini) -- begitu
+    // daftar ujian termuat, auto-pilih matkul+ujian+mahasiswa yang dituju. Pola
+    // sama persis dengan deep-link exam_id dari LMS yang sudah ada di RekapNilai.jsx.
+    useEffect(() => {
+        const list = allExams?.data;
+        if (!Array.isArray(list) || list.length === 0) return;
+
+        const params = new URLSearchParams(window.location.search);
+        const examIdParam = params.get('exam_id');
+        const studentIdParam = params.get('student_id');
+        if (!examIdParam) return;
+        window.history.replaceState({}, '', window.location.pathname);
+
+        const ex = list.find(e => e.id.toString() === examIdParam);
+        if (!ex) return;
+
+        setSelectedMatkul(ex.kode_mk);
+        setFilteredExams(list.filter(e => e.kode_mk === ex.kode_mk));
+        setSelectedExam(examIdParam);
+        applyDeepLinkedExam(examIdParam, studentIdParam);
+    }, [allExams]);
+
+    const applyDeepLinkedExam = async (examId, studentIdParam) => {
+        await handleExamChange({ target: { value: examId } });
+        if (!studentIdParam) return;
+        setSelectedStudent(studentIdParam);
+        setLoading(true);
+        try {
+            const data = await gradingService.getStudentAnswers(examId, studentIdParam);
+            setAnswers(data || []);
+        } catch (error) {
+            console.error("Gagal menarik jawaban mahasiswa (deep-link):", error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const fetchInitialData = async () => {
         try {
@@ -61,6 +113,7 @@ export default function Grading() {
         setSelectedExam('');
         setAnswers([]); // Reset daftar jawaban
         setExpandedAnswers({});
+        setExamInfo(null);
     };
 
     // 3. Jika Ujian dipilih, tarik daftar mahasiswa yang ikut ujian
@@ -74,6 +127,7 @@ export default function Grading() {
             setSelectedStudent('');
             setAnswers([]);
             setAttemptsByUser({});
+            setExamInfo(null);
             return;
         }
 
@@ -138,8 +192,82 @@ export default function Grading() {
             const map = {};
             list.forEach(a => { map[a.user_id] = a; });
             setAttemptsByUser(map);
+            setExamInfo(resData?.exam_info || null);
         } catch (error) {
             console.error("Gagal menarik data attempt", error);
+        }
+    };
+
+    // Estimasi nilai akhir SEBELUM diverifikasi -- sama persis dengan
+    // RekapNilai.jsx (dipindah ke sini bareng modal verifikasinya).
+    const estimateFinalScore = (attempt) => {
+        if (!attempt) return null;
+        if (examInfo?.grading_type === 'PER_SOAL') {
+            return attempt.preview_final_score !== null && attempt.preview_final_score !== undefined
+                ? attempt.preview_final_score
+                : null;
+        }
+        return (
+            (attempt.skor_pilgan_100 * ((examInfo?.bobot_pilgan || 0) / 100)) +
+            (attempt.skor_esai_100 * ((examInfo?.bobot_esai || 0) / 100)) +
+            (attempt.skor_file_100 * ((examInfo?.bobot_upload || 0) / 100))
+        );
+    };
+
+    const openVerifyModal = () => {
+        const attempt = attemptsByUser[selectedStudent];
+        if (!attempt) return;
+        setVerifyModal({
+            isOpen: true,
+            attempt,
+            scores: {
+                pilgan: attempt.skor_pilgan_100,
+                esai: attempt.skor_esai_100,
+                file: attempt.skor_file_100
+            }
+        });
+    };
+
+    const closeVerifyModal = () => {
+        setVerifyModal({ isOpen: false, attempt: null, scores: { pilgan: 0, esai: 0, file: 0 } });
+    };
+
+    const handleScoreChange = (type, value) => {
+        let num = parseFloat(value);
+        if (isNaN(num)) num = 0;
+        if (num > 100) num = 100;
+        if (num < 0) num = 0;
+        setVerifyModal(prev => ({
+            ...prev,
+            scores: { ...prev.scores, [type]: num }
+        }));
+    };
+
+    const submitVerification = async () => {
+        try {
+            // Mode Per Soal: nilai akhir dihitung server-side dari bobot tiap soal,
+            // tidak ada override kategori pilgan/esai/upload untuk dikirim.
+            const payload = examInfo?.grading_type === 'PER_SOAL' ? {} : {
+                skor_pilgan_100: verifyModal.scores.pilgan,
+                skor_esai_100: verifyModal.scores.esai,
+                skor_file_100: verifyModal.scores.file
+            };
+
+            await gradingService.verifyExamAttempt(verifyModal.attempt.attempt_id, payload);
+
+            Swal.fire({
+                icon: 'success',
+                title: 'Verifikasi Berhasil!',
+                text: 'Nilai telah dipublikasikan ke mahasiswa dan siap dipush ke SIAKAD.',
+                timer: 1800,
+                showConfirmButton: false
+            });
+
+            closeVerifyModal();
+            fetchAttemptsMap(selectedExam);
+        } catch (error) {
+            console.error("Gagal verifikasi:", error);
+            Swal.fire('Gagal Verifikasi', error.response?.data?.message || 'Terjadi kesalahan saat memverifikasi nilai.', 'error');
         }
     };
 
@@ -425,6 +553,56 @@ export default function Grading() {
                     </div>
                 )}
             </div>
+
+            {/* 🌟 VERIFIKASI & PUBLISH NILAI (dipindah dari Rekap Nilai -- lihat
+                CLAUDE.md: selama belum diverifikasi di sini, nilai tidak akan bisa
+                dipush ke SIAKAD, karena backend mensyaratkan exam_attempts.status
+                === 'SELESAI' sebelum attempt bisa dipush). */}
+            {selectedStudent && attemptsByUser[selectedStudent] && (() => {
+                const attempt = attemptsByUser[selectedStudent];
+                const isVerified = attempt.status === 'SELESAI';
+                const bobotSoalBelumPas = examInfo?.grading_type === 'PER_SOAL' && examInfo?.total_bobot_soal !== 100;
+                const estimate = estimateFinalScore(attempt);
+                return (
+                    <div className="bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-200 p-6 flex flex-col md:flex-row md:items-center justify-between gap-5">
+                        <div className="flex items-center gap-5">
+                            <div>
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Status Verifikasi</p>
+                                {isVerified ? (
+                                    <span className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Final — Siap Dipush ke SIAKAD</span>
+                                ) : (
+                                    <span className="inline-flex items-center gap-1.5 bg-amber-50 text-amber-700 border border-amber-200 px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider"><span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> Belum Diverifikasi — Belum Bisa Dipush</span>
+                                )}
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
+                                    {isVerified ? 'Nilai Akhir Terpublikasi' : 'Estimasi Nilai Akhir'}
+                                </p>
+                                <p className={`text-xl font-black tracking-tight ${isVerified ? 'text-[#0f4c3a]' : 'text-slate-400 italic'}`}>
+                                    {isVerified
+                                        ? parseFloat(Number(attempt.final_score).toFixed(2))
+                                        : (estimate !== null ? `≈${parseFloat(Number(estimate).toFixed(2))}` : '-')}
+                                </p>
+                            </div>
+                        </div>
+                        <div className="text-right space-y-2">
+                            {bobotSoalBelumPas && (
+                                <p className="text-[11px] text-red-600 font-medium">⚠ Total bobot soal {examInfo?.total_bobot_soal}, bukan 100 — perbaiki di menu Kelola Soal dulu.</p>
+                            )}
+                            {!bobotSoalBelumPas && !attempt.is_all_graded && (
+                                <p className="text-[11px] text-amber-600 font-medium">⚠ Belum semua soal dinilai — nilai masih bisa berubah.</p>
+                            )}
+                            <button
+                                onClick={openVerifyModal}
+                                disabled={bobotSoalBelumPas}
+                                className={`px-6 py-3 rounded-xl text-[12px] font-black uppercase tracking-widest shadow-lg transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed ${isVerified ? 'bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200 shadow-none' : 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-500/20'}`}
+                            >
+                                {isVerified ? 'Edit Verifikasi' : 'Verifikasi & Publish'}
+                            </button>
+                        </div>
+                    </div>
+                );
+            })()}
 
             {/* 🌟 KUMPULAN JAWABAN MAHASISWA */}
             {selectedStudent && (
@@ -790,6 +968,133 @@ export default function Grading() {
                     )}
                 </div>
             )}
+
+            {/* MODAL VERIFIKASI (dipindah dari RekapNilai.jsx) */}
+            <AnimatePresence>
+                {verifyModal.isOpen && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm"
+                    >
+                        <motion.div
+                            initial={{ scale: 0.95, y: 20 }}
+                            animate={{ scale: 1, y: 0 }}
+                            exit={{ scale: 0.95, y: 20 }}
+                            className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-100"
+                        >
+                            <div className="bg-slate-50 px-6 py-4 border-b border-slate-100 flex justify-between items-center">
+                                <h4 className="font-black text-slate-800">Verifikasi Nilai Mahasiswa</h4>
+                                <button onClick={closeVerifyModal} className="text-slate-400 hover:text-slate-600 p-1">
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                </button>
+                            </div>
+
+                            <div className="p-6 space-y-5">
+                                <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 flex items-center gap-4">
+                                    <div className="w-10 h-10 bg-blue-200 text-blue-700 rounded-full flex items-center justify-center font-black">
+                                        {verifyModal.attempt?.nama_mahasiswa?.charAt(0)}
+                                    </div>
+                                    <div>
+                                        <p className="font-bold text-slate-800">{verifyModal.attempt?.nama_mahasiswa}</p>
+                                        <p className="text-xs font-medium text-slate-500">{verifyModal.attempt?.nim}</p>
+                                    </div>
+                                </div>
+
+                                {examInfo?.grading_type === 'PER_SOAL' ? (
+                                    <>
+                                        <p className="text-sm text-slate-600 font-medium leading-relaxed">
+                                            Ujian ini bermode <b>Per Soal</b> — nilai akhir dihitung otomatis dari bobot tiap soal (bukan persentase kategori), langsung dari jawaban yang sudah dinilai di tabel di atas. Tidak ada skor kategori untuk disesuaikan manual di sini.
+                                        </p>
+                                        <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex justify-between items-center mt-2">
+                                            <span className="text-xs font-black uppercase tracking-widest text-slate-500">
+                                                {verifyModal.attempt?.final_score !== null && verifyModal.attempt?.final_score !== undefined ? 'Nilai Akhir Terpublikasi:' : 'Estimasi Nilai Akhir:'}
+                                            </span>
+                                            <span className="text-xl font-black text-[#0f4c3a]">
+                                                {verifyModal.attempt?.final_score !== null && verifyModal.attempt?.final_score !== undefined
+                                                    ? parseFloat(Number(verifyModal.attempt.final_score).toFixed(2))
+                                                    : (verifyModal.attempt?.preview_final_score !== null && verifyModal.attempt?.preview_final_score !== undefined
+                                                        ? `≈${parseFloat(Number(verifyModal.attempt.preview_final_score).toFixed(2))}`
+                                                        : 'Belum ada jawaban dinilai')}
+                                            </span>
+                                        </div>
+                                        {verifyModal.attempt && !verifyModal.attempt.is_all_graded && verifyModal.attempt.final_score === null && (
+                                            <p className="text-xs text-amber-600 font-medium">⚠ Belum semua soal dinilai — estimasi ini masih bisa berubah.</p>
+                                        )}
+                                        {examInfo?.total_bobot_soal !== 100 && (
+                                            <p className="text-xs text-red-600 font-medium">⚠ Total bobot semua soal saat ini {examInfo?.total_bobot_soal}, bukan 100 — verifikasi akan ditolak sampai diperbaiki di menu Kelola Soal.</p>
+                                        )}
+                                    </>
+                                ) : (
+                                    <>
+                                        <p className="text-sm text-slate-600 font-medium leading-relaxed">
+                                            Anda dapat menyesuaikan skor di bawah ini sebelum mempublikasikan nilai akhir. Skor dihitung dalam skala 0 - 100.
+                                        </p>
+
+                                        <div className="grid grid-cols-3 gap-4">
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-500 mb-1">Pilgan ({examInfo?.bobot_pilgan}%)</label>
+                                                <input
+                                                    type="number"
+                                                    min="0" max="100"
+                                                    value={verifyModal.scores.pilgan}
+                                                    onChange={(e) => handleScoreChange('pilgan', e.target.value)}
+                                                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm font-bold text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-500 mb-1">Esai AI ({examInfo?.bobot_esai}%)</label>
+                                                <input
+                                                    type="number"
+                                                    min="0" max="100"
+                                                    value={verifyModal.scores.esai}
+                                                    onChange={(e) => handleScoreChange('esai', e.target.value)}
+                                                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm font-bold text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-500 mb-1">Upload ({examInfo?.bobot_upload}%)</label>
+                                                <input
+                                                    type="number"
+                                                    min="0" max="100"
+                                                    value={verifyModal.scores.file}
+                                                    onChange={(e) => handleScoreChange('file', e.target.value)}
+                                                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm font-bold text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {/* Live Preview Total Score */}
+                                        <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex justify-between items-center mt-2">
+                                            <span className="text-xs font-black uppercase tracking-widest text-slate-500">Estimasi Total Akhir:</span>
+                                            <span className="text-xl font-black text-[#0f4c3a]">
+                                                {parseFloat(Number(
+                                                    (verifyModal.scores.pilgan * ((examInfo?.bobot_pilgan || 0) / 100)) +
+                                                    (verifyModal.scores.esai * ((examInfo?.bobot_esai || 0) / 100)) +
+                                                    (verifyModal.scores.file * ((examInfo?.bobot_upload || 0) / 100))
+                                                ).toFixed(2))}
+                                            </span>
+                                        </div>
+                                        {verifyModal.attempt && !verifyModal.attempt.is_all_graded && (
+                                            <p className="text-xs text-amber-600 font-medium">⚠ Belum semua soal dinilai — estimasi ini masih bisa berubah.</p>
+                                        )}
+                                    </>
+                                )}
+                            </div>
+
+                            <div className="bg-slate-50 px-6 py-4 border-t border-slate-100 flex justify-end gap-3">
+                                <button onClick={closeVerifyModal} className="px-5 py-2.5 rounded-lg text-sm font-bold text-slate-600 hover:bg-slate-200 transition-colors">
+                                    Batal
+                                </button>
+                                <button onClick={submitVerification} className="px-5 py-2.5 rounded-lg text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-all">
+                                    Verifikasi & Publish
+                                </button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </motion.div>
     );
 }
