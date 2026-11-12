@@ -85,7 +85,7 @@ export default function DashboardOverview() {
     };
 
     if (isLoading) {
-        return <div className="flex justify-center items-center h-64 font-bold text-slate-400">Memuat Ikhtisar Sistem...</div>;
+        return <div className="flex justify-center items-center h-64 font-bold text-slate-400">Memuat Dashboard...</div>;
     }
 
     return (
@@ -93,7 +93,7 @@ export default function DashboardOverview() {
             
             {/* Header Seksi */}
             <div>
-                <h3 className="text-xl font-black text-slate-900 tracking-tight">Ikhtisar Aktivitas</h3>
+                <h3 className="text-xl font-black text-slate-900 tracking-tight">Dashboard</h3>
                 <p className="text-[13px] font-medium text-slate-500 mt-1 leading-relaxed max-w-2xl">Ringkasan data akademik dan status ujian yang memerlukan perhatian Anda hari ini.</p>
             </div>
 
