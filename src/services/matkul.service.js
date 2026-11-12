@@ -6,11 +6,6 @@ export const matkulService = {
     return response.data;
   },
 
-  async getMatkulScores(mkId) {
-    const response = await api.get(`/api/matakuliah/${mkId}/scores`);
-    return response.data;
-  },
-
   async createMatkul(payload) {
     const response = await api.post('/api/matakuliah', payload);
     return response.data;

@@ -41,7 +41,7 @@ export default function ExamQuestions() {
 
     // State referensi semua komponen evaluasi (UTS/UAS/Tugas/dst) periode ini
     const [semuaKomponen, setSemuaKomponen] = useState([]);
-    const [loadingSemuaKomponen, setLoadingSemuaKomponen] = useState(false);
+    const [, setLoadingSemuaKomponen] = useState(false);
     const [komponenTerbuka, setKomponenTerbuka] = useState(null);
 
     // State Modal Impor Bank Soal
@@ -369,8 +369,8 @@ export default function ExamQuestions() {
         if (selectedBankIds.length === 0) return;
         setIsImporting(true);
         try {
-            await questionBankService.importToExam({ exam_id: numericExamId, bank_ids: selectedBankIds });
-            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: `${selectedBankIds.length} soal diimpor!`, showConfirmButton: false, timer: 2000 });
+            const result = await questionBankService.importToExam({ exam_id: numericExamId, bank_ids: selectedBankIds });
+            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: result?.message || `${selectedBankIds.length} soal diimpor!`, showConfirmButton: false, timer: 2500 });
             setShowImportModal(false);
             fetchQuestions();
         } catch (error) {
@@ -379,6 +379,13 @@ export default function ExamQuestions() {
             setIsImporting(false);
         }
     };
+
+    // FIX: soal bank yang sudah pernah diimpor ke ujian INI (questions.source_bank_id)
+    // sebelumnya masih muncul & bisa dipilih lagi di modal -- dosen re-select tanpa
+    // sadar, bikin soal duplikat (jumlah soal kelihatan nambah tapi isinya itu-itu
+    // saja). Checkbox-nya di-disable, bukan disembunyikan, biar dosen tetap lihat
+    // konteks lengkap bank soal matkul ini.
+    const importedBankIds = new Set(questionList.map(q => q.source_bank_id).filter(Boolean));
 
     return (
         <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} className="max-w-6xl mx-auto space-y-8 pb-12">
@@ -725,6 +732,7 @@ export default function ExamQuestions() {
                                     bankList.map(b => {
                                         const tipeInfo = formatTipeLabel(b.tipe_soal);
                                         const isChecked = selectedBankIds.includes(b.id);
+                                        const isImported = importedBankIds.has(b.id);
                                         // FIX 2026-08-20: soal di Bank Soal itu wajar gak terikat exam manapun
                                         // (bisa dipakai ulang lintas UTS/UAS/Tugas) -- tapi begitu mau DI-IMPOR
                                         // ke exam INI, tetap perlu ditandai kalau Sub-CPMK-nya bukan bagian dari
@@ -732,14 +740,19 @@ export default function ExamQuestions() {
                                         // atas), soalnya kalau diimpor tetap gak akan ke-push breakdown-nya.
                                         const cocokKomponen = punyaBobotResmi(b.sub_cpmk?.external_id);
                                         return (
-                                            <label key={b.id} className={`flex items-start gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all ${isChecked ? 'border-[#0f4c3a] bg-[#0f4c3a]/5' : 'border-slate-100 hover:border-slate-200'}`}>
-                                                <input type="checkbox" checked={isChecked} onChange={() => toggleBankSelection(b.id)} className="mt-1 w-4 h-4" />
+                                            <label key={b.id} className={`flex items-start gap-3 p-4 rounded-2xl border-2 transition-all ${isImported ? 'border-slate-100 bg-slate-50/70 opacity-60 cursor-not-allowed' : isChecked ? 'border-[#0f4c3a] bg-[#0f4c3a]/5 cursor-pointer' : 'border-slate-100 hover:border-slate-200 cursor-pointer'}`}>
+                                                <input type="checkbox" checked={isChecked} disabled={isImported} onChange={() => toggleBankSelection(b.id)} className="mt-1 w-4 h-4" />
                                                 <div className="flex-1">
                                                     <div className="flex flex-wrap items-center gap-2 mb-1.5">
                                                         <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider border ${tipeInfo.css}`}>{tipeInfo.label}</span>
                                                         <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider border ${b.sumber === 'AI_GENERATED' ? 'bg-violet-50 text-violet-700 border-violet-200' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>
                                                             {b.sumber === 'AI_GENERATED' ? 'AI Generated' : 'Manual'}
                                                         </span>
+                                                        {isImported && (
+                                                            <span className="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider border bg-emerald-50 text-emerald-700 border-emerald-200" title="Sudah ada di ujian ini -- tidak bisa diimpor dua kali">
+                                                                ✓ Sudah Diimpor
+                                                            </span>
+                                                        )}
                                                         {b.sub_cpmk && (
                                                             <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider border ${cocokKomponen ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-red-50 text-red-700 border-red-200'}`} title={cocokKomponen ? undefined : `Sub-CPMK ini bukan bagian dari komponen "${exam?.nama_ujian}" -- kalau diimpor, nilainya TIDAK akan ikut ter-push ke SIAKAD`}>
                                                                 {b.sub_cpmk.kode_sub_cpmk}{!cocokKomponen && ' ⚠'}

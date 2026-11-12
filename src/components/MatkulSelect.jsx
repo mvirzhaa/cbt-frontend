@@ -2,7 +2,7 @@ import { useState } from 'react';
 import SiakadSearchPicker from './SiakadSearchPicker';
 
 // Dropdown "pilih 1 matkul dari daftar sendiri" (beda sama SiakadSearchPicker
-// di ManageMatkul.jsx yang nyari dari katalog SIAKAD buat DIIMPOR) -- dipakai
+// di AdminDashboard.jsx yang nyari dari katalog SIAKAD buat DIIMPOR) -- dipakai
 // di halaman yang cuma butuh milih matkul yang udah ada, tapi listnya kepanjangan
 // buat native <select>. State search/open diurus di sini biar pemanggilnya
 // tinggal pasang matkulList + value + onChange(kode_mk).
@@ -25,10 +25,10 @@ export default function MatkulSelect({ matkulList, value, onChange, placeholder 
             searchValue={isOpen ? search : (selected ? label(selected) : '')}
             onSearchChange={setSearch}
             isOpen={isOpen}
-            onOpenChange={(open) => setIsOpen(prevOpen => {
-                if (open && !prevOpen) setSearch('');
-                return open;
-            })}
+            onOpenChange={(open) => {
+                if (open && !isOpen) setSearch('');
+                setIsOpen(open);
+            }}
             items={filtered}
             getKey={mk => mk.kode_mk}
             renderItem={mk => <span className="text-[13px] font-bold text-slate-800">{label(mk)}</span>}

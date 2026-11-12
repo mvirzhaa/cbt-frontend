@@ -1,8 +1,19 @@
+import { useEffect, useRef } from 'react';
+
 // Picker generik "cari & pilih dari SIAKAD" — dipakai buat matkul
-// (ManageMatkul.jsx, AdminDashboard.jsx) dan Sub-CPMK (ExamQuestions.jsx).
+// (AdminDashboard.jsx) dan Sub-CPMK/Kelas Kuliah (ExamQuestions.jsx,
+// PenilaianUjian.jsx).
 // Search & filtering item jadi tanggung jawab pemanggil (item yang masuk ke
 // sini dianggap sudah terfilter), komponen ini cuma urus tampilan input +
 // dropdown + klik-pilih.
+//
+// FIX dropdown "harus pilih lagi": sebelumnya nutup dropdown pakai
+// onBlur + setTimeout(150ms). Tiap blur menjadwalkan timer independen yang
+// gak pernah dibatalkan -- kalau user blur lalu buru-buru fokus lagi dalam
+// <150ms, timer lama tetap nutup paksa dropdown yang baru dibuka ulang
+// (keliatan kayak "klik pertama gak kepilih"). Ganti ke pola click-outside
+// via ref + mousedown listener (sama kayak ExamMultiSelect di RekapNilai.jsx)
+// yang gak punya race condition itu.
 export default function SiakadSearchPicker({
     label = 'Cari dari SIAKAD',
     searchValue,
@@ -19,15 +30,25 @@ export default function SiakadSearchPicker({
     placeholder = 'Ketik untuk mencari...',
     maxResults = 50
 }) {
+    const containerRef = useRef(null);
+
+    useEffect(() => {
+        if (!isOpen) return;
+        const handleClickOutside = (e) => {
+            if (containerRef.current && !containerRef.current.contains(e.target)) onOpenChange(false);
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [isOpen, onOpenChange]);
+
     return (
-        <div className="mb-6 relative">
+        <div className="mb-6 relative" ref={containerRef}>
             {label && <label className="block text-[11px] font-black text-slate-500 uppercase mb-2">{label}</label>}
             <input
                 type="text"
                 value={searchValue}
                 onChange={e => { onSearchChange(e.target.value); onOpenChange(true); }}
                 onFocus={() => onOpenChange(true)}
-                onBlur={() => setTimeout(() => onOpenChange(false), 150)}
                 placeholder={loading ? 'Memuat data dari SIAKAD...' : placeholder}
                 title={searchValue}
                 className="w-full px-5 py-4 bg-slate-50 rounded-xl border border-slate-200 outline-none text-[13px] font-bold text-slate-700 shadow-sm transition-all truncate focus:bg-white focus:border-[#0f4c3a] focus:ring-4 focus:ring-[#0f4c3a]/10"
